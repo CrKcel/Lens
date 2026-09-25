@@ -15,6 +15,7 @@ add_library(lens_core STATIC
     include/lens/core/providers/AnthropicClient.hpp
     include/lens/core/providers/ResponsesClient.hpp
     include/lens/core/storage/SessionStore.hpp
+    include/lens/core/tools/Shell.hpp
     include/lens/core/tools/ToolArgs.hpp
     include/lens/core/tools/BuiltinTool.hpp
     include/lens/core/tools/ToolRegistry.hpp

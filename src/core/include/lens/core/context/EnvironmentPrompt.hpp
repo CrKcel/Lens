@@ -5,6 +5,7 @@
 #include <QString>
 #include <QStringList>
 #include <QSysInfo>
+#include "lens/core/tools/Shell.hpp"
 
 namespace lens::envprompt {
 namespace detail {
@@ -52,7 +53,7 @@ inline QString build(const QString &workdir)
     lines << QStringLiteral("## 运行环境");
     lines << QStringLiteral("- 操作系统：%1").arg(QSysInfo::prettyProductName());
     lines << QStringLiteral("- 当前日期：%1").arg(QDate::currentDate().toString(Qt::ISODate));
-    const QString shell = qEnvironmentVariable("SHELL");
+    const QString shell = lens::shell::resolve().name;
     if (!shell.isEmpty())
         lines << QStringLiteral("- Shell：%1").arg(shell);
     if (!workdir.trimmed().isEmpty()) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lens/core/tools/BuiltinTool.hpp"
+#include "lens/core/tools/Shell.hpp"
 
 #include <QProcess>
 
@@ -8,13 +9,16 @@ namespace lens {
 
 // 在工作文件夹中执行 shell 命令。execute 为阻塞实现（QProcess::waitForFinished），
 // 由 AgentSession 放到线程池调用，不阻塞 GUI；超时强制终止并返回已捕获的输出。
+// shell 由平台决定（见 Shell.hpp）：Windows pwsh/cmd、macOS zsh、Linux bash，
+// 工具名跟随实际解析出的 shell。
 class BashTool final : public IBuiltinTool
 {
 public:
-    QString name() const override { return QStringLiteral("bash"); }
+    QString name() const override { return shell::resolve().name; }
     QString description() const override
     {
-        return QStringLiteral("在工作文件夹中执行 shell 命令并返回输出（stdout/stderr 与退出码）");
+        return QStringLiteral("在工作文件夹中用 %1 执行命令并返回输出（stdout/stderr 与退出码）")
+            .arg(shell::resolve().name);
     }
     nlohmann::json parametersSchema() const override
     {
@@ -34,9 +38,13 @@ public:
             return {false, QStringLiteral("缺少 command 参数")};
         const int timeoutMs = qBound(1000, argInt(args, "timeout_ms", 60000), 600000);
 
+        const shell::ShellCommand shell = shell::resolve();
+        if (shell.program.isEmpty())
+            return {false, QStringLiteral("未找到可用的 shell（%1）").arg(shell.name)};
+
         QProcess process;
         process.setWorkingDirectory(QDir(workdir).absolutePath());
-        process.start(QStringLiteral("sh"), {QStringLiteral("-c"), command});
+        process.start(shell.program, shell::launchArgs(command));
         if (!process.waitForStarted(5000))
             return {false, QStringLiteral("无法启动 shell：%1").arg(process.errorString())};
 
