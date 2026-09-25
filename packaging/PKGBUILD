@@ -1,0 +1,30 @@
+# Maintainer: Lens Project <dev@lens.invalid>
+# 从本仓库源码构建 Lens 并安装到系统（/usr）。
+# 本地测试：cd packaging && makepkg -f
+pkgname=lens
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Lens — a lightweight GUI AI Agent"
+arch=('x86_64' 'aarch64')
+url="https://github.com/CrKcel/Lens"
+license=('GPL-3.0-only')
+depends=('qt6-base' 'qt6-declarative' 'hicolor-icon-theme')
+makedepends=('cmake' 'nlohmann-json')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/CrKcel/Lens/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -S "$srcdir/Lens-$pkgver" -B "build-$pkgver" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -Wno-dev
+    cmake --build "build-$pkgver"
+}
+
+check() {
+    ctest --test-dir "build-$pkgver" --output-on-failure -E real_server
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install "build-$pkgver"
+}

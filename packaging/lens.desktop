@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lens
+GenericName=AI Agent
+Comment=A lightweight GUI AI Agent
+Comment[zh_CN]=轻量级 GUI AI Agent
+Exec=lens
+Icon=lens
+Terminal=false
+Categories=Development;
+Keywords=AI;Agent;Chat;LLM;

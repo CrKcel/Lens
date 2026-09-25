@@ -2,6 +2,7 @@
 build/
 build-*/
 out/
+dist/
 
 # CMake / 工具链
 compile_commands.json
