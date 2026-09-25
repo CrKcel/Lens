@@ -58,6 +58,7 @@ public:
     Q_INVOKABLE void send(const QString &text, const QString &workdir = QString());
     Q_INVOKABLE void stop();
     Q_INVOKABLE void refreshContext(); // 设置（MCP/工具）变化后重建上下文清单
+    Q_INVOKABLE QVariantList skillsList(const QString &workdir) const;
 
 signals:
     void streamingChanged();

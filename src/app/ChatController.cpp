@@ -330,6 +330,26 @@ QVariantList ChatController::contextSections() const
     return list;
 }
 
+QVariantList ChatController::skillsList(const QString &workdir) const
+{
+    QVariantList list;
+    const QString effectiveWorkdir =
+        workdir.isEmpty() ? m_workdir : workdir;
+    const QList<QPair<QString, QString>> dirs = {
+        {m_dataDir + QStringLiteral("/skills"), QStringLiteral("global")},
+        {effectiveWorkdir + QStringLiteral("/.lens/skills"), QStringLiteral("project")},
+    };
+    for (const auto &[dir, origin] : dirs) {
+        for (const skills::Skill &skill : skills::discover(dir)) {
+            list.append(QVariantMap{{QStringLiteral("name"), skill.name},
+                                    {QStringLiteral("description"), skill.description},
+                                    {QStringLiteral("path"), skill.path},
+                                    {QStringLiteral("origin"), origin}});
+        }
+    }
+    return list;
+}
+
 void ChatController::setErrorRow(const QString &text)
 {
     MessageListModel::Item item;

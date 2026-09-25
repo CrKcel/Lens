@@ -40,6 +40,10 @@ class AppSettings : public QObject
     Q_PROPERTY(QVariantList mcpServers READ mcpServers NOTIFY settingsChanged)
     Q_PROPERTY(QString webSearchEndpoint READ webSearchEndpoint WRITE setWebSearchEndpoint NOTIFY settingsChanged)
     Q_PROPERTY(QString webSearchApiKey READ webSearchApiKey WRITE setWebSearchApiKey NOTIFY settingsChanged)
+    Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY settingsChanged)
+    Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY settingsChanged)
+    Q_PROPERTY(QString sendShortcut READ sendShortcut WRITE setSendShortcut NOTIFY settingsChanged)
+    Q_PROPERTY(bool dark READ dark NOTIFY settingsChanged)
 
 public:
     explicit AppSettings(QString filePath, QObject *parent = nullptr);
@@ -75,6 +79,14 @@ public:
     void setWebSearchEndpoint(const QString &value) { m_webSearchEndpoint = value; emit settingsChanged(); }
     void setWebSearchApiKey(const QString &value) { m_webSearchApiKey = value; emit settingsChanged(); }
 
+    QString language() const { return m_language; }
+    void setLanguage(const QString &value);
+    QString theme() const { return m_theme; }
+    void setTheme(const QString &value);
+    bool dark() const;
+    QString sendShortcut() const { return m_sendShortcut; }
+    void setSendShortcut(const QString &value);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reset();
 
@@ -93,6 +105,9 @@ private:
     QList<McpServerConfig> m_mcpServers;
     QString m_webSearchEndpoint;
     QString m_webSearchApiKey;
+    QString m_language = QStringLiteral("system");   // system | zh | en
+    QString m_theme = QStringLiteral("system");      // system | dark | light
+    QString m_sendShortcut = QStringLiteral("ctrl_enter"); // ctrl_enter | enter
 };
 
 } // namespace lens

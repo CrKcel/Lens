@@ -113,7 +113,7 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         settings->save();
     }
 
-    // 打开设置弹窗再关掉：顺带验证弹窗字段回读，随后走真实 UI 路径发送。
+    // 走 UI 路径发送：设置输入框文本后调用 sendAction()。
     // LENS_E2E_WORKDIR：先创建绑定该目录的会话（工具操作的根目录）。
     QTimer::singleShot(300, chat, [chat, &engine, message] {
         QObject *root = engine.rootObjects().value(0);

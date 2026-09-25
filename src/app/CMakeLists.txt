@@ -1,3 +1,5 @@
+find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+
 qt_add_executable(lens
     main.cpp
     AppSettings.hpp
@@ -18,7 +20,17 @@ qt_add_qml_module(lens
     QML_FILES
         Main.qml
         SettingFieldBg.qml
+        Theme.qml
 )
+
+qt_add_translations(lens
+    TS_FILES translations/lens_en.ts
+    QM_FILES_OUTPUT_VARIABLE LENS_QM_FILES)
+set_source_files_properties(${LENS_QM_FILES}
+    PROPERTIES QT_RESOURCE_ALIAS "lens_en.qm")
+qt_add_resources(lens "lens_translations"
+    PREFIX "/i18n"
+    FILES ${LENS_QM_FILES})
 
 target_compile_definitions(lens PRIVATE LENS_VERSION="${PROJECT_VERSION}")
 target_link_libraries(lens PRIVATE Lens::Core Qt6::Quick)

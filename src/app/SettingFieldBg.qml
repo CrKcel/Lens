@@ -2,7 +2,12 @@ import QtQuick
 
 Rectangle {
     implicitHeight: 34
-    color: "#24252c"
-    border.color: "#33343e"
     radius: 6
+    color: theme.field
+    border.color: theme.fieldBorder
+
+    Theme {
+        id: theme
+        dark: settings.dark
+    }
 }

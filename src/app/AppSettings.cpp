@@ -1,6 +1,10 @@
 #include "AppSettings.hpp"
 
 #include <QFile>
+#include <QGuiApplication>
+#include <QLocale>
+#include <QPalette>
+#include <QStyleHints>
 #include <nlohmann/json.hpp>
 
 namespace lens {
@@ -20,6 +24,15 @@ QString readQStr(const nlohmann::json &j, const char *key)
     return QString::fromStdString(it->get<std::string>());
 }
 
+QString normalizeChoice(const QString &value, std::initializer_list<const char *> allowed)
+{
+    for (const char *choice : allowed) {
+        if (value == QLatin1String(choice))
+            return value;
+    }
+    return QStringLiteral("system");
+}
+
 } // namespace
 
 AppSettings::AppSettings(QString filePath, QObject *parent)
@@ -28,6 +41,9 @@ AppSettings::AppSettings(QString filePath, QObject *parent)
 {
     reset();
     load();
+
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+            this, [this](Qt::ColorScheme) { emit settingsChanged(); });
 }
 
 namespace {
@@ -120,6 +136,11 @@ void AppSettings::load()
 
     m_webSearchEndpoint = readQStr(json, "webSearchEndpoint");
     m_webSearchApiKey = readQStr(json, "webSearchApiKey");
+    m_language = normalizeChoice(readQStr(json, "language"), {"zh", "en"});
+    m_theme = normalizeChoice(readQStr(json, "theme"), {"dark", "light"});
+    m_sendShortcut = readQStr(json, "sendShortcut") == QLatin1String("enter")
+                         ? QStringLiteral("enter")
+                         : QStringLiteral("ctrl_enter");
     emit settingsChanged();
 }
 
@@ -130,6 +151,9 @@ void AppSettings::save()
         {"systemPrompt", readStd(m_systemPrompt)},
         {"webSearchEndpoint", readStd(m_webSearchEndpoint)},
         {"webSearchApiKey", readStd(m_webSearchApiKey)},
+        {"language", readStd(m_language)},
+        {"theme", readStd(m_theme)},
+        {"sendShortcut", readStd(m_sendShortcut)},
     };
     auto providers = nlohmann::json::array();
     for (const ProviderConfig &provider : m_providers) {
@@ -292,8 +316,7 @@ QVariantList AppSettings::mcpServers() const
 }
 
 void AppSettings::setMcpServers(const QVariantList &servers)
-{
-    m_mcpServers.clear();
+{    m_mcpServers.clear();
     for (const QVariant &entry : servers) {
         const QVariantMap map = entry.toMap();
         McpServerConfig server;
@@ -303,6 +326,43 @@ void AppSettings::setMcpServers(const QVariantList &servers)
         if (!server.name.isEmpty() && !server.command.isEmpty())
             m_mcpServers.append(server);
     }
+    emit settingsChanged();
+}
+
+void AppSettings::setLanguage(const QString &value)
+{
+    m_language = normalizeChoice(value, {"zh", "en"});
+    emit settingsChanged();
+}
+
+void AppSettings::setTheme(const QString &value)
+{
+    m_theme = normalizeChoice(value, {"dark", "light"});
+    emit settingsChanged();
+}
+
+bool AppSettings::dark() const
+{
+    if (m_theme == QLatin1String("dark"))
+        return true;
+    if (m_theme == QLatin1String("light"))
+        return false;
+    switch (QGuiApplication::styleHints()->colorScheme()) {
+    case Qt::ColorScheme::Dark:
+        return true;
+    case Qt::ColorScheme::Light:
+        return false;
+    case Qt::ColorScheme::Unknown:
+        break;
+    }
+    return QGuiApplication::palette().window().color().lightness() < 128;
+}
+
+void AppSettings::setSendShortcut(const QString &value)
+{
+    m_sendShortcut = value == QLatin1String("enter")
+                         ? QStringLiteral("enter")
+                         : QStringLiteral("ctrl_enter");
     emit settingsChanged();
 }
 
