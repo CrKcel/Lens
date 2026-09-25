@@ -5,6 +5,8 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <algorithm>
+
 namespace lens {
 
 AgentSession::AgentSession(std::unique_ptr<ITransport> transport, ToolRegistry *registry,
@@ -12,6 +14,7 @@ AgentSession::AgentSession(std::unique_ptr<ITransport> transport, ToolRegistry *
     : QObject(parent)
     , m_transport(std::move(transport))
     , m_registry(registry)
+    , m_adapter(makeProtocolAdapter(Protocol::ChatCompletions))
 {
 }
 
@@ -21,6 +24,14 @@ void AgentSession::setRequestConfig(const QString &endpointUrl, const QString &a
     m_endpoint = endpointUrl;
     m_apiKey = apiKey;
     m_model = model;
+}
+
+void AgentSession::setProtocol(Protocol protocol)
+{
+    if (m_protocol == protocol)
+        return;
+    m_protocol = protocol;
+    m_adapter = makeProtocolAdapter(protocol);
 }
 
 void AgentSession::sendUserMessage(const QString &text)
@@ -56,25 +67,50 @@ void AgentSession::startTurn()
     m_sse = SseParser{};
 
     HttpRequest request;
-    request.url = QUrl(m_endpoint);
-    request.headers = {{QByteArrayLiteral("Content-Type"), QByteArrayLiteral("application/json")},
-                       {QByteArrayLiteral("Authorization"),
-                        "Bearer " + m_apiKey.toUtf8()}};
-    request.body = QByteArray::fromStdString(chatcompletions::buildRequestBody(
-        m_history, m_model, m_systemPrompt, true,
-        m_registry->toChatCompletionsTools()).dump());
+    request.url = m_adapter->resolveEndpoint(m_endpoint);
+    request.headers = {{QByteArrayLiteral("Content-Type"), QByteArrayLiteral("application/json")}};
+    request.headers += m_adapter->extraHeaders(m_apiKey);
+
+    RequestFeatures features;
+    features.serverSideSearch = m_serverSideSearch;
+    std::vector<ToolSpec> specs = m_registry->specs();
+    if (m_serverSideSearch) {
+        // 服务端已提供搜索：不下发本地 web_search 工具（冗余，且与 anthropic
+        // 的同名服务端工具冲突）；其余工具不受影响
+        specs.erase(std::remove_if(specs.begin(), specs.end(),
+                                   [](const ToolSpec &spec) {
+                                       return spec.name == QLatin1String("web_search");
+                                   }),
+                    specs.end());
+    }
+    request.body = QByteArray::fromStdString(
+        m_adapter->buildRequestBody(m_history, m_model, m_systemPrompt, true, specs, features)
+            .dump());
 
     m_transport->start(request,
                        {[this](const QByteArray &bytes) {
                             m_sse.feed(bytes, [this](const QByteArray &event) {
-                                if (event == QByteArrayLiteral("[DONE]")) {
+                                if (m_adapter->isDoneEvent(event)) {
                                     m_stream.markDone();
                                     return;
                                 }
                                 const auto payload = nlohmann::json::parse(
                                     event.constData(), event.constData() + event.size(),
                                     nullptr, false);
-                                const auto delta = m_stream.apply(payload);
+                                if (!payload.is_discarded()) {
+                                    // 协议级错误事件：中止本回合，与传输层错误同路径处理
+                                    const QString protocolError =
+                                        m_adapter->errorFromEvent(payload);
+                                    if (!protocolError.isEmpty()) {
+                                        ++m_generation;
+                                        m_busy = false;
+                                        emit failed(protocolError);
+                                        emit idle();
+                                        m_transport->cancel();
+                                        return;
+                                    }
+                                }
+                                const auto delta = m_adapter->applyEvent(payload, m_stream);
                                 if (!delta.content.isEmpty())
                                     emit assistantDelta(delta.content);
                                 if (!delta.reasoning.isEmpty())

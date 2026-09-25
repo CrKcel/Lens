@@ -11,6 +11,7 @@
 #include <lens/core/providers/QNetworkTransport.hpp>
 #include <lens/core/storage/SessionStore.hpp>
 #include <lens/core/tools/ToolRegistry.hpp>
+#include <lens/core/tools/builtins/WebSearchTool.hpp>
 #include <lens/core/tools/builtins/WriteTool.hpp>
 
 using namespace lens;
@@ -111,6 +112,7 @@ class TestAgentSession : public QObject
 
 private slots:
     void fullToolCallLoop();
+    void serverSideSearchFiltersLocalSearchTool();
 
 private:
     static QString collectText(const std::vector<Message> &history)
@@ -215,6 +217,45 @@ void TestAgentSession::fullToolCallLoop()
     const auto persisted = store.messages(id);
     QCOMPARE(persisted.size(), session.history().size());
     QCOMPARE(persisted[1].toolCalls.first().name, QStringLiteral("write"));
+}
+
+// 服务端搜索开启：请求体带 web_search_options，本地 web_search 工具被过滤，write 保留
+void TestAgentSession::serverSideSearchFiltersLocalSearchTool()
+{
+    QTemporaryDir workdir;
+    QVERIFY(workdir.isValid());
+
+    MockChatServer server;
+    QVERIFY(server.start());
+
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<WriteTool>());
+    registry.registerTool(std::make_shared<WebSearchTool>()); // 未配置也不会被执行，仅进 spec
+
+    AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
+    session.setRequestConfig(server.url().toString(), QStringLiteral("k"),
+                             QStringLiteral("mock-model"));
+    session.setServerSideSearch(true);
+    session.setWorkdir(workdir.path());
+
+    QString failure;
+    connect(&session, &AgentSession::failed,
+            [&](const QString &message) { failure = message; });
+
+    QEventLoop loop;
+    connect(&session, &AgentSession::idle, &loop, &QEventLoop::quit);
+    QTimer::singleShot(15000, &loop, &QEventLoop::quit);
+    session.sendUserMessage(QStringLiteral("把 note 写入工作文件夹"));
+    loop.exec();
+
+    QCOMPARE(failure, QString());
+    QCOMPARE(server.requestCount, 2);
+    QVERIFY(server.bodies[0].contains("web_search_options")); // 服务端搜索参数已带上
+    QVERIFY(server.bodies[0].contains("\"write\""));          // 其余工具保留
+    QVERIFY(!server.bodies[0].contains("\"web_search\""));    // 本地搜索工具被过滤
+    QFile note(workdir.filePath(QStringLiteral("note.txt")));
+    QVERIFY(note.open(QIODevice::ReadOnly)); // 工具循环不受影响
+    QCOMPARE(QString::fromUtf8(note.readAll()), QStringLiteral("written by mock"));
 }
 
 QTEST_GUILESS_MAIN(TestAgentSession)

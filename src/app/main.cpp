@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
         qWarning() << "Session store unavailable:" << store.lastError();
 
     lens::AppSettings settings(dataDir + QStringLiteral("/settings.json"));
-    lens::ChatController chat(&store, &settings);
+    lens::ChatController chat(&store, &settings, dataDir);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("appVersion"),

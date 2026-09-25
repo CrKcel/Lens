@@ -3,6 +3,7 @@
 #include "lens/core/Conversation.hpp"
 #include "lens/core/providers/ChatCompletionsClient.hpp"
 #include "lens/core/providers/ITransport.hpp"
+#include "lens/core/providers/ProtocolAdapter.hpp"
 #include "lens/core/providers/SseParser.hpp"
 #include "lens/core/tools/ToolRegistry.hpp"
 
@@ -27,6 +28,8 @@ public:
 
     void setRequestConfig(const QString &endpointUrl, const QString &apiKey,
                           const QString &model);
+    void setProtocol(Protocol protocol); // 缺省 chat completions，需在发起请求前设置
+    void setServerSideSearch(bool enabled) { m_serverSideSearch = enabled; }
     void setSystemPrompt(const QString &systemPrompt) { m_systemPrompt = systemPrompt; }
     void setWorkdir(const QString &workdir) { m_workdir = workdir; }
     void setHistory(std::vector<Message> history) { m_history = std::move(history); }
@@ -53,6 +56,7 @@ private:
 
     std::unique_ptr<ITransport> m_transport;
     ToolRegistry *m_registry;
+    std::unique_ptr<ProtocolAdapter> m_adapter;
     SseParser m_sse;
     chatcompletions::ChatCompletionStream m_stream;
     std::vector<Message> m_history;
@@ -61,6 +65,8 @@ private:
     QString m_endpoint;
     QString m_apiKey;
     QString m_model;
+    Protocol m_protocol = Protocol::ChatCompletions;
+    bool m_serverSideSearch = false;
     QString m_systemPrompt;
     QString m_workdir;
     bool m_busy = false;

@@ -106,23 +106,35 @@ chatcompletions::StreamDelta ChatCompletionStream::apply(const nlohmann::json &c
                     || !fragment.at("index").is_number_integer())
                     continue;
                 const int index = fragment.at("index").get<int>();
-                ToolCall &call = m_toolCalls[index]; // 按 index 累积分片
+                QString id, name, arguments;
                 if (fragment.contains("id") && fragment.at("id").is_string())
-                    call.id = QString::fromStdString(fragment.at("id").get<std::string>());
+                    id = QString::fromStdString(fragment.at("id").get<std::string>());
                 if (fragment.contains("function") && fragment.at("function").is_object()) {
                     const auto &function = fragment.at("function");
                     if (function.contains("name") && function.at("name").is_string())
-                        call.name = QString::fromStdString(function.at("name").get<std::string>());
+                        name = QString::fromStdString(function.at("name").get<std::string>());
                     if (function.contains("arguments") && function.at("arguments").is_string())
-                        call.arguments +=
+                        arguments =
                             QString::fromStdString(function.at("arguments").get<std::string>());
                 }
+                mergeToolCall(index, id, name, arguments);
             }
         }
     }
     if (choice.contains("finish_reason") && choice.at("finish_reason").is_string())
         m_finishReason = QString::fromStdString(choice.at("finish_reason").get<std::string>());
     return delta;
+}
+
+void ChatCompletionStream::mergeToolCall(int index, const QString &id, const QString &name,
+                                         const QString &argumentsDelta)
+{
+    ToolCall &call = m_toolCalls[index]; // 按 index 累积分片
+    if (!id.isEmpty())
+        call.id = id;
+    if (!name.isEmpty())
+        call.name = name;
+    call.arguments += argumentsDelta;
 }
 
 QList<ToolCall> ChatCompletionStream::toolCalls() const

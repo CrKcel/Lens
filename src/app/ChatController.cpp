@@ -3,37 +3,112 @@
 #include "AppSettings.hpp"
 
 #include <QDir>
+#include <QTimer>
+#include <lens/core/context/AgentDocs.hpp>
+#include <lens/core/context/EnvironmentPrompt.hpp>
 #include <lens/core/context/PromptAssembler.hpp>
+#include <lens/core/context/Skills.hpp>
+#include <lens/core/mcp/McpTool.hpp>
 #include <lens/core/providers/QNetworkTransport.hpp>
 #include <lens/core/storage/SessionStore.hpp>
 #include <lens/core/tools/builtins/BashTool.hpp>
 #include <lens/core/tools/builtins/EditTool.hpp>
 #include <lens/core/tools/builtins/ReadTool.hpp>
+#include <lens/core/tools/builtins/WebSearchTool.hpp>
 #include <lens/core/tools/builtins/WriteTool.hpp>
 
 namespace lens {
 
 inline const QString kBasePrompt = QStringLiteral(
-    "你是 Lens，一个轻量的编程 AI Agent。用户工作文件夹是当前任务的根目录："
-    "read/write/edit 工具的相对路径以它为基准。完成任务时优先使用工具读写文件、"
-    "执行命令来获取真实状态，而不是凭空假设；结束后简要说明做了什么、结果如何。"
+    "You are a helpful assistant。用户工作文件夹是当前任务的根目录："
+    "read/write/edit 工具的相对路径以它为基准；结束后简要说明做了什么、结果如何。"
     "回答使用与用户一致的语言。");
 
-ChatController::ChatController(SessionStore *store, AppSettings *settings, QObject *parent)
+ChatController::ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
+                               QObject *parent)
     : QObject(parent)
     , m_store(store)
     , m_settings(settings)
+    , m_dataDir(dataDir)
     , m_messageModel(new MessageListModel(this))
     , m_conversationModel(new ConversationListModel(store, this))
+{
+    registerBuiltinTools();
+    QTimer::singleShot(0, this, [this] {
+        loadMcpTools();
+        rebuildToolList();
+    });
+
+    m_agent = std::make_unique<AgentSession>(std::make_unique<QNetworkTransport>(),
+                                             &m_registry, this);
+    connectAgent();
+}
+
+void ChatController::registerBuiltinTools()
 {
     m_registry.registerTool(std::make_shared<ReadTool>());
     m_registry.registerTool(std::make_shared<WriteTool>());
     m_registry.registerTool(std::make_shared<EditTool>());
     m_registry.registerTool(std::make_shared<BashTool>());
+    const auto search = std::make_shared<WebSearchTool>();
+    search->setConfig(m_settings->webSearchEndpoint(), m_settings->webSearchApiKey());
+    m_registry.registerTool(search);
+}
 
-    m_agent = std::make_unique<AgentSession>(std::make_unique<QNetworkTransport>(),
-                                             &m_registry, this);
-    connectAgent();
+void ChatController::loadMcpTools()
+{
+    for (const McpServerConfig &config : m_settings->mcpServerConfigs()) {
+        auto client = std::make_shared<mcp::McpClient>(mcp::ServerConfig{
+            config.name, config.command, config.args});
+        QString error;
+        QVariantMap status{{QStringLiteral("name"), config.name},
+                           {QStringLiteral("command"), config.command}};
+        if (client->start(&error)) {
+            const auto tools = client->listTools(&error);
+            if (error.isEmpty()) {
+                QStringList toolNames;
+                for (const auto &info : tools) {
+                    const QString prefixed =
+                        QStringLiteral("mcp_%1_%2").arg(config.name, info.name);
+                    m_registry.registerTool(
+                        std::make_shared<mcp::McpTool>(config.name, info, client));
+                    m_mcpToolOrigins.append(
+                        {prefixed, QStringLiteral("MCP:%1").arg(config.name)});
+                    toolNames.append(prefixed);
+                }
+                status.insert(QStringLiteral("connected"), true);
+                status.insert(QStringLiteral("toolNames"), toolNames);
+                status.insert(QStringLiteral("status"),
+                              QStringLiteral("已连接，%1 个工具").arg(toolNames.size()));
+                m_mcpClients.append(client);
+            } else {
+                status.insert(QStringLiteral("connected"), false);
+                status.insert(QStringLiteral("status"), error);
+            }
+        } else {
+            status.insert(QStringLiteral("connected"), false);
+            status.insert(QStringLiteral("status"), error);
+        }
+        m_mcpStatus.append(status);
+    }
+}
+
+void ChatController::rebuildToolList()
+{
+    m_toolList.clear();
+    for (const ToolSpec &spec : m_registry.specs()) {
+        QString origin = QStringLiteral("内置");
+        for (const auto &[toolName, toolOrigin] : m_mcpToolOrigins) {
+            if (toolName == spec.name) {
+                origin = toolOrigin;
+                break;
+            }
+        }
+        m_toolList.append(QVariantMap{{QStringLiteral("name"), spec.name},
+                                      {QStringLiteral("description"), spec.description},
+                                      {QStringLiteral("origin"), origin}});
+    }
+    emit contextChanged();
 }
 
 void ChatController::connectAgent()
@@ -127,7 +202,9 @@ void ChatController::openConversation(qint64 conversationId)
         m_messageModel->resetFromMessages(history);
         m_agent->setHistory(std::vector<Message>(history.cbegin(), history.cend()));
         m_agent->setWorkdir(m_workdir);
+        m_lastSections = collectSections();
         emit currentConversationChanged();
+        emit contextChanged();
         return;
     }
 }
@@ -144,6 +221,13 @@ void ChatController::deleteConversation(qint64 conversationId)
         m_messageModel->resetFromMessages({});
         emit currentConversationChanged();
     }
+}
+
+void ChatController::refreshContext()
+{
+    m_lastSections = collectSections();
+    rebuildToolList();
+    emit contextChanged();
 }
 
 void ChatController::send(const QString &text, const QString &workdir)
@@ -170,13 +254,22 @@ void ChatController::send(const QString &text, const QString &workdir)
     item.text = text;
     m_messageModel->appendItem(item);
 
-    m_agent->setRequestConfig(m_settings->endpoint(), m_settings->apiKey(), m_settings->model());
-    m_agent->setSystemPrompt(assembleSystemPrompt());
+    const ProviderConfig provider = m_settings->activeProviderConfig();
+    m_agent->setRequestConfig(provider.endpoint, provider.apiKey, provider.model);
+    if (const auto protocol = protocolFromString(provider.protocol))
+        m_agent->setProtocol(*protocol);
+    m_agent->setServerSideSearch(provider.serverSearch);
+    m_lastSections = collectSections();
+    PromptAssembler assembler;
+    for (const ContextSectionInfo &section : m_lastSections)
+        assembler.setSection(section.name, section.content);
+    m_agent->setSystemPrompt(assembler.assemble());
     m_agent->setWorkdir(m_workdir);
     m_agent->sendUserMessage(text);
 
     m_streaming = true;
     emit streamingChanged();
+    emit contextChanged();
 }
 
 void ChatController::stop()
@@ -184,15 +277,57 @@ void ChatController::stop()
     m_agent->cancel();
 }
 
-QString ChatController::assembleSystemPrompt() const
+QVector<ContextSectionInfo> ChatController::collectSections() const
 {
-    PromptAssembler assembler;
-    assembler.setSection(QStringLiteral("identity"), kBasePrompt);
-    assembler.setSection(QStringLiteral("workspace"),
-                         QStringLiteral("当前工作文件夹：%1").arg(m_workdir));
+    QVector<ContextSectionInfo> sections;
+    auto add = [&sections](const QString &name, const QString &source, const QString &content) {
+        sections.append({name, source, content});
+    };
+
+    add(QStringLiteral("identity"), QStringLiteral("内置"), kBasePrompt);
+    add(QStringLiteral("workspace"), QStringLiteral("会话设置"),
+        QStringLiteral("当前工作文件夹：%1").arg(m_workdir));
+    add(QStringLiteral("environment"), QStringLiteral("自动生成"),
+        envprompt::build(m_workdir));
+
+    for (const agentdocs::AgentDoc &doc :
+         agentdocs::discover(m_workdir, m_dataDir)) {
+        add(doc.scope == QLatin1String("global") ? QStringLiteral("agent_doc_global")
+                                                 : QStringLiteral("agent_doc_project"),
+            doc.path, doc.content);
+    }
+
+    QStringList skillLines;
+    for (const QString &dir :
+         {m_dataDir + QStringLiteral("/skills"), m_workdir + QStringLiteral("/.lens/skills")}) {
+        for (const skills::Skill &skill : skills::discover(dir)) {
+            skillLines.append(QStringLiteral("- %1：%2（%3）")
+                                  .arg(skill.name, skill.description.isEmpty()
+                                                            ? QStringLiteral("（无描述）")
+                                                            : skill.description,
+                                       skill.path));
+        }
+    }
+    if (!skillLines.isEmpty()) {
+        add(QStringLiteral("skills"), QStringLiteral("自动发现"),
+            QStringLiteral("以下技能可用，需要时先用 read 工具读取对应 SKILL.md 了解具体做法：\n")
+                + skillLines.join(QLatin1Char('\n')));
+    }
+
     if (!m_settings->systemPrompt().trimmed().isEmpty())
-        assembler.setSection(QStringLiteral("custom"), m_settings->systemPrompt());
-    return assembler.assemble();
+        add(QStringLiteral("custom"), QStringLiteral("用户设置"), m_settings->systemPrompt());
+    return sections;
+}
+
+QVariantList ChatController::contextSections() const
+{
+    QVariantList list;
+    for (const ContextSectionInfo &section : m_lastSections) {
+        list.append(QVariantMap{{QStringLiteral("name"), section.name},
+                                {QStringLiteral("source"), section.source},
+                                {QStringLiteral("content"), section.content}});
+    }
+    return list;
 }
 
 void ChatController::setErrorRow(const QString &text)

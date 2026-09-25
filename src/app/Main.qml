@@ -22,8 +22,22 @@ ApplicationWindow {
         settings.endpoint = endpointField.text
         settings.apiKey = apiKeyField.text
         settings.model = modelField.text
+        settings.protocol = protocolCombo.currentValue
+        settings.serverSearch = serverSearchCheck.checked
         settings.systemPrompt = systemPromptField.text
+        settings.webSearchEndpoint = webSearchEndpointField.text
+        settings.webSearchApiKey = webSearchApiKeyField.text
+        // MCP 服务器：JSON 数组 [{name, command, args:[]}]，解析失败则不改动
+        try {
+            const servers = JSON.parse(mcpField.text)
+            if (Array.isArray(servers))
+                settings.setMcpServers(servers)
+            mcpField.color = "#e8e8e8"
+        } catch (e) {
+            mcpField.color = "#e07a7a"
+        }
         settings.save()
+        chat.refreshContext()
     }
 
     // 打开时一次性填充。字段上不能挂 text: settings.xxx 之类的活绑定：
@@ -33,6 +47,13 @@ ApplicationWindow {
         endpointField.text = settings.endpoint
         apiKeyField.text = settings.apiKey
         modelField.text = settings.model
+        protocolCombo.currentIndex = protocolCombo.indexOfValue(settings.protocol)
+        serverSearchCheck.checked = settings.serverSearch
+        providerNameField.text = settings.providers.length > 0
+            ? settings.providers[settings.activeProvider].name : ""
+        webSearchEndpointField.text = settings.webSearchEndpoint
+        webSearchApiKeyField.text = settings.webSearchApiKey
+        mcpField.text = JSON.stringify(settings.mcpServers, null, 2)
         systemPromptField.text = settings.systemPrompt
     }
 
@@ -201,6 +222,16 @@ ApplicationWindow {
             Label {
                 text: chat.streaming ? qsTr("生成中…") : ""
                 color: "#7fb4d8"
+            }
+            ToolButton {
+                text: qsTr("上下文")
+                flat: true
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("查看当前上下文组成")
+                onClicked: {
+                    chat.refreshContext()
+                    contextPopup.open()
+                }
             }
         }
 
@@ -432,8 +463,8 @@ ApplicationWindow {
     Popup {
         id: settingsPopup
         modal: true
-        width: 480
-        height: 440
+        width: 520
+        height: 620
         anchors.centerIn: parent
         onOpened: {
             root.loadSettingsIntoFields()
@@ -470,7 +501,87 @@ ApplicationWindow {
             spacing: 8
 
             Label { text: qsTr("设置"); font.pixelSize: 16; font.bold: true; color: "#e8e8e8" }
-            Label { text: qsTr("API 地址（chat completions）"); color: "#8a8b94"; font.pixelSize: 11 }
+
+            // 供应商选择与管理
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Label { text: qsTr("供应商"); color: "#8a8b94"; font.pixelSize: 11 }
+                ComboBox {
+                    id: providerCombo
+                    Layout.fillWidth: true
+                    textRole: "name"
+                    model: settings.providers
+                    currentIndex: settings.activeProvider
+                    onActivated: (index) => {
+                        settings.activeProvider = index
+                        root.loadSettingsIntoFields()
+                    }
+                }
+                Button {
+                    text: qsTr("＋")
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("新增供应商（复制当前配置）")
+                    onClicked: {
+                        settings.addProvider({
+                            "name": qsTr("供应商%1").arg(settings.providers.length + 1),
+                            "protocol": protocolCombo.currentValue,
+                            "endpoint": endpointField.text,
+                            "apiKey": apiKeyField.text,
+                            "model": modelField.text,
+                            "serverSearch": serverSearchCheck.checked
+                        })
+                        root.loadSettingsIntoFields()
+                    }
+                }
+                Button {
+                    text: qsTr("－")
+                    enabled: settings.providers.length > 1
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("删除当前供应商")
+                    onClicked: {
+                        settings.removeProvider(settings.activeProvider)
+                        root.loadSettingsIntoFields()
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Label { text: qsTr("名称"); color: "#8a8b94"; font.pixelSize: 11 }
+                TextField {
+                    id: providerNameField
+                    Layout.fillWidth: true
+                    color: "#e8e8e8"
+                    selectByMouse: true
+                    background: SettingFieldBg
+                }
+                ComboBox {
+                    id: protocolCombo
+                    Layout.preferredWidth: 170
+                    textRole: "text"
+                    valueRole: "value"
+                    model: [
+                        { text: qsTr("chat completions"), value: "chat_completions" },
+                        { text: qsTr("responses"), value: "responses" },
+                        { text: qsTr("anthropic"), value: "anthropic" }
+                    ]
+                }
+            }
+            CheckBox {
+                id: serverSearchCheck
+                text: qsTr("服务端联网搜索（供应商支持时启用）")
+                font.pixelSize: 11
+                contentItem: Label {
+                    text: serverSearchCheck.text
+                    color: "#8a8b94"
+                    font.pixelSize: 11
+                    leftPadding: serverSearchCheck.indicator.width + 4
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+
+            Label { text: qsTr("API 地址（含协议路径，或仅主机/根路径自动补全）"); color: "#8a8b94"; font.pixelSize: 11 }
             TextField {
                 id: endpointField
                 Layout.fillWidth: true
@@ -478,21 +589,64 @@ ApplicationWindow {
                 selectByMouse: true
                 background: SettingFieldBg
             }
-            Label { text: qsTr("API Key"); color: "#8a8b94"; font.pixelSize: 11 }
-            TextField {
-                id: apiKeyField
+            RowLayout {
                 Layout.fillWidth: true
-                echoMode: TextInput.Password
-                color: "#e8e8e8"
-                selectByMouse: true
-                background: SettingFieldBg
+                spacing: 6
+                Label { text: qsTr("API Key"); color: "#8a8b94"; font.pixelSize: 11 }
+                TextField {
+                    id: apiKeyField
+                    Layout.fillWidth: true
+                    echoMode: TextInput.Password
+                    color: "#e8e8e8"
+                    selectByMouse: true
+                    background: SettingFieldBg
+                }
+                Label { text: qsTr("模型"); color: "#8a8b94"; font.pixelSize: 11 }
+                TextField {
+                    id: modelField
+                    Layout.preferredWidth: 180
+                    color: "#e8e8e8"
+                    selectByMouse: true
+                    background: SettingFieldBg
+                }
             }
-            Label { text: qsTr("模型"); color: "#8a8b94"; font.pixelSize: 11 }
-            TextField {
-                id: modelField
+            Label {
+                text: qsTr("web_search 搜索接口（Tavily 兼容，留空则不启用）")
+                color: "#8a8b94"; font.pixelSize: 11
+            }
+            RowLayout {
                 Layout.fillWidth: true
+                spacing: 6
+                TextField {
+                    id: webSearchEndpointField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("搜索端点")
+                    color: "#e8e8e8"
+                    selectByMouse: true
+                    background: SettingFieldBg
+                }
+                TextField {
+                    id: webSearchApiKeyField
+                    Layout.preferredWidth: 180
+                    placeholderText: qsTr("密钥")
+                    echoMode: TextInput.Password
+                    color: "#e8e8e8"
+                    selectByMouse: true
+                    background: SettingFieldBg
+                }
+            }
+            Label {
+                text: qsTr("MCP 服务器（JSON 数组：name / command / args）")
+                color: "#8a8b94"; font.pixelSize: 11
+            }
+            TextArea {
+                id: mcpField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+                wrapMode: TextArea.Wrap
+                font.family: "monospace"
+                font.pixelSize: 11
                 color: "#e8e8e8"
-                selectByMouse: true
                 background: SettingFieldBg
             }
             Label { text: qsTr("自定义系统提示词（附加段落）"); color: "#8a8b94"; font.pixelSize: 11 }
@@ -514,9 +668,166 @@ ApplicationWindow {
                     highlighted: true
                     text: qsTr("保存")
                     onClicked: {
+                        settings.updateProvider(settings.activeProvider,
+                            { "name": providerNameField.text,
+                              "protocol": protocolCombo.currentValue,
+                              "endpoint": endpointField.text,
+                              "apiKey": apiKeyField.text,
+                              "model": modelField.text,
+                              "serverSearch": serverSearchCheck.checked })
                         root.applySettings()
                         settingsPopup.close()
                     }
+                }
+            }
+        }
+    }
+
+    // ── 上下文检查器：上下文由什么组成、每一项来自哪里 ──────────
+    Popup {
+        id: contextPopup
+        modal: true
+        width: 640
+        height: 600
+        anchors.centerIn: parent
+        background: Rectangle {
+            color: "#1d1e24"
+            border.color: "#33343e"
+            radius: 10
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: qsTr("上下文检查器")
+                    font.pixelSize: 16; font.bold: true; color: "#e8e8e8"
+                    Layout.fillWidth: true
+                }
+                ToolButton {
+                    text: qsTr("刷新")
+                    flat: true
+                    onClicked: chat.refreshContext()
+                }
+            }
+
+            ListView {
+                id: sectionList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 8
+                model: chat.contextSections
+
+                delegate: Rectangle {
+                    width: sectionList.width
+                    height: sectionCard.implicitHeight
+                    color: "#1f2027"
+                    radius: 8
+                    border.color: "#2c2d36"
+
+                    ColumnLayout {
+                        id: sectionCard
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        spacing: 4
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: modelData.name
+                                color: "#7fb4d8"
+                                font.bold: true
+                                font.pixelSize: 13
+                            }
+                            Item { Layout.fillWidth: true }
+                            Label {
+                                text: qsTr("来源：%1").arg(modelData.source)
+                                color: "#7c7d86"
+                                font.pixelSize: 11
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: modelData.content.length > 0
+                                  ? modelData.content : qsTr("（空，未注入）")
+                            visible: sectionExpanded
+                            color: modelData.content.length > 0 ? "#d8d8dc" : "#5a5b64"
+                            wrapMode: Text.Wrap
+                            font.pixelSize: 12
+                            textFormat: Text.PlainText
+                        }
+                    }
+
+                    property bool sectionExpanded: index === 0
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: sectionExpanded = !sectionExpanded
+                    }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: sectionList.count === 0
+                    text: qsTr("发送消息后这里会展示系统提示词的分节组成")
+                    color: "#5a5b64"
+                }
+            }
+
+            Label {
+                text: qsTr("启用工具（%1）").arg(chat.contextTools.length)
+                color: "#e8e8e8"; font.bold: true; font.pixelSize: 13
+            }
+            ListView {
+                id: toolList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(160, 34 * Math.max(1, chat.contextTools.length))
+                clip: true
+                spacing: 2
+                model: chat.contextTools
+
+                delegate: Label {
+                    width: toolList.width
+                    text: "· " + modelData.name
+                          + qsTr("　[%1]").arg(modelData.origin)
+                          + (modelData.description.length > 0
+                             ? "　— " + modelData.description : "")
+                    color: "#9a9ba4"
+                    font.pixelSize: 11
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: toolList.count === 0
+                    text: qsTr("无")
+                    color: "#5a5b64"
+                }
+            }
+
+            ListView {
+                id: mcpStatusList
+                Layout.fillWidth: true
+                Layout.preferredHeight: 28 * Math.min(3, Math.max(1, mcpStatusList.count))
+                clip: true
+                spacing: 2
+                model: chat.mcpStatus
+                visible: chat.mcpStatus.length > 0
+
+                delegate: Label {
+                    width: mcpStatusList.width
+                    text: "· MCP " + modelData.name + "　"
+                          + modelData.status
+                          + qsTr("　[%1]").arg(modelData.command)
+                    color: modelData.connected ? "#9cdc9c" : "#e07a7a"
+                    font.pixelSize: 11
+                    elide: Text.ElideRight
                 }
             }
         }
