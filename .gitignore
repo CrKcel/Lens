@@ -1,0 +1,16 @@
+# 构建产物
+build/
+build-*/
+out/
+
+# CMake / 工具链
+compile_commands.json
+.clangd/
+
+# IDE / 编辑器
+*.user
+.vscode/
+.idea/
+.DS_Store
+AGENTS.md
+CLAUDE.md
