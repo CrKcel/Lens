@@ -34,7 +34,8 @@ void AgentSession::setProtocol(Protocol protocol)
     m_adapter = makeProtocolAdapter(protocol);
 }
 
-void AgentSession::sendUserMessage(const QString &text, const QList<ImageAttachment> &images)
+void AgentSession::sendUserMessage(const QString &text, const QList<ImageAttachment> &images,
+                                   const QList<TextAttachment> &files)
 {
     if (m_busy || text.trimmed().isEmpty())
         return;
@@ -42,6 +43,7 @@ void AgentSession::sendUserMessage(const QString &text, const QList<ImageAttachm
     message.role = Role::User;
     message.content = text;
     message.images = images;
+    message.files = files;
     message.createdAt = QDateTime::currentDateTimeUtc();
     m_history.push_back(message);
 

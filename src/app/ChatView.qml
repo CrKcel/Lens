@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
+import Qt.labs.platform as NativeDialogs
 import QtQuick.Layouts
 
 // 聊天主区：标题行（含流式状态与用量）、消息流、输入区、上下文检查器。
@@ -11,7 +11,7 @@ ColumnLayout {
     readonly property alias inputText: input.text
     // 侧栏折叠时为真：标题行左移让开悬浮的展开按钮（由 Main 绑定）
     property bool sidebarCollapsed: false
-    property var attachments: [] // 待发送图片（文件路径或 data URL）
+    property var attachments: [] // 待发送附件 {url, name, isImage}（文件路径/data URL）
     // 思考模式强度（disabled/low/medium/high/max）：会话内临时状态，
     // 随每次发送传给控制器，不进设置、不持久化；默认 high
     property string thinkingLevel: "high"
@@ -27,13 +27,15 @@ ColumnLayout {
         chatRoot.attachments = []
     }
 
-    function addAttachment(url) {
+    // isImage 仅用于预览条选择渲染方式（缩略图/文件名 chip），真正分类在发送时
+    // 由 ChatController 按魔数与文本嗅探完成
+    function addAttachment(url, name, isImage) {
         if (chatRoot.attachments.length >= 8) { // 预览条容量上限，避免挤占输入区
             console.warn("附件数量已达上限（8），忽略新增")
             return
         }
         const next = chatRoot.attachments.slice()
-        next.push(String(url))
+        next.push({url: String(url), name: name || "", isImage: isImage !== false})
         chatRoot.attachments = next
     }
 
@@ -160,11 +162,14 @@ ColumnLayout {
                         anchors.right: parent.right
                         anchors.rightMargin: 4
                         readonly property bool hasImages: model.images.length > 0
+                        readonly property bool hasFiles: model.files.length > 0
                         implicitWidth: Math.min(
                             Math.max(userText.implicitWidth + 24,
-                                     bubbleWrap.hasImages ? 280 : 0),
+                                     bubbleWrap.hasImages ? 280 : 0,
+                                     bubbleWrap.hasFiles ? 260 : 0),
                             messageList.width * 0.72, 560)
                         implicitHeight: (bubbleWrap.hasImages ? userImages.height + 10 : 0)
+                                        + (bubbleWrap.hasFiles ? userFiles.height + 8 : 0)
                                         + userText.implicitHeight + 22
                         radius: theme.radiusM
                         gradient: Gradient {
@@ -196,6 +201,34 @@ ColumnLayout {
                                             source: modelData
                                             fillMode: Image.PreserveAspectCrop
                                             asynchronous: true
+                                        }
+                                    }
+                                }
+                            }
+                            // 文本文件附件 chip：只显示文件名（内容不展示在气泡里）
+                            Flow {
+                                id: userFiles
+                                visible: bubbleWrap.hasFiles
+                                width: userContent.width
+                                spacing: 6
+                                Repeater {
+                                    model: userFiles.visible ? model.files : []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        // 限宽让 ElideMiddle 生效，超长文件名不撑破气泡
+                                        width: Math.min(fileChipText.implicitWidth + 20, 240)
+                                        height: 22
+                                        radius: theme.radiusS
+                                        color: theme.field
+                                        Label {
+                                            id: fileChipText
+                                            anchors.centerIn: parent
+                                            width: Math.min(implicitWidth, parent.width - 12)
+                                            text: "📄 " + modelData.name
+                                            color: theme.textDim
+                                            font.pixelSize: 11
+                                            elide: Label.ElideMiddle
+                                            textFormat: Text.PlainText
                                         }
                                     }
                                 }
@@ -478,12 +511,12 @@ ColumnLayout {
             verticalAlignment: TextInput.AlignTop
             Keys.onPressed: (event) => {
                 // 剪贴板有图片时 Ctrl+V 转为附件，不再走文本粘贴
-                if (event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier) !== 0
-                        && chat.clipboardHasImage()) {
-                    chatRoot.addAttachment(chat.clipboardImageDataUrl())
-                    event.accepted = true
-                    return
-                }
+    if (event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier) !== 0
+            && chat.clipboardHasImage()) {
+        chatRoot.addAttachment(chat.clipboardImageDataUrl(), qsTr("剪贴板图片.png"), true)
+        event.accepted = true
+        return
+    }
                 if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
                     return
                 const ctrlHeld = (event.modifiers & Qt.ControlModifier) !== 0
@@ -510,6 +543,7 @@ ColumnLayout {
             Repeater {
                 model: chatRoot.attachments
                 delegate: Rectangle {
+                    id: stripEntry
                     required property int index
                     required property var modelData
                     width: 52
@@ -519,9 +553,23 @@ ColumnLayout {
                     clip: true
                     Image {
                         anchors.fill: parent
-                        source: modelData
+                        visible: stripEntry.modelData.isImage
+                        source: stripEntry.modelData.isImage ? stripEntry.modelData.url : ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
+                    }
+                    // 文本文件条目：文件名 chip 代替缩略图
+                    Label {
+                        anchors.fill: parent
+                        anchors.margins: 5
+                        visible: !stripEntry.modelData.isImage
+                        text: stripEntry.modelData.name
+                        color: theme.textDim
+                        font.pixelSize: 10
+                        wrapMode: Text.WrapAnywhere
+                        elide: Label.ElideRight
+                        maximumLineCount: 4
+                        verticalAlignment: Text.AlignVCenter
                     }
                     // 删除角标
                     AbstractButton {
@@ -540,7 +588,7 @@ ColumnLayout {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        onClicked: chatRoot.removeAttachment(index)
+                        onClicked: chatRoot.removeAttachment(stripEntry.index)
                     }
                 }
             }
@@ -688,7 +736,7 @@ ColumnLayout {
             implicitHeight: 36
             enabled: !chat.streaming
             ToolTip.visible: hovered
-            ToolTip.text: qsTr("附加图片")
+            ToolTip.text: qsTr("附加文件")
 
             background: Rectangle {
                 radius: 18
@@ -739,13 +787,23 @@ ColumnLayout {
                                       : chatRoot.sendRequested()
         }
 
-        FileDialog {
+        // 原生系统文件对话框（Qt.labs.platform 走各平台原生对话框实现，
+        // QtQuick.Dialogs 在 Linux 无 portal 时会回落 Qt 自绘对话框）
+        NativeDialogs.FileDialog {
             id: imageDialog
-            fileMode: FileDialog.OpenFiles
-            nameFilters: [qsTr("图片文件 (*.png *.jpg *.jpeg *.gif *.webp *.bmp)")]
+            fileMode: NativeDialogs.FileDialog.OpenFiles
+            nameFilters: [qsTr("图片文件 (*.png *.jpg *.jpeg *.gif *.webp *.bmp)"),
+                          qsTr("文本文件 (*.txt *.md *.json *.xml *.yaml *.yml *.toml *.ini "
+                               + "*.csv *.log *.html *.css *.js *.ts *.py *.c *.h *.cpp *.hpp "
+                               + "*.qml *.sh *.cmake)"),
+                          qsTr("所有文件 (*)")]
             onAccepted: {
-                for (const url of selectedFiles)
-                    chatRoot.addAttachment(url)
+                // 条目分类（isImage）按扩展名预判，发送时由 C++ 嗅探纠正
+                for (const url of imageDialog.files) {
+                    const name = decodeURIComponent(String(url).split("/").pop())
+                    const isImage = /\.(png|jpe?g|gif|webp|bmp)$/i.test(name)
+                    chatRoot.addAttachment(url, name, isImage)
+                }
             }
         }
     }

@@ -89,6 +89,25 @@ inline QString imageDataUrl(const ImageAttachment &image)
         + QString::fromLatin1(image.data.toBase64());
 }
 
+// 消息携带的一个文本文件附件（用户附加的非二进制文本文件）
+struct TextAttachment {
+    QString fileName;
+    QString content;
+};
+
+// 文本附件对模型的注入形态：格式化为文本块拼接进 user 正文（三协议共用）。
+// inline helper 放头文件与 imageDataUrl 保持同一模式
+inline QString formatTextAttachments(const QString &text, const QList<TextAttachment> &files)
+{
+    if (files.isEmpty())
+        return text;
+    QString out = text;
+    for (const TextAttachment &file : files)
+        out += QStringLiteral("\n\n<attachment filename=\"%1\">\n%2\n</attachment>")
+                   .arg(file.fileName, file.content);
+    return out;
+}
+
 // 按魔数嗅探图片 MIME 类型（JPEG/PNG/GIF/WebP/BMP）；非图片返回空。
 // BMP 仅凭 "BM" 前缀会误判 "BM" 开头的文本文件，需用头部的声明文件大小做
 // 合理性校验（fileSize 未知时传 -1，退回纯前缀判断）
@@ -121,6 +140,7 @@ struct Message {
     QString reasoning = {};         // 仅 Assistant：思考过程（reasoning_content），不回传给 API
     TokenUsage usage = {};          // 仅 Assistant：服务端用量上报，未上报时 valid=false
     QList<ImageAttachment> images = {}; // User / Tool：随消息发给多模态模型的图片
+    QList<TextAttachment> files = {};   // 仅 User：随消息发给模型的文本文件
 };
 
 struct Conversation {

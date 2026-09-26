@@ -94,6 +94,40 @@ QList<ImageAttachment> imagesFromJson(const QString &text)
     return result;
 }
 
+QString filesToJson(const QList<TextAttachment> &files)
+{
+    if (files.isEmpty())
+        return {};
+    auto array = nlohmann::json::array();
+    for (const TextAttachment &file : files) {
+        array.push_back({{"name", file.fileName.toStdString()},
+                         {"content", file.content.toStdString()}});
+    }
+    return QString::fromStdString(array.dump());
+}
+
+QList<TextAttachment> filesFromJson(const QString &text)
+{
+    QList<TextAttachment> result;
+    if (text.isEmpty())
+        return result;
+    const auto array = nlohmann::json::parse(text.toStdString(), nullptr, false);
+    if (array.is_discarded() || !array.is_array())
+        return result;
+    for (const auto &entry : array) {
+        if (!entry.is_object())
+            continue;
+        TextAttachment file;
+        if (entry.contains("name") && entry.at("name").is_string())
+            file.fileName = QString::fromStdString(entry.at("name").get<std::string>());
+        if (entry.contains("content") && entry.at("content").is_string())
+            file.content = QString::fromStdString(entry.at("content").get<std::string>());
+        if (!file.content.isEmpty())
+            result.append(file);
+    }
+    return result;
+}
+
 // 老库升级：messages 表补充 tool_calls / tool_call_id 列
 bool ensureColumn(QSqlDatabase &db, const QString &table, const QString &column,
                   const QString &definition, QString *error)
@@ -182,6 +216,9 @@ bool SessionStore::open()
     if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("images_json"),
                       QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
         return false;
+    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("files_json"),
+                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
+        return false;
     return true;
 }
 
@@ -238,8 +275,8 @@ bool SessionStore::appendMessage(qint64 conversationId, const Message &message)
 {
     QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
-        "INSERT INTO messages (conversation_id, role, content, tool_calls, tool_call_id, reasoning, usage_json, images_json, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+        "INSERT INTO messages (conversation_id, role, content, tool_calls, tool_call_id, reasoning, usage_json, images_json, files_json, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
     query.addBindValue(conversationId);
     query.addBindValue(roleToString(message.role));
     query.addBindValue(notNull(message.content));
@@ -248,6 +285,7 @@ bool SessionStore::appendMessage(qint64 conversationId, const Message &message)
     query.addBindValue(notNull(message.reasoning));
     query.addBindValue(notNull(QString::fromStdString(usageToJson(message.usage).dump())));
     query.addBindValue(notNull(imagesToJson(message.images)));
+    query.addBindValue(notNull(filesToJson(message.files)));
     query.addBindValue(message.createdAt.isValid() ? message.createdAt.toString(Qt::ISODateWithMs)
                                                    : nowIso());
     if (!query.exec()) {
@@ -289,7 +327,7 @@ QList<Message> SessionStore::messages(qint64 conversationId) const
     QList<Message> result;
     QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
-        "SELECT role, content, tool_calls, tool_call_id, reasoning, usage_json, images_json, created_at FROM messages "
+        "SELECT role, content, tool_calls, tool_call_id, reasoning, usage_json, images_json, files_json, created_at FROM messages "
         "WHERE conversation_id = ? ORDER BY id"));
     query.addBindValue(conversationId);
     query.exec();
@@ -304,8 +342,9 @@ QList<Message> SessionStore::messages(qint64 conversationId) const
             usageFromJson(nlohmann::json::parse(query.value(5).toString().toStdString(),
                                                 nullptr, false));
         message.images = imagesFromJson(query.value(6).toString());
+        message.files = filesFromJson(query.value(7).toString());
         message.createdAt =
-            QDateTime::fromString(query.value(7).toString(), Qt::ISODateWithMs);
+            QDateTime::fromString(query.value(8).toString(), Qt::ISODateWithMs);
         result.append(message);
     }
     return result;

@@ -60,8 +60,10 @@ nlohmann::json buildMessages(const std::vector<Message> &history)
                               {"thinking", message.reasoning.toStdString()},
                               {"signature", ""}});
         }
-        if (!message.content.isEmpty())
-            blocks.push_back({{"type", "text"}, {"text", message.content.toStdString()}});
+        // 文本文件附件格式化进正文（协议无关形态，见 formatTextAttachments）
+        const QString text = formatTextAttachments(message.content, message.files);
+        if (!text.isEmpty())
+            blocks.push_back({{"type", "text"}, {"text", text.toStdString()}});
         for (auto &block : imageBlocks(message.images))
             blocks.push_back(std::move(block));
         if (message.role == Role::Assistant) {

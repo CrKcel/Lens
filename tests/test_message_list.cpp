@@ -14,6 +14,7 @@ private slots:
     void emptyStreamingRowDropped();
     void resetFromMessagesBuildsReasoningAndToolRows();
     void imagesRoleRoundtrip();
+    void filesRoleRoundtrip();
 };
 
 void TestMessageList::streamingDeltasAccumulateInOneRow()
@@ -171,6 +172,37 @@ void TestMessageList::imagesRoleRoundtrip()
     QVERIFY(!live.data(idx, MessageListModel::ToolPendingRole).toBool());
     QCOMPARE(live.data(idx, MessageListModel::TextRole).toString(), QStringLiteral("ok"));
     QCOMPARE(live.data(idx, MessageListModel::ImagesRole).toList().size(), 1);
+}
+
+void TestMessageList::filesRoleRoundtrip()
+{
+    // resetFromMessages：Message.files → FilesRole {name} map，仅 user 行携带
+    MessageListModel model;
+    QList<Message> history;
+
+    Message user;
+    user.role = Role::User;
+    user.content = QStringLiteral("看文件");
+    user.files.append({QStringLiteral("a.txt"), QStringLiteral("内容")});
+    user.files.append({QStringLiteral("b.md"), QStringLiteral("# 标题")});
+    history.append(user);
+
+    Message assistant;
+    assistant.role = Role::Assistant;
+    assistant.content = QStringLiteral("done");
+    history.append(assistant);
+
+    model.resetFromMessages(history);
+
+    const QVariantList userFiles =
+        model.data(model.index(0, 0), MessageListModel::FilesRole).toList();
+    QCOMPARE(userFiles.size(), 2);
+    QCOMPARE(userFiles[0].toMap().value(QStringLiteral("name")).toString(),
+             QStringLiteral("a.txt"));
+    QCOMPARE(userFiles[1].toMap().value(QStringLiteral("name")).toString(),
+             QStringLiteral("b.md"));
+    // assistant 行不带文件
+    QVERIFY(model.data(model.index(1, 0), MessageListModel::FilesRole).toList().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestMessageList)

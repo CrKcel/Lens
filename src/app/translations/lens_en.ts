@@ -4,130 +4,149 @@
 <context>
     <name>ChatView</name>
     <message>
-        <location filename="../ChatView.qml" line="58"/>
+        <location filename="../ChatView.qml" line="60"/>
         <source>上下文 %1 · 累计 %2</source>
         <translation>Context %1 · Total %2</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="62"/>
+        <location filename="../ChatView.qml" line="64"/>
         <source> · 花费 %1</source>
         <translation> · Cost %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="79"/>
+        <location filename="../ChatView.qml" line="81"/>
         <source>新会话</source>
         <translation>New Chat</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="97"/>
-        <location filename="../ChatView.qml" line="467"/>
+        <location filename="../ChatView.qml" line="99"/>
+        <location filename="../ChatView.qml" line="498"/>
         <source>生成中…</source>
         <translation>Generating…</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="116"/>
+        <location filename="../ChatView.qml" line="118"/>
         <source>上下文</source>
         <translation>Context</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="120"/>
+        <location filename="../ChatView.qml" line="122"/>
         <source>查看当前上下文组成</source>
         <translation>Inspect the current context composition</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="241"/>
+        <location filename="../ChatView.qml" line="272"/>
         <source>思考过程</source>
         <translation>Reasoning</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="252"/>
+        <location filename="../ChatView.qml" line="283"/>
         <source>（生成中…）</source>
         <translation> (generating…)</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="319"/>
+        <location filename="../ChatView.qml" line="350"/>
         <source>&#x3000;运行中…</source>
         <translation>&#x3000;Running…</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="393"/>
+        <location filename="../ChatView.qml" line="424"/>
         <source>⚠ %1</source>
         <translation>⚠ %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="427"/>
+        <location filename="../ChatView.qml" line="458"/>
         <source>在「设置」中填入 API 地址与 Key
 发送第一条消息即自动创建会话</source>
         <translation>Fill in the API endpoint and key in Settings.
 The first message creates a conversation automatically.</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="469"/>
+        <location filename="../ChatView.qml" line="500"/>
         <source>输入消息，Enter 发送，Shift+Enter 换行</source>
         <translation>Type a message. Enter to send, Shift+Enter for a new line</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="470"/>
+        <location filename="../ChatView.qml" line="501"/>
         <source>输入消息，Ctrl+Enter 发送，Enter 换行</source>
         <translation>Type a message. Ctrl+Enter to send, Enter for a new line</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="560"/>
+        <location filename="../ChatView.qml" line="514"/>
+        <source>剪贴板图片.png</source>
+        <translation>Clipboard image.png</translation>
+    </message>
+    <message>
+        <location filename="../ChatView.qml" line="608"/>
         <source>切换模型</source>
         <translation>Switch model</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="629"/>
+        <location filename="../ChatView.qml" line="679"/>
         <source>思考模式：%1</source>
         <translation>Thinking mode: %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="653"/>
-        <location filename="../ChatView.qml" line="662"/>
+        <location filename="../ChatView.qml" line="703"/>
+        <location filename="../ChatView.qml" line="712"/>
         <source>低</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="654"/>
-        <location filename="../ChatView.qml" line="663"/>
+        <location filename="../ChatView.qml" line="704"/>
+        <location filename="../ChatView.qml" line="713"/>
         <source>中</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="655"/>
-        <location filename="../ChatView.qml" line="664"/>
+        <location filename="../ChatView.qml" line="705"/>
+        <location filename="../ChatView.qml" line="714"/>
         <source>高</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="656"/>
-        <location filename="../ChatView.qml" line="665"/>
+        <location filename="../ChatView.qml" line="706"/>
+        <location filename="../ChatView.qml" line="715"/>
         <source>最高</source>
         <translation>Max</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="657"/>
-        <location filename="../ChatView.qml" line="661"/>
+        <location filename="../ChatView.qml" line="707"/>
+        <location filename="../ChatView.qml" line="711"/>
         <source>关闭</source>
         <translation>Off</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="687"/>
-        <source>附加图片</source>
-        <translation>Attach image</translation>
+        <location filename="../ChatView.qml" line="737"/>
+        <source>附加文件</source>
+        <translation>Attach files</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="715"/>
+        <location filename="../ChatView.qml" line="794"/>
+        <source>文本文件 (*.txt *.md *.json *.xml *.yaml *.yml *.toml *.ini *.csv *.log *.html *.css *.js *.ts *.py *.c *.h *.cpp *.hpp *.qml *.sh *.cmake)</source>
+        <translation>Text files (*.txt *.md *.json *.xml *.yaml *.yml *.toml *.ini *.csv *.log *.html *.css *.js *.ts *.py *.c *.h *.cpp *.hpp *.qml *.sh *.cmake)</translation>
+    </message>
+    <message>
+        <location filename="../ChatView.qml" line="797"/>
+        <source>所有文件 (*)</source>
+        <translation>All files (*)</translation>
+    </message>
+    <message>
+        <source>附加图片</source>
+        <translation type="vanished">Attach image</translation>
+    </message>
+    <message>
+        <location filename="../ChatView.qml" line="765"/>
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="715"/>
+        <location filename="../ChatView.qml" line="765"/>
         <source>发送</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="741"/>
+        <location filename="../ChatView.qml" line="793"/>
         <source>图片文件 (*.png *.jpg *.jpeg *.gif *.webp *.bmp)</source>
         <translation>Image files (*.png *.jpg *.jpeg *.gif *.webp *.bmp)</translation>
     </message>

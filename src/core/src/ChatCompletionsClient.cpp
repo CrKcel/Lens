@@ -26,10 +26,12 @@ nlohmann::json multimodalContent(const QString &text, const QList<ImageAttachmen
 
 nlohmann::json messageToJson(const Message &message)
 {
+    // 文本文件附件格式化进正文（协议无关形态，见 formatTextAttachments）
+    const QString text = formatTextAttachments(message.content, message.files);
     nlohmann::json j = {{"role", roleToString(message.role).toStdString()},
-                        {"content", message.content.toStdString()}};
-    if (message.role == Role::User && !message.images.isEmpty())
-        j["content"] = multimodalContent(message.content, message.images);
+                        {"content", text.toStdString()}};
+    if (message.role == Role::User && (!message.images.isEmpty() || !message.files.isEmpty()))
+        j["content"] = multimodalContent(text, message.images);
     if (message.role == Role::Assistant && !message.toolCalls.isEmpty()) {
         auto calls = nlohmann::json::array();
         for (const ToolCall &call : message.toolCalls) {

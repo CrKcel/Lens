@@ -38,6 +38,16 @@ Message messageWithImage(Role role, const QString &content, const QString &toolC
     return message;
 }
 
+Message messageWithFile(Role role, const QString &content, const QString &fileName,
+                        const QString &fileContent)
+{
+    Message message;
+    message.role = role;
+    message.content = content;
+    message.files.append({fileName, fileContent});
+    return message;
+}
+
 // data URL 的 base64 载荷与 image/png 的魔数一致
 bool carriesPngDataUrl(const nlohmann::json &url)
 {
@@ -90,6 +100,10 @@ private slots:
     // —— 多模态：Message.images → 各协议请求体 ——
 
     void multimodalImageSerialization();
+
+    // —— 文本文件附件：Message.files → 各协议请求体（格式化进 user 正文） ——
+
+    void textFileAttachmentSerialization();
 };
 
 void TestProtocols::chatEndpointResolution()
@@ -608,6 +622,48 @@ void TestProtocols::multimodalImageSerialization()
     QCOMPARE(toolResult.at("type").get<std::string>(), "tool_result");
     QCOMPARE(toolResult.at("content")[0].at("type").get<std::string>(), "text");
     QCOMPARE(toolResult.at("content")[1].at("type").get<std::string>(), "image");
+}
+
+void TestProtocols::textFileAttachmentSerialization()
+{
+    const auto chat = makeProtocolAdapter(Protocol::ChatCompletions);
+    const nlohmann::json chatBody = chat->buildRequestBody(
+        {messageWithFile(Role::User, QStringLiteral("总结一下"),
+                         QStringLiteral("notes.txt"), QStringLiteral("正文内容"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &chatText = chatBody.at("messages")[0].at("content");
+    QVERIFY(chatText.is_array()); // 带附件走 content 数组形态
+    QCOMPARE(chatText[0].at("type").get<std::string>(), "text");
+    // 文本附件格式化为 attachment 块拼接进正文
+    QCOMPARE(chatText[0].at("text").get<std::string>(),
+             "总结一下\n\n<attachment filename=\"notes.txt\">\n正文内容\n</attachment>");
+    QCOMPARE(chatText.size(), 1); // 只有文本附件时无 image part
+
+    // 纯文本消息仍是字符串 content；无文件不追加 attachment 块
+    const nlohmann::json plainBody = chat->buildRequestBody(
+        {userMessage(QStringLiteral("hi"))}, QStringLiteral("m"), QString(), true, {});
+    QCOMPARE(plainBody.at("messages")[0].at("content").get<std::string>(), "hi");
+
+    // —— responses：input_text 带格式化正文 ——
+    const responses::ResponsesAdapter responses;
+    const nlohmann::json responsesBody = responses.buildRequestBody(
+        {messageWithFile(Role::User, QString(), QStringLiteral("a.md"), QStringLiteral("# 标题"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &inputText = responsesBody.at("input")[0].at("content");
+    QCOMPARE(inputText[0].at("type").get<std::string>(), "input_text");
+    QCOMPARE(inputText[0].at("text").get<std::string>(),
+             "\n\n<attachment filename=\"a.md\">\n# 标题\n</attachment>");
+
+    // —— anthropic：text 块带格式化正文，与图片共存 ——
+    const anthropic::AnthropicAdapter anthropic;
+    const nlohmann::json anthropicBody = anthropic.buildRequestBody(
+        {messageWithFile(Role::User, QStringLiteral("看这个"), QStringLiteral("x.txt"),
+                         QStringLiteral("内容"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &blocks = anthropicBody.at("messages")[0].at("content");
+    QCOMPARE(blocks[0].at("type").get<std::string>(), "text");
+    QCOMPARE(blocks[0].at("text").get<std::string>(),
+             "看这个\n\n<attachment filename=\"x.txt\">\n内容\n</attachment>");
 }
 
 QTEST_GUILESS_MAIN(TestProtocols)

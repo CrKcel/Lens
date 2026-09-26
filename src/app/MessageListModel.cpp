@@ -14,6 +14,14 @@ QVariantList imageDataUrls(const QList<ImageAttachment> &images)
     return result;
 }
 
+QVariantList fileVariants(const QList<TextAttachment> &files)
+{
+    QVariantList result;
+    for (const TextAttachment &file : files)
+        result.append(QVariantMap{{QStringLiteral("name"), file.fileName}});
+    return result;
+}
+
 } // namespace
 
 MessageListModel::MessageListModel(QObject *parent)
@@ -40,6 +48,7 @@ QVariant MessageListModel::data(const QModelIndex &index, int role) const
     case StreamingRole: return item.streaming;
     case ReasoningRole: return item.reasoning;
     case ImagesRole: return item.images;
+    case FilesRole: return item.files;
     }
     return {};
 }
@@ -53,7 +62,8 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
             {ToolPendingRole, "toolPending"},
             {StreamingRole, "streaming"},
             {ReasoningRole, "reasoning"},
-            {ImagesRole, "images"}};
+            {ImagesRole, "images"},
+            {FilesRole, "files"}};
 }
 
 void MessageListModel::resetFromMessages(const QList<Message> &messages)
@@ -75,7 +85,7 @@ void MessageListModel::resetFromMessages(const QList<Message> &messages)
         switch (message.role) {
         case Role::User:
             m_items.append({User, message.content, {}, {}, {}, false, false, {},
-                            imageDataUrls(message.images)});
+                            imageDataUrls(message.images), fileVariants(message.files)});
             break;
         case Role::Assistant:
             if (!message.content.isEmpty() || !message.reasoning.isEmpty())

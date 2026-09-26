@@ -17,6 +17,7 @@ private slots:
     void messagesAreOrderedPerConversation();
     void toolCallsAndResultsRoundtrip();
     void imagesRoundtrip();
+    void filesRoundtrip();
     void usageRoundtripAndLegacyMigration();
     void renameAndDeleteConversation();
 };
@@ -163,6 +164,38 @@ void TestSessionStore::imagesRoundtrip()
     QCOMPARE(messages[0].images[0].data, png);
     QCOMPARE(messages[0].images[1].mimeType, QStringLiteral("image/jpeg"));
     QCOMPARE(messages[0].images[1].data, jpeg);
+}
+
+void TestSessionStore::filesRoundtrip()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString dbPath = dir.filePath(QStringLiteral("sessions.db"));
+
+    qint64 conversationId = 0;
+    {
+        SessionStore store(dbPath);
+        QVERIFY(store.open());
+        conversationId = store.createConversation(QStringLiteral("files"), QString());
+        QVERIFY(conversationId > 0);
+        Message user;
+        user.role = Role::User;
+        user.content = QStringLiteral("看这两个文件");
+        user.files.append({QStringLiteral("a.txt"), QStringLiteral("第一行\n第二行")});
+        user.files.append({QStringLiteral("b.md"), QStringLiteral("# 标题")});
+        QVERIFY(store.appendMessage(conversationId, user));
+    }
+
+    // 重开后回读：文件名与内容均无损
+    SessionStore store(dbPath);
+    QVERIFY(store.open());
+    const auto messages = store.messages(conversationId);
+    QCOMPARE(messages.size(), 1);
+    QCOMPARE(messages[0].files.size(), 2);
+    QCOMPARE(messages[0].files[0].fileName, QStringLiteral("a.txt"));
+    QCOMPARE(messages[0].files[0].content, QStringLiteral("第一行\n第二行"));
+    QCOMPARE(messages[0].files[1].fileName, QStringLiteral("b.md"));
+    QCOMPARE(messages[0].files[1].content, QStringLiteral("# 标题"));
 }
 
 void TestSessionStore::usageRoundtripAndLegacyMigration()

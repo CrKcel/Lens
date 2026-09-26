@@ -61,7 +61,8 @@ public:
     Q_INVOKABLE void openConversation(qint64 conversationId);
     Q_INVOKABLE void deleteConversation(qint64 conversationId);
     Q_INVOKABLE void send(const QString &text, const QString &workdir = QString());
-    // 带图片附件的发送：attachments 每项为图片文件路径或 data URL；
+    // 带附件的发送：attachments 每项为 {url, name, isImage}（兼容旧纯字符串路径/data URL）；
+    // 图片与文本文件由嗅探分类（文本文件内容随消息发给模型）；
     // thinkingLevel 为会话内临时状态（disabled/low/medium/high/max），不持久化
     Q_INVOKABLE void send(const QString &text, const QString &workdir,
                           const QVariantList &attachments,
@@ -89,8 +90,14 @@ signals:
     void modelsFetchFailed(const QString &error);
 
 private:
+    // loadAttachments 的结果：图片与文本附件分类收集
+    struct LoadedAttachments {
+        QList<ImageAttachment> images;
+        QList<TextAttachment> files;
+    };
+
     void connectAgent();
-    QList<ImageAttachment> loadAttachments(const QVariantList &attachments) const;
+    LoadedAttachments loadAttachments(const QVariantList &attachments) const;
     qint64 createAndOpenConversation(const QString &workdir);
     QVector<ContextSectionInfo> collectSections() const;
     void setErrorRow(const QString &text);

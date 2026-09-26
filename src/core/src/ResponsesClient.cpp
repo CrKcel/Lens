@@ -13,9 +13,11 @@ nlohmann::json buildInputItems(const std::vector<Message> &history)
         switch (message.role) {
         case Role::User: {
             auto content = nlohmann::json::array();
-            if (!message.content.isEmpty())
+            // 文本文件附件格式化进正文（协议无关形态，见 formatTextAttachments）
+            const QString text = formatTextAttachments(message.content, message.files);
+            if (!text.isEmpty())
                 content.push_back({{"type", "input_text"},
-                                   {"text", message.content.toStdString()}});
+                                   {"text", text.toStdString()}});
             for (const ImageAttachment &image : message.images) {
                 content.push_back({{"type", "input_image"},
                                    {"image_url", imageDataUrl(image).toStdString()}});

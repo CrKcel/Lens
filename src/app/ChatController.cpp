@@ -5,10 +5,12 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QBuffer>
 #include <QSet>
+#include <QStringDecoder>
 #include <QTimer>
 #include <lens/core/context/AgentDocs.hpp>
 #include <lens/core/context/EnvironmentPrompt.hpp>
@@ -292,42 +294,90 @@ void ChatController::send(const QString &text, const QString &workdir)
     send(text, workdir, {});
 }
 
-// 附件条目：文件路径（可带 file:// 前缀）或 data URL；无法识别的条目跳过并告警
-QList<ImageAttachment> ChatController::loadAttachments(const QVariantList &attachments) const
+// 附件条目：{url, name, isImage}（QVariantMap），兼容旧纯字符串路径/data URL。
+// 分类以嗅探为准（QML 的 isImage 只影响预览渲染）：魔数命中 → 图片；
+// 否则无 NUL 且为合法 UTF-8 → 文本附件，其余拒绝。无法识别的条目跳过并告警
+ChatController::LoadedAttachments ChatController::loadAttachments(
+    const QVariantList &attachments) const
 {
     static constexpr qint64 kMaxImageBytes = 5 * 1024 * 1024; // 主流 API 的单图上限
-    QList<ImageAttachment> result;
+    static constexpr qint64 kMaxTextBytes = 1024 * 1024;      // 单文本附件上限
+    LoadedAttachments result;
     for (const QVariant &entry : attachments) {
-        const QString value = entry.toString();
-        ImageAttachment image;
+        const QVariantMap map = entry.toMap();
+        const QString value = map.isEmpty()
+                                  ? entry.toString()
+                                  : map.value(QStringLiteral("url")).toString();
+        if (value.isEmpty())
+            continue;
         if (value.startsWith(QLatin1String("data:"))) { // data:<mime>;base64,<payload>
-            const QString payload = value.section(QLatin1String("base64,"), 1);
+            ImageAttachment image;
             image.mimeType = value.mid(5, value.indexOf(QLatin1Char(';')) - 5);
-            image.data = QByteArray::fromBase64(payload.toLatin1());
-        } else {
-            const QString path = value.startsWith(QLatin1String("file:"))
-                                     ? QUrl(value).toLocalFile()
-                                     : value;
-            QFile file(path);
-            if (!file.open(QIODevice::ReadOnly)) {
-                qWarning("附件 %s 无法打开，已跳过", qPrintable(path));
+            image.data = QByteArray::fromBase64(
+                value.section(QLatin1String("base64,"), 1).toLatin1());
+            if (image.mimeType.isEmpty() || image.data.isEmpty()) {
+                qWarning("附件 %s 不是受支持的图片（png/jpg/gif/webp/bmp），已跳过",
+                         qPrintable(value));
                 continue;
             }
-            image.mimeType = sniffImageMime(file.peek(8192), file.size());
+            if (image.data.size() > kMaxImageBytes) {
+                qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(value),
+                         kMaxImageBytes / (1024 * 1024));
+                continue;
+            }
+            result.images.append(image);
+            continue;
+        }
+        const QString path = value.startsWith(QLatin1String("file:"))
+                                 ? QUrl(value).toLocalFile()
+                                 : value;
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning("附件 %s 无法打开，已跳过", qPrintable(path));
+            continue;
+        }
+        const QByteArray head = file.peek(8192);
+        if (const QString mime = sniffImageMime(head, file.size()); !mime.isEmpty()) {
+            ImageAttachment image;
+            image.mimeType = mime;
             image.data = file.read(kMaxImageBytes + 1);
-            file.close();
-        }
-        if (image.mimeType.isEmpty() || image.data.isEmpty()) {
-            qWarning("附件 %s 不是受支持的图片（png/jpg/gif/webp/bmp），已跳过",
-                     qPrintable(value));
+            if (image.data.isEmpty()) {
+                qWarning("附件 %s 无法读取，已跳过", qPrintable(path));
+                continue;
+            }
+            if (image.data.size() > kMaxImageBytes) {
+                qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(path),
+                         kMaxImageBytes / (1024 * 1024));
+                continue;
+            }
+            result.images.append(image);
             continue;
         }
-        if (image.data.size() > kMaxImageBytes) {
-            qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(value),
-                     kMaxImageBytes / (1024 * 1024));
+        if (file.size() > kMaxTextBytes) {
+            qWarning("附件 %s 超过 1MB 文本上限，已跳过", qPrintable(path));
             continue;
         }
-        result.append(image);
+        // 文本候选：空文件、NUL 字节或非法 UTF-8 都拒绝（空文件持久化回读
+        // 会被 filesFromJson 丢弃，会话重启后附件不一致，故加载时就拒绝）
+        const QByteArray bytes = file.readAll();
+        if (bytes.isEmpty()) {
+            qWarning("附件 %s 是空文件，已跳过", qPrintable(path));
+            continue;
+        }
+        if (bytes.contains('\0')) {
+            qWarning("附件 %s 是二进制文件，已跳过", qPrintable(path));
+            continue;
+        }
+        QStringDecoder decoder(QStringConverter::Utf8);
+        const QString content = decoder.decode(bytes);
+        if (decoder.hasError()) {
+            qWarning("附件 %s 不是合法 UTF-8 文本，已跳过", qPrintable(path));
+            continue;
+        }
+        QString fileName = map.value(QStringLiteral("name")).toString();
+        if (fileName.isEmpty())
+            fileName = QFileInfo(path).fileName();
+        result.files.append(TextAttachment{fileName, content});
     }
     return result;
 }
@@ -340,12 +390,13 @@ void ChatController::send(const QString &text, const QString &workdir,
     if (m_conversationId == 0)
         createAndOpenConversation(workdir); // 发送时无会话：自动创建
 
-    const QList<ImageAttachment> images = loadAttachments(attachments);
+    const LoadedAttachments loaded = loadAttachments(attachments);
 
     Message userMessage;
     userMessage.role = Role::User;
     userMessage.content = text;
-    userMessage.images = images;
+    userMessage.images = loaded.images;
+    userMessage.files = loaded.files;
     m_store->appendMessage(m_conversationId, userMessage);
 
     if (m_title == QStringLiteral("新会话")) { // 首条消息作为会话标题
@@ -358,8 +409,10 @@ void ChatController::send(const QString &text, const QString &workdir,
     MessageListModel::Item item;
     item.kind = MessageListModel::User;
     item.text = text;
-    for (const ImageAttachment &image : images)
+    for (const ImageAttachment &image : loaded.images)
         item.images.append(imageDataUrl(image));
+    for (const TextAttachment &file : loaded.files)
+        item.files.append(QVariantMap{{QStringLiteral("name"), file.fileName}});
     m_messageModel->appendItem(item);
 
     const ProviderConfig provider = m_settings->activeProviderConfig();
@@ -378,7 +431,7 @@ void ChatController::send(const QString &text, const QString &workdir,
         assembler.setSection(section.name, section.content);
     m_agent->setSystemPrompt(assembler.assemble());
     m_agent->setWorkdir(m_workdir);
-    m_agent->sendUserMessage(text, images);
+    m_agent->sendUserMessage(text, loaded.images, loaded.files);
 
     m_streaming = true;
     emit streamingChanged();

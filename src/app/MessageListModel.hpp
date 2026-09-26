@@ -24,6 +24,7 @@ public:
         StreamingRole,
         ReasoningRole,
         ImagesRole, // QVariantList：data URL 字符串，供 QML Image 显示
+        FilesRole,  // QVariantList：{name} map，供 QML 渲染文本附件 chip
     };
 
     struct Item {
@@ -35,7 +36,8 @@ public:
         bool toolPending = false;
         bool streaming = false;
         QString reasoning;  // Assistant：思考过程
-        QVariantList images; // 随消息展示的图片（data URL）
+        QVariantList images = {}; // 随消息展示的图片（data URL）
+        QVariantList files = {};  // 随消息展示的文本附件（{name}）
     };
 
     explicit MessageListModel(QObject *parent = nullptr);

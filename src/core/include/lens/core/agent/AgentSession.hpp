@@ -39,7 +39,12 @@ public:
 
 public slots:
     void sendUserMessage(const QString &text) { sendUserMessage(text, {}); }
-    void sendUserMessage(const QString &text, const QList<ImageAttachment> &images);
+    void sendUserMessage(const QString &text, const QList<ImageAttachment> &images)
+    {
+        sendUserMessage(text, images, {});
+    }
+    void sendUserMessage(const QString &text, const QList<ImageAttachment> &images,
+                         const QList<TextAttachment> &files);
     void cancel();
 
 signals:
