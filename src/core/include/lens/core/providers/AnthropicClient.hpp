@@ -29,6 +29,10 @@ private:
     // 同样用 input_json_delta 流式下发输入，但不是本地工具调用，须按块类型区分。
     // 适配器被 AgentSession 单实例复用，状态在每回合的 message_start 清零。
     mutable QMap<int, QString> m_blockTypes;
+    // usage 拆在 message_start（输入）与 message_delta（输出）两个事件里，
+    // 先暂存输入侧，message_delta 到达时合并成完整 TokenUsage
+    mutable qint64 m_pendingPromptTokens = 0;
+    mutable qint64 m_pendingCachedTokens = 0;
 };
 
 } // namespace lens::anthropic

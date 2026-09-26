@@ -86,6 +86,12 @@ void AppSettings::load()
             provider.model = readQStr(entry, "model");
             if (entry.contains("serverSearch") && entry.at("serverSearch").is_boolean())
                 provider.serverSearch = entry.at("serverSearch").get<bool>();
+            if (entry.contains("inputPrice") && entry.at("inputPrice").is_number())
+                provider.inputPrice = entry.at("inputPrice").get<double>();
+            if (entry.contains("outputPrice") && entry.at("outputPrice").is_number())
+                provider.outputPrice = entry.at("outputPrice").get<double>();
+            if (entry.contains("cachedPrice") && entry.at("cachedPrice").is_number())
+                provider.cachedPrice = entry.at("cachedPrice").get<double>();
             if (provider.name.isEmpty())
                 provider.name = QStringLiteral("供应商%1").arg(m_providers.size() + 1);
             if (provider.protocol.isEmpty())
@@ -162,7 +168,10 @@ void AppSettings::save()
                              {"endpoint", readStd(provider.endpoint)},
                              {"apiKey", readStd(provider.apiKey)},
                              {"model", readStd(provider.model)},
-                             {"serverSearch", provider.serverSearch}});
+                             {"serverSearch", provider.serverSearch},
+                             {"inputPrice", provider.inputPrice},
+                             {"outputPrice", provider.outputPrice},
+                             {"cachedPrice", provider.cachedPrice}});
     }
     json["providers"] = std::move(providers);
     auto servers = nlohmann::json::array();
@@ -246,7 +255,10 @@ QVariantMap AppSettings::providerToMap(const ProviderConfig &provider) const
             {QStringLiteral("endpoint"), provider.endpoint},
             {QStringLiteral("apiKey"), provider.apiKey},
             {QStringLiteral("model"), provider.model},
-            {QStringLiteral("serverSearch"), provider.serverSearch}};
+            {QStringLiteral("serverSearch"), provider.serverSearch},
+            {QStringLiteral("inputPrice"), provider.inputPrice},
+            {QStringLiteral("outputPrice"), provider.outputPrice},
+            {QStringLiteral("cachedPrice"), provider.cachedPrice}};
 }
 
 ProviderConfig AppSettings::providerFromMap(const QVariantMap &map) const
@@ -258,6 +270,9 @@ ProviderConfig AppSettings::providerFromMap(const QVariantMap &map) const
     provider.apiKey = map.value(QStringLiteral("apiKey")).toString();
     provider.model = map.value(QStringLiteral("model")).toString();
     provider.serverSearch = map.value(QStringLiteral("serverSearch")).toBool();
+    provider.inputPrice = map.value(QStringLiteral("inputPrice")).toDouble();
+    provider.outputPrice = map.value(QStringLiteral("outputPrice")).toDouble();
+    provider.cachedPrice = map.value(QStringLiteral("cachedPrice")).toDouble();
     if (provider.protocol.isEmpty())
         provider.protocol = kDefaultProtocol;
     return provider;

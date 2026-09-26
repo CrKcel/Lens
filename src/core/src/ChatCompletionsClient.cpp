@@ -68,10 +68,38 @@ QString extractDeltaText(const nlohmann::json &payload)
     return QString::fromStdString(content.dump());
 }
 
+// 解析 chat completions 形态的 usage 对象（prompt/completion_tokens + cached 明细）。
+// llama.cpp 末帧把 usage 放在 chunk 顶层，OpenAI 的 include_usage 末帧无 choices。
+// 仅本翻译单元使用，保持内部链接避免污染命名空间
+static void parseUsage(const nlohmann::json &usageJson, ChatCompletionStream &stream)
+{
+    if (!usageJson.is_object() || !usageJson.contains("prompt_tokens")
+        || !usageJson.contains("completion_tokens"))
+        return;
+    TokenUsage usage;
+    usage.valid = true;
+    if (usageJson.at("prompt_tokens").is_number())
+        usage.promptTokens = usageJson.at("prompt_tokens").get<qint64>();
+    if (usageJson.at("completion_tokens").is_number())
+        usage.completionTokens = usageJson.at("completion_tokens").get<qint64>();
+    if (usageJson.contains("prompt_tokens_details")
+        && usageJson.at("prompt_tokens_details").is_object()
+        && usageJson.at("prompt_tokens_details").contains("cached_tokens")
+        && usageJson.at("prompt_tokens_details").at("cached_tokens").is_number())
+        usage.cachedTokens =
+            usageJson.at("prompt_tokens_details").at("cached_tokens").get<qint64>();
+    stream.setUsage(usage);
+}
+
 chatcompletions::StreamDelta ChatCompletionStream::apply(const nlohmann::json &chunk)
 {
     StreamDelta delta;
-    if (chunk.is_discarded() || !chunk.contains("choices"))
+    if (chunk.is_discarded() || !chunk.is_object())
+        return delta;
+    // usage 可能在任意 chunk 顶层（惯例为最后一帧，stream_options.include_usage 时该帧无 choices）
+    if (chunk.contains("usage"))
+        parseUsage(chunk.at("usage"), *this);
+    if (!chunk.contains("choices"))
         return delta;
     const auto &choices = chunk.at("choices");
     if (!choices.is_array() || choices.empty())

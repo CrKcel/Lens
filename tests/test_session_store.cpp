@@ -1,5 +1,7 @@
 #include <QtTest/QtTest>
 
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 
 #include <lens/core/storage/SessionStore.hpp>
@@ -14,6 +16,7 @@ private slots:
     void roundtripPersistsAcrossReopen();
     void messagesAreOrderedPerConversation();
     void toolCallsAndResultsRoundtrip();
+    void usageRoundtripAndLegacyMigration();
     void renameAndDeleteConversation();
 };
 
@@ -125,6 +128,74 @@ void TestSessionStore::toolCallsAndResultsRoundtrip()
     QCOMPARE(messages[1].role, Role::Tool);
     QCOMPARE(messages[1].toolCallId, QStringLiteral("call_1"));
     QCOMPARE(messages[1].content, QStringLiteral("file contents"));
+}
+
+void TestSessionStore::usageRoundtripAndLegacyMigration()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString dbPath = dir.filePath(QStringLiteral("sessions.db"));
+
+    qint64 conversationId = 0;
+    {
+        SessionStore store(dbPath);
+        QVERIFY(store.open());
+        conversationId = store.createConversation(QStringLiteral("usage"), QString());
+        QVERIFY(conversationId > 0);
+        Message assistant;
+        assistant.role = Role::Assistant;
+        assistant.content = QStringLiteral("ok");
+        assistant.usage.valid = true;
+        assistant.usage.promptTokens = 321;
+        assistant.usage.completionTokens = 45;
+        assistant.usage.cachedTokens = 200;
+        QVERIFY(store.appendMessage(conversationId, assistant));
+    }
+
+    // 重开（ensureColumn 走已存在分支）后 usage 完整回读
+    SessionStore store(dbPath);
+    QVERIFY(store.open());
+    const auto messages = store.messages(conversationId);
+    QCOMPARE(messages.size(), 1);
+    QVERIFY(messages[0].usage.valid);
+    QCOMPARE(messages[0].usage.promptTokens, 321);
+    QCOMPARE(messages[0].usage.completionTokens, 45);
+    QCOMPARE(messages[0].usage.cachedTokens, 200);
+
+    // 老库（无 usage_json 列）迁移：手工建一张旧 schema 的库再打开
+    QTemporaryDir legacyDir;
+    QVERIFY(legacyDir.isValid());
+    const QString legacyDb = legacyDir.filePath(QStringLiteral("legacy.db"));
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(
+            QStringLiteral("QSQLITE"), QStringLiteral("legacy_migration"));
+        db.setDatabaseName(legacyDb);
+        QVERIFY(db.open());
+        QSqlQuery query(db);
+        QVERIFY(query.exec(
+            "CREATE TABLE conversations (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "title TEXT NOT NULL, workdir TEXT NOT NULL DEFAULT '', "
+            "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"));
+        QVERIFY(query.exec(
+            "CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, "
+            "role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL)"));
+        QVERIFY(query.exec(
+            "INSERT INTO conversations (title, workdir, created_at, updated_at) "
+            "VALUES ('old', '', '2026-01-01T00:00:00.000', '2026-01-01T00:00:00.000')"));
+        QVERIFY(query.exec(
+            "INSERT INTO messages (conversation_id, role, content, created_at) "
+            "VALUES (1, 'assistant', '旧数据', '2026-01-01T00:00:00.000')"));
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(QStringLiteral("legacy_migration"));
+
+    SessionStore legacyStore(legacyDb);
+    QVERIFY(legacyStore.open());
+    const auto legacyMessages = legacyStore.messages(1);
+    QCOMPARE(legacyMessages.size(), 1);
+    QCOMPARE(legacyMessages[0].content, QStringLiteral("旧数据"));
+    QVERIFY(!legacyMessages[0].usage.valid); // 无 usage 历史视为未上报
 }
 
 void TestSessionStore::renameAndDeleteConversation()

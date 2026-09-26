@@ -83,11 +83,15 @@ private slots:
             sse += "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":"
                    "{\"arguments\":\"{\\\"path\\\":\\\"note.txt\\\",\\\"content\\\":\\\"written by mock\\\"}\"}}]}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n";
+            sse += "data: {\"usage\":{\"prompt_tokens\":110,\"completion_tokens\":25,"
+                   "\"total_tokens\":135,\"prompt_tokens_details\":{\"cached_tokens\":60}}}\n\n";
             sse += "data: [DONE]\n\n";
         } else {
             sse += "data: {\"choices\":[{\"delta\":{\"content\":\"文件已写入\"}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{\"content\":\"，任务完成\"}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n";
+            sse += "data: {\"usage\":{\"prompt_tokens\":150,\"completion_tokens\":12,"
+                   "\"total_tokens\":162}}\n\n";
             sse += "data: [DONE]\n\n";
         }
 
@@ -207,6 +211,15 @@ void TestAgentSession::fullToolCallLoop()
     QCOMPARE(idleCount, 1);
     QCOMPARE(assistantMessages.last().toolCalls.size(), 0);
 
+    // usage 随 Message 端到端透传：工具回合 + 最终回复各带一次
+    QVERIFY(assistantMessages[0].usage.valid);
+    QCOMPARE(assistantMessages[0].usage.promptTokens, 110);
+    QCOMPARE(assistantMessages[0].usage.completionTokens, 25);
+    QCOMPARE(assistantMessages[0].usage.cachedTokens, 60);
+    QVERIFY(assistantMessages[1].usage.valid);
+    QCOMPARE(assistantMessages[1].usage.promptTokens, 150);
+    QCOMPARE(assistantMessages[1].usage.completionTokens, 12);
+
     // 会话历史可整体持久化回读
     QTemporaryDir dbDir;
     SessionStore store(dbDir.filePath(QStringLiteral("s.db")));
@@ -217,6 +230,9 @@ void TestAgentSession::fullToolCallLoop()
     const auto persisted = store.messages(id);
     QCOMPARE(persisted.size(), session.history().size());
     QCOMPARE(persisted[1].toolCalls.first().name, QStringLiteral("write"));
+    QVERIFY(persisted[1].usage.valid); // usage 列随消息一起持久化
+    QCOMPARE(persisted[1].usage.promptTokens, 110);
+    QCOMPARE(persisted[1].usage.completionTokens, 25);
 }
 
 // 服务端搜索开启：请求体带 web_search_options，本地 web_search 工具被过滤，write 保留

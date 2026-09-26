@@ -42,6 +42,7 @@ private slots:
     void anthropicRequestShape();
     void anthropicToolResultMergesIntoUserMessage();
     void anthropicEventStream();
+    void anthropicUsageExtraction();
     void anthropicServerToolUseIsNotLocalToolCall();
     void anthropicErrorEvent();
 
@@ -49,6 +50,7 @@ private slots:
 
     void responsesRequestShape();
     void responsesEventStream();
+    void responsesUsageExtraction();
     void responsesErrorEvent();
 
     // —— 工厂与协议名 ——
@@ -296,6 +298,36 @@ void TestProtocols::responsesRequestShape()
     QVERIFY(headers.first().second.contains("sk-key"));
 }
 
+void TestProtocols::anthropicUsageExtraction()
+{
+    // 输入侧用量在 message_start，输出侧在 message_delta，合并成完整 TokenUsage
+    anthropic::AnthropicAdapter adapter;
+    chatcompletions::ChatCompletionStream stream;
+    const auto feed = [&](const char *payload) {
+        const auto json = nlohmann::json::parse(payload, payload + strlen(payload), nullptr, false);
+        adapter.applyEvent(json, stream);
+    };
+
+    feed(R"({"type":"message_start","message":{"id":"m1","role":"assistant",)"
+         R"("usage":{"input_tokens":120,"cache_read_input_tokens":80}}})");
+    feed(R"({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}})");
+    feed(R"({"type":"message_delta","delta":{"stop_reason":"end_turn"},)"
+         R"("usage":{"output_tokens":42}})");
+
+    QVERIFY(stream.usage().valid);
+    QCOMPARE(stream.usage().promptTokens, 120);
+    QCOMPARE(stream.usage().completionTokens, 42);
+    QCOMPARE(stream.usage().cachedTokens, 80);
+
+    // 新回合 message_start 重置暂存，不会把上一回合的输入量带入
+    feed(R"({"type":"message_start","message":{"id":"m2","role":"assistant",)"
+         R"("usage":{"input_tokens":9}}})");
+    feed(R"({"type":"message_delta","delta":{},"usage":{"output_tokens":3}})");
+    QCOMPARE(stream.usage().promptTokens, 9);
+    QCOMPARE(stream.usage().completionTokens, 3);
+    QCOMPARE(stream.usage().cachedTokens, 0);
+}
+
 void TestProtocols::responsesEventStream()
 {
     const responses::ResponsesAdapter adapter;
@@ -321,6 +353,28 @@ void TestProtocols::responsesEventStream()
     QCOMPARE(calls.size(), 1);
     QCOMPARE(calls.first().id, QStringLiteral("fc_1"));
     QCOMPARE(calls.first().arguments, QStringLiteral("{\"path\":\"c.txt\"}"));
+}
+
+void TestProtocols::responsesUsageExtraction()
+{
+    // response.completed 的 response.usage 携带完整用量
+    const responses::ResponsesAdapter adapter;
+    chatcompletions::ChatCompletionStream stream;
+    const auto feed = [&](const char *payload) {
+        const auto json = nlohmann::json::parse(payload, payload + strlen(payload), nullptr, false);
+        adapter.applyEvent(json, stream);
+    };
+
+    feed(R"({"type":"response.output_text.delta","delta":"hi"})");
+    feed(R"({"type":"response.completed","response":{"id":"resp_1",)"
+         R"("usage":{"input_tokens":200,"output_tokens":50,)"
+         R"("input_tokens_details":{"cached_tokens":150}}}})");
+
+    QVERIFY(stream.isDone());
+    QVERIFY(stream.usage().valid);
+    QCOMPARE(stream.usage().promptTokens, 200);
+    QCOMPARE(stream.usage().completionTokens, 50);
+    QCOMPARE(stream.usage().cachedTokens, 150);
 }
 
 void TestProtocols::responsesErrorEvent()

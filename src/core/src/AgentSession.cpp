@@ -136,6 +136,7 @@ void AgentSession::finishAssistantMessage()
     assistant.content = m_stream.content();
     assistant.reasoning = m_stream.reasoning();
     assistant.toolCalls = m_stream.toolCalls();
+    assistant.usage = m_stream.usage();
     assistant.createdAt = QDateTime::currentDateTimeUtc();
     m_history.push_back(assistant);
     emit assistantCompleted(assistant);

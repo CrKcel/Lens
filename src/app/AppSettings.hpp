@@ -16,6 +16,9 @@ struct ProviderConfig {
     QString apiKey;
     QString model;
     bool serverSearch = false; // 服务端联网搜索（供应商支持时）
+    double inputPrice = 0.0;   // 输入单价（每百万 token），0 表示未配置不计费用
+    double outputPrice = 0.0;  // 输出单价（每百万 token）
+    double cachedPrice = 0.0;  // 缓存命中单价（每百万 token），0 表示缓存部分按输入单价计
 };
 
 // 一个 MCP 服务器配置

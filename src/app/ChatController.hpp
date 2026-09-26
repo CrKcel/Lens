@@ -37,6 +37,7 @@ class ChatController : public QObject
     Q_PROPERTY(QVariantList contextSections READ contextSections NOTIFY contextChanged)
     Q_PROPERTY(QVariantList contextTools READ contextTools NOTIFY contextChanged)
     Q_PROPERTY(QVariantList mcpStatus READ mcpStatus NOTIFY contextChanged)
+    Q_PROPERTY(QVariantMap usageSummary READ usageSummary NOTIFY usageChanged)
 
 public:
     explicit ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
@@ -51,6 +52,7 @@ public:
     QVariantList contextSections() const;
     QVariantList contextTools() const { return m_toolList; }
     QVariantList mcpStatus() const { return m_mcpStatus; }
+    QVariantMap usageSummary() const;
 
     Q_INVOKABLE void newConversation(const QString &workdir);
     Q_INVOKABLE void openConversation(qint64 conversationId);
@@ -64,6 +66,7 @@ signals:
     void streamingChanged();
     void currentConversationChanged();
     void contextChanged();
+    void usageChanged();
 
 private:
     void connectAgent();
@@ -73,6 +76,8 @@ private:
     void registerBuiltinTools();
     void loadMcpTools(); // 连接 MCP 服务器并把远程工具桥接进注册表
     void rebuildToolList();
+    void resetUsage();                       // 会话切换/清空时归零并重算
+    void recordUsage(const TokenUsage &usage); // 累加一次回合用量
 
     SessionStore *m_store;
     AppSettings *m_settings;
@@ -87,6 +92,13 @@ private:
     QVector<ContextSectionInfo> m_lastSections;
     QVariantList m_toolList;
     QVariantList m_mcpStatus;
+
+    // 会话用量统计：最近一次输入（= 上下文长度）+ 累计输入/输出/缓存命中
+    TokenUsage m_lastUsage;
+    qint64 m_totalPrompt = 0;
+    qint64 m_totalCompletion = 0;
+    qint64 m_totalCached = 0;
+    bool m_hasUsage = false;
 
     qint64 m_conversationId = 0;
     QString m_workdir;

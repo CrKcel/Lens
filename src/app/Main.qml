@@ -35,6 +35,26 @@ ApplicationWindow {
         input.clear()
     }
 
+    function formatTokens(n) {
+        if (n >= 1000000)
+            return (n / 1000000).toFixed(1) + "M"
+        if (n >= 1000)
+            return (n / 1000).toFixed(1) + "k"
+        return String(n)
+    }
+
+    function formatUsageSummary() {
+        const u = chat.usageSummary
+        if (!u.hasUsage)
+            return ""
+        let text = qsTr("上下文 %1 · 累计 %2")
+            .arg(root.formatTokens(u.contextTokens))
+            .arg(root.formatTokens(u.totalPrompt + u.totalCompletion))
+        if (u.hasCost)
+            text += qsTr(" · 花费 %1").arg(Number(u.cost).toFixed(4))
+        return text
+    }
+
     function applySettings() {
         settings.endpoint = endpointField.text
         settings.apiKey = apiKeyField.text
@@ -59,7 +79,10 @@ ApplicationWindow {
               "endpoint": endpointField.text,
               "apiKey": apiKeyField.text,
               "model": modelField.text,
-              "serverSearch": serverSearchCheck.checked })
+              "serverSearch": serverSearchCheck.checked,
+              "inputPrice": Number(inputPriceField.text) || 0,
+              "outputPrice": Number(outputPriceField.text) || 0,
+              "cachedPrice": Number(cachedPriceField.text) || 0 })
         root.applySettings()
     }
 
@@ -117,8 +140,12 @@ ApplicationWindow {
         modelField.text = settings.model
         protocolCombo.currentIndex = protocolCombo.indexOfValue(settings.protocol)
         serverSearchCheck.checked = settings.serverSearch
-        providerNameField.text = settings.providers.length > 0
-            ? settings.providers[settings.activeProvider].name : ""
+        const activeProvider = settings.providers.length > 0
+            ? settings.providers[settings.activeProvider] : null
+        providerNameField.text = activeProvider ? activeProvider.name : ""
+        inputPriceField.text = activeProvider ? String(activeProvider.inputPrice) : "0"
+        outputPriceField.text = activeProvider ? String(activeProvider.outputPrice) : "0"
+        cachedPriceField.text = activeProvider ? String(activeProvider.cachedPrice) : "0"
         webSearchEndpointField.text = settings.webSearchEndpoint
         webSearchApiKeyField.text = settings.webSearchApiKey
         root.mcpServersWorking = settings.mcpServers
@@ -141,12 +168,16 @@ ApplicationWindow {
             root.settingsCategory = "providers"
             root.qmlCheckStage = 1
             root.loadSettingsIntoFields()
-            // 第一轮：模拟用户键入并保存
+            // 第一轮：模拟用户键入并保存（saveSettings 走供应商表单写回 +
+            // applySettings 的完整链路，覆盖单价等 provider 字段）
             endpointField.text = "http://qml-check.example/v1"
             apiKeyField.text = "sk-qml-check"
             modelField.text = "qml-check-model"
             systemPromptField.text = "qml-check-prompt"
-            root.applySettings()
+            inputPriceField.text = "2.5"
+            outputPriceField.text = "10"
+            cachedPriceField.text = "0.1"
+            root.saveSettings()
             // 清空字段，确保第二轮保存的值只能来自 loadSettingsIntoFields
             // 的重新填充
             root.qmlCheckStage = 2
@@ -362,6 +393,12 @@ ApplicationWindow {
             Label {
                 text: chat.streaming ? qsTr("生成中…") : ""
                 color: theme.accent
+            }
+            Label {
+                visible: text.length > 0
+                text: root.formatUsageSummary()
+                color: theme.textDim
+                font.pixelSize: 11
             }
             ToolButton {
                 text: qsTr("上下文")
@@ -728,7 +765,10 @@ ApplicationWindow {
                                 "endpoint": endpointField.text,
                                 "apiKey": apiKeyField.text,
                                 "model": modelField.text,
-                                "serverSearch": serverSearchCheck.checked
+                                "serverSearch": serverSearchCheck.checked,
+                                "inputPrice": Number(inputPriceField.text) || 0,
+                                "outputPrice": Number(outputPriceField.text) || 0,
+                                "cachedPrice": Number(cachedPriceField.text) || 0
                             })
                             root.loadSettingsIntoFields()
                         }
@@ -847,6 +887,48 @@ ApplicationWindow {
                         selectByMouse: true
                         background: SettingFieldBg
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Label { text: qsTr("输入单价"); color: theme.textDim; font.pixelSize: 12 }
+                    TextField {
+                        id: inputPriceField
+                        Layout.preferredWidth: 90
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                    }
+                    Label { text: qsTr("输出单价"); color: theme.textDim; font.pixelSize: 12 }
+                    TextField {
+                        id: outputPriceField
+                        Layout.preferredWidth: 90
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                    }
+                    Label {
+                        text: qsTr("（每百万 token，留空或 0 表示不计费）")
+                        color: theme.textFaint; font.pixelSize: 11
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Label { text: qsTr("缓存单价"); color: theme.textDim; font.pixelSize: 12 }
+                    TextField {
+                        id: cachedPriceField
+                        Layout.preferredWidth: 90
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                    }
+                    Label {
+                        text: qsTr("（可选，缓存命中部分的单价；留空或 0 时按输入单价计）")
+                        color: theme.textFaint; font.pixelSize: 11
+                    }
+                    Item { Layout.fillWidth: true }
                 }
                 Item { Layout.fillHeight: true }
             }
@@ -1170,6 +1252,54 @@ ApplicationWindow {
                     text: qsTr("刷新")
                     flat: true
                     onClicked: chat.refreshContext()
+                }
+            }
+
+            // 用量统计：数据来自服务端 usage 上报（各协议归一到 TokenUsage）
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: usageCard.implicitHeight + 20
+                visible: chat.usageSummary.hasUsage
+                color: theme.card
+                radius: 8
+                border.color: theme.cardBorder
+
+                ColumnLayout {
+                    id: usageCard
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: 10
+                    spacing: 3
+
+                    Label {
+                        text: qsTr("用量统计")
+                        color: theme.accent
+                        font.bold: true
+                        font.pixelSize: 13
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: {
+                            const u = chat.usageSummary
+                            let lines = [
+                                qsTr("当前上下文（最近一次输入）：%1 tokens")
+                                    .arg(root.formatTokens(u.contextTokens)),
+                                qsTr("会话累计：输入 %1 / 输出 %2 / 缓存命中 %3 tokens")
+                                    .arg(root.formatTokens(u.totalPrompt))
+                                    .arg(root.formatTokens(u.totalCompletion))
+                                    .arg(root.formatTokens(u.totalCached))
+                            ]
+                            if (u.hasCost)
+                                lines.push(qsTr("累计花费：%1")
+                                    .arg(Number(u.cost).toFixed(4)))
+                            return lines.join("\n")
+                        }
+                        color: theme.textDim
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                    }
                 }
             }
 

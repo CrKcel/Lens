@@ -141,6 +141,9 @@ bool SessionStore::open()
     if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("reasoning"),
                       QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
         return false;
+    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("usage_json"),
+                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
+        return false;
     return true;
 }
 
@@ -197,14 +200,15 @@ bool SessionStore::appendMessage(qint64 conversationId, const Message &message)
 {
     QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
-        "INSERT INTO messages (conversation_id, role, content, tool_calls, tool_call_id, reasoning, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)"));
+        "INSERT INTO messages (conversation_id, role, content, tool_calls, tool_call_id, reasoning, usage_json, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"));
     query.addBindValue(conversationId);
     query.addBindValue(roleToString(message.role));
     query.addBindValue(notNull(message.content));
     query.addBindValue(notNull(toolCallsToJson(message.toolCalls)));
     query.addBindValue(notNull(message.toolCallId));
     query.addBindValue(notNull(message.reasoning));
+    query.addBindValue(notNull(QString::fromStdString(usageToJson(message.usage).dump())));
     query.addBindValue(message.createdAt.isValid() ? message.createdAt.toString(Qt::ISODateWithMs)
                                                    : nowIso());
     if (!query.exec()) {
@@ -246,7 +250,7 @@ QList<Message> SessionStore::messages(qint64 conversationId) const
     QList<Message> result;
     QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
-        "SELECT role, content, tool_calls, tool_call_id, reasoning, created_at FROM messages "
+        "SELECT role, content, tool_calls, tool_call_id, reasoning, usage_json, created_at FROM messages "
         "WHERE conversation_id = ? ORDER BY id"));
     query.addBindValue(conversationId);
     query.exec();
@@ -257,8 +261,11 @@ QList<Message> SessionStore::messages(qint64 conversationId) const
         message.toolCalls = toolCallsFromJson(query.value(2).toString());
         message.toolCallId = query.value(3).toString();
         message.reasoning = query.value(4).toString();
+        message.usage =
+            usageFromJson(nlohmann::json::parse(query.value(5).toString().toStdString(),
+                                                nullptr, false));
         message.createdAt =
-            QDateTime::fromString(query.value(5).toString(), Qt::ISODateWithMs);
+            QDateTime::fromString(query.value(6).toString(), Qt::ISODateWithMs);
         result.append(message);
     }
     return result;

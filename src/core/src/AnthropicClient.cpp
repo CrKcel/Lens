@@ -122,8 +122,24 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
         return delta;
     const std::string type = payload.value("type", std::string());
 
-    if (type == "message_start")
+    if (type == "message_start") {
         m_blockTypes.clear(); // 新回合：清空上一条的块类型记录
+        m_pendingPromptTokens = 0;
+        m_pendingCachedTokens = 0;
+        // 输入侧用量随 message_start 下发，先暂存等 message_delta 的输出侧合并
+        const auto messageIt = payload.find("message");
+        if (messageIt != payload.end() && messageIt->is_object()) {
+            const auto usageIt = messageIt->find("usage");
+            if (usageIt != messageIt->end() && usageIt->is_object()) {
+                if (auto it = usageIt->find("input_tokens");
+                    it != usageIt->end() && it->is_number())
+                    m_pendingPromptTokens = it->get<qint64>();
+                if (auto it = usageIt->find("cache_read_input_tokens");
+                    it != usageIt->end() && it->is_number())
+                    m_pendingCachedTokens = it->get<qint64>();
+            }
+        }
+    }
 
     if (type == "content_block_start") {
         const auto blockIt = payload.find("content_block");
@@ -170,6 +186,18 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
                                            ? QStringLiteral("tool_calls")
                                            : stopReason);
             }
+        }
+        // 输出侧用量与 message_start 暂存的输入侧合并
+        const auto usageIt = payload.find("usage");
+        if (usageIt != payload.end() && usageIt->is_object()) {
+            TokenUsage usage;
+            usage.valid = true;
+            usage.promptTokens = m_pendingPromptTokens;
+            usage.cachedTokens = m_pendingCachedTokens;
+            if (auto it = usageIt->find("output_tokens");
+                it != usageIt->end() && it->is_number())
+                usage.completionTokens = it->get<qint64>();
+            stream.setUsage(usage);
         }
     } else if (type == "message_stop") {
         stream.markDone();

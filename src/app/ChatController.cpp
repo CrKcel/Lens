@@ -34,6 +34,8 @@ ChatController::ChatController(SessionStore *store, AppSettings *settings, const
     , m_conversationModel(new ConversationListModel(store, this))
 {
     registerBuiltinTools();
+    // 单价属于激活供应商配置，改动后费用展示需重算
+    connect(m_settings, &AppSettings::settingsChanged, this, &ChatController::usageChanged);
     QTimer::singleShot(0, this, [this] {
         loadMcpTools();
         rebuildToolList();
@@ -145,6 +147,7 @@ void ChatController::connectAgent()
                     m_messageModel->appendItem(item);
                 }
                 m_store->appendMessage(m_conversationId, message);
+                recordUsage(message.usage);
             });
     connect(m_agent.get(), &AgentSession::toolCallStarted, this,
             [this](const QString &id, const QString &name, const QString &args) {
@@ -202,6 +205,11 @@ void ChatController::openConversation(qint64 conversationId)
         m_messageModel->resetFromMessages(history);
         m_agent->setHistory(std::vector<Message>(history.cbegin(), history.cend()));
         m_agent->setWorkdir(m_workdir);
+        resetUsage();
+        for (const Message &message : history)
+            recordUsage(message.usage);
+        // 全部无效时 recordUsage 不会发信号，仍需通知 UI 清掉上一会话的残留显示
+        emit usageChanged();
         m_lastSections = collectSections();
         emit currentConversationChanged();
         emit contextChanged();
@@ -219,6 +227,8 @@ void ChatController::deleteConversation(qint64 conversationId)
         m_conversationId = 0;
         m_title.clear();
         m_messageModel->resetFromMessages({});
+        resetUsage();
+        emit usageChanged();
         emit currentConversationChanged();
     }
 }
@@ -317,6 +327,50 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
     if (!m_settings->systemPrompt().trimmed().isEmpty())
         add(QStringLiteral("custom"), QStringLiteral("用户设置"), m_settings->systemPrompt());
     return sections;
+}
+
+void ChatController::resetUsage()
+{
+    m_lastUsage = TokenUsage();
+    m_totalPrompt = 0;
+    m_totalCompletion = 0;
+    m_totalCached = 0;
+    m_hasUsage = false;
+}
+
+void ChatController::recordUsage(const TokenUsage &usage)
+{
+    if (!usage.valid)
+        return;
+    m_lastUsage = usage;
+    m_totalPrompt += usage.promptTokens;
+    m_totalCompletion += usage.completionTokens;
+    m_totalCached += usage.cachedTokens;
+    m_hasUsage = true;
+    emit usageChanged();
+}
+
+QVariantMap ChatController::usageSummary() const
+{
+    // 费用（每百万 token）：非缓存输入×输入单价 + 输出×输出单价 + 缓存命中×缓存单价，
+    // 缓存单价未配置（0）时缓存部分按输入单价计。缓存命中是输入的子集，需先扣除
+    const ProviderConfig provider = m_settings->activeProviderConfig();
+    const bool hasCost =
+        provider.inputPrice > 0.0 || provider.outputPrice > 0.0 || provider.cachedPrice > 0.0;
+    const double cachedPrice =
+        provider.cachedPrice > 0.0 ? provider.cachedPrice : provider.inputPrice;
+    const double cost =
+        hasCost ? qMax<qint64>(0, m_totalPrompt - m_totalCached) / 1e6 * provider.inputPrice
+                      + m_totalCompletion / 1e6 * provider.outputPrice
+                      + m_totalCached / 1e6 * cachedPrice
+                : 0.0;
+    return {{QStringLiteral("hasUsage"), m_hasUsage},
+            {QStringLiteral("contextTokens"), m_lastUsage.promptTokens},
+            {QStringLiteral("totalPrompt"), m_totalPrompt},
+            {QStringLiteral("totalCompletion"), m_totalCompletion},
+            {QStringLiteral("totalCached"), m_totalCached},
+            {QStringLiteral("hasCost"), hasCost},
+            {QStringLiteral("cost"), cost}};
 }
 
 QVariantList ChatController::contextSections() const

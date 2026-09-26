@@ -22,6 +22,7 @@ private slots:
     void toleratesMalformedPayload();
     void streamAccumulatesContentAndToolCalls();
     void llamaCppStreamWithReasoning();
+    void streamParsesUsageFromFinalChunk();
     void sseParserHandlesSplitChunks();
     void promptAssemblerOverridesSections();
     void toolRegistryEmitsFunctionFormat();
@@ -174,6 +175,36 @@ void TestChatCompletions::llamaCppStreamWithReasoning()
     QCOMPARE(stream.reasoning(), QStringLiteral("思考中"));
     QCOMPARE(stream.finishReason(), QStringLiteral("stop"));
     QVERIFY(stream.toolCalls().isEmpty());
+}
+
+void TestChatCompletions::streamParsesUsageFromFinalChunk()
+{
+    // OpenAI stream_options.include_usage 形态：末帧无 choices，只有 usage
+    chatcompletions::ChatCompletionStream stream;
+    stream.apply(nlohmann::json::parse(R"({"choices":[{"delta":{"content":"hi"}}]})"));
+    const auto usageOnly = nlohmann::json::parse(
+        R"({"usage":{"prompt_tokens":120,"completion_tokens":34,"total_tokens":154,)"
+        R"("prompt_tokens_details":{"cached_tokens":64}}})");
+    const auto delta = stream.apply(usageOnly);
+    QVERIFY(delta.content.isEmpty());
+    QVERIFY(stream.usage().valid);
+    QCOMPARE(stream.usage().promptTokens, 120);
+    QCOMPARE(stream.usage().completionTokens, 34);
+    QCOMPARE(stream.usage().cachedTokens, 64);
+
+    // llama.cpp 形态：usage 与 choices 同在末帧
+    chatcompletions::ChatCompletionStream stream2;
+    stream2.apply(nlohmann::json::parse(
+        R"({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":7,"completion_tokens":3}})"));
+    QVERIFY(stream2.usage().valid);
+    QCOMPARE(stream2.usage().promptTokens, 7);
+    QCOMPARE(stream2.usage().completionTokens, 3);
+    QCOMPARE(stream2.usage().cachedTokens, 0);
+
+    // 缺字段 / 非对象 usage 不产生有效用量
+    chatcompletions::ChatCompletionStream stream3;
+    stream3.apply(nlohmann::json::parse(R"({"usage":{"total_tokens":10}})"));
+    QVERIFY(!stream3.usage().valid);
 }
 
 void TestChatCompletions::sseParserHandlesSplitChunks()
