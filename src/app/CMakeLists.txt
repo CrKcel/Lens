@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS LinguistTools Widgets)
 
 qt_add_executable(lens
     main.cpp
@@ -40,4 +40,4 @@ qt_add_resources(lens "lens_translations"
     FILES ${LENS_QM_FILES})
 
 target_compile_definitions(lens PRIVATE LENS_VERSION="${PROJECT_VERSION}")
-target_link_libraries(lens PRIVATE Lens::Core Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(lens PRIVATE Lens::Core Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)

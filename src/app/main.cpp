@@ -1,5 +1,7 @@
+#include <QApplication>
 #include <QDir>
-#include <QGuiApplication>
+#include <QFileInfo>
+#include <QLibraryInfo>
 #include <QLocale>
 #include <QPalette>
 #include <QQmlApplicationEngine>
@@ -77,7 +79,17 @@ static void applyPalette(bool dark)
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN)
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORMTHEME")
+        && !qEnvironmentVariable("XDG_CURRENT_DESKTOP").contains(
+            QLatin1String("KDE"), Qt::CaseInsensitive)
+        && QFileInfo(QLibraryInfo::path(QLibraryInfo::PluginsPath)
+                     + QStringLiteral("/platformthemes/libqgtk3.so"))
+               .exists()) {
+        qputenv("QT_QPA_PLATFORMTHEME", "gtk3");
+    }
+#endif
+    QApplication app(argc, argv);
     QGuiApplication::setOrganizationName(QStringLiteral("Lens"));
     QGuiApplication::setApplicationName(QStringLiteral("Lens"));
     QGuiApplication::setApplicationVersion(QStringLiteral(LENS_VERSION));
