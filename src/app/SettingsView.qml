@@ -32,6 +32,8 @@ ColumnLayout {
         settings.language = languageCombo.currentValue
         settings.theme = themeCombo.currentValue
         settings.sendShortcut = sendShortcutCombo.currentValue
+        settings.toolPreset = toolPresetCombo.currentValue
+        settings.customTools = settingsRoot.customToolsWorking
         settingsRoot.applyMcpServers()
         settings.save()
         chat.refreshContext()
@@ -97,6 +99,19 @@ ColumnLayout {
         settings.setMcpServers(settingsRoot.mcpServersWorking)
     }
 
+    // ── 内置工具自定义清单：勾选 ↔ 工作副本 ─────────────────────
+    function setCustomToolEnabled(name, enabled) {
+        const list = settingsRoot.customToolsWorking.slice()
+        const i = list.indexOf(name)
+        if (enabled && i < 0) {
+            list.push(name)
+            settingsRoot.customToolsWorking = list
+        } else if (!enabled && i >= 0) {
+            list.splice(i, 1)
+            settingsRoot.customToolsWorking = list
+        }
+    }
+
     // 打开时一次性填充。字段上不能挂 text: settings.xxx 之类的活绑定：
     // AppSettings 的 setter 每次都会发 settingsChanged，保存时先写的属性
     // 会把还没读到的字段绑定刷回旧值，导致只有第一个字段能保存。
@@ -121,6 +136,8 @@ ColumnLayout {
         languageCombo.currentIndex = languageCombo.indexOfValue(settings.language)
         themeCombo.currentIndex = themeCombo.indexOfValue(settings.theme)
         sendShortcutCombo.currentIndex = sendShortcutCombo.indexOfValue(settings.sendShortcut)
+        toolPresetCombo.currentIndex = toolPresetCombo.indexOfValue(settings.toolPreset)
+        settingsRoot.customToolsWorking = settings.customTools
     }
 
     // CI 冒烟钩子：--qml-check 模拟真实设置流程并验证两轮保存回读，
@@ -155,6 +172,7 @@ ColumnLayout {
     property var mcpServersWorking: []
     property int mcpSelected: 0
     property int skillsRevision: 0
+    property var customToolsWorking: [] // preset=custom 时勾选的内置工具名，保存时写回
 
     Label {
         text: settingsRoot.settingsCategory === "providers" ? qsTr("模型提供商")
@@ -227,6 +245,62 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+            }
+        }
+        Label { text: qsTr("内置工具"); color: theme.textDim; font.pixelSize: 12 }
+        ComboBox {
+            id: toolPresetCombo
+            Layout.preferredWidth: 200
+            textRole: "text"
+            valueRole: "value"
+            model: [
+                { text: qsTr("完整（全部工具）"), value: "full" },
+                { text: qsTr("对话（仅搜索）"), value: "chat" },
+                { text: qsTr("只读（read + 搜索）"), value: "read_only" },
+                { text: qsTr("自定义"), value: "custom" }
+            ]
+            onActivated: if (currentValue === "custom" && settingsRoot.customToolsWorking.length === 0) {
+                // 从 full 切到 custom：默认与 full 一致，避免空清单禁掉所有工具
+                settingsRoot.customToolsWorking =
+                    chat.contextTools.filter(t => t.origin === "内置").map(t => t.name)
+            }
+        }
+        Label {
+            text: qsTr("禁用后的工具不进入上下文，模型无法调用")
+            color: theme.textFaint; font.pixelSize: 11
+            visible: toolPresetCombo.currentValue !== "full"
+        }
+        Item { Layout.fillWidth: true }
+        ColumnLayout {
+            visible: toolPresetCombo.currentValue === "custom"
+            Layout.fillWidth: true
+            Layout.leftMargin: 12
+            spacing: 0
+
+            Repeater {
+                model: chat.contextTools.filter(t => t.origin === "内置")
+
+                delegate: CheckBox {
+                    id: toolCheck
+                    required property var modelData
+                    readonly property bool enabledInCopy:
+                        settingsRoot.customToolsWorking.indexOf(modelData.name) >= 0
+                    text: modelData.name
+                          + (modelData.description.length > 0
+                             ? "　— " + modelData.description : "")
+                    checked: enabledInCopy
+                    onEnabledInCopyChanged: checked = enabledInCopy
+                    onToggled: settingsRoot.setCustomToolEnabled(modelData.name, checked)
+
+                    contentItem: Label {
+                        text: toolCheck.text
+                        color: theme.text
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        leftPadding: toolCheck.indicator.width + 4
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
             }
         }
         Label { text: qsTr("自定义系统提示词（附加段落）"); color: theme.textDim; font.pixelSize: 12 }

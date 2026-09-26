@@ -15,6 +15,7 @@ namespace lens {
 
 class AppSettings;
 class SessionStore;
+class WebSearchTool;
 
 // 上下文检查器的一个分节：提示词从哪来、内容是什么
 struct ContextSectionInfo {
@@ -80,6 +81,7 @@ private:
     QVector<ContextSectionInfo> collectSections() const;
     void setErrorRow(const QString &text);
     void registerBuiltinTools();
+    void applyToolSettings(); // 按设置（预设/自定义清单）计算禁用集合并写入注册表
     void loadMcpTools(); // 连接 MCP 服务器并把远程工具桥接进注册表
     void rebuildToolList();
     void resetUsage();                       // 会话切换/清空时归零并重算
@@ -89,6 +91,8 @@ private:
     AppSettings *m_settings;
     QString m_dataDir;
     ToolRegistry m_registry;
+    QStringList m_builtinToolNames; // 注册时的内置工具名（bash 工具名随 shell 变化）
+    std::shared_ptr<WebSearchTool> m_webSearchTool; // 保留指针：设置变更后重设端点/密钥
     QList<std::shared_ptr<mcp::McpClient>> m_mcpClients;
     QVector<QPair<QString, QString>> m_mcpToolOrigins; // 工具名 → "MCP:服务器"
     MessageListModel *m_messageModel;

@@ -61,6 +61,7 @@ private slots:
     void bashKeepsTailOfHugeOutput();
     void resolveWorkdirExpandsTilde();
     void unknownToolFails();
+    void disabledToolHiddenAndRejected();
 };
 
 void TestTools::writeAndReadFile()
@@ -529,6 +530,38 @@ void TestTools::unknownToolFails()
         QStringLiteral("nope"), nlohmann::json::object(), QStringLiteral("/tmp"));
     QVERIFY(!result.ok);
     QVERIFY(result.output.contains(QStringLiteral("未知工具")));
+}
+
+// 禁用的工具：不进 specs / 请求体（上下文），execute 拒绝；解除禁用后恢复
+void TestTools::disabledToolHiddenAndRejected()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<WriteTool>());
+    registry.registerTool(std::make_shared<ReadTool>());
+
+    registry.setDisabledTools({QStringLiteral("write")});
+    QCOMPARE(registry.isEnabled(QStringLiteral("write")), false);
+    QCOMPARE(registry.isEnabled(QStringLiteral("read")), true);
+    QCOMPARE(registry.specs().size(), 1u);
+    QCOMPARE(registry.specs().front().name, QStringLiteral("read"));
+    QCOMPARE(registry.toChatCompletionsTools().size(), 1u);
+
+    const auto rejected = registry.execute(
+        QStringLiteral("write"), nlohmann::json{{"path", "a.txt"}, {"content", "x"}},
+        dir.path());
+    QVERIFY(!rejected.ok);
+    QVERIFY2(rejected.output.contains(QStringLiteral("已被禁用")),
+             qPrintable(rejected.output));
+    QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("a.txt"))));
+
+    registry.setDisabledTools({});
+    QCOMPARE(registry.specs().size(), 2u);
+    const auto wrote = registry.execute(
+        QStringLiteral("write"), nlohmann::json{{"path", "a.txt"}, {"content", "x"}},
+        dir.path());
+    QVERIFY(wrote.ok);
 }
 
 QTEST_GUILESS_MAIN(TestTools)

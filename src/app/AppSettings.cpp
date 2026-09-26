@@ -33,6 +33,14 @@ QString normalizeChoice(const QString &value, std::initializer_list<const char *
     return QStringLiteral("system");
 }
 
+QString normalizeToolPreset(const QString &value)
+{
+    if (value == QLatin1String("chat") || value == QLatin1String("read_only")
+        || value == QLatin1String("custom"))
+        return value;
+    return QStringLiteral("full");
+}
+
 } // namespace
 
 AppSettings::AppSettings(QString filePath, QObject *parent)
@@ -61,6 +69,8 @@ void AppSettings::reset()
     m_mcpServers.clear();
     m_webSearchEndpoint = QString();
     m_webSearchApiKey = QString();
+    m_toolPreset = QStringLiteral("full");
+    m_customTools.clear();
     emit settingsChanged();
 }
 
@@ -147,6 +157,14 @@ void AppSettings::load()
     m_sendShortcut = readQStr(json, "sendShortcut") == QLatin1String("enter")
                          ? QStringLiteral("enter")
                          : QStringLiteral("ctrl_enter");
+    m_toolPreset = normalizeToolPreset(readQStr(json, "toolPreset"));
+    m_customTools.clear();
+    if (json.contains("customTools") && json.at("customTools").is_array()) {
+        for (const auto &entry : json.at("customTools")) {
+            if (entry.is_string())
+                m_customTools.append(QString::fromStdString(entry.get<std::string>()));
+        }
+    }
     emit settingsChanged();
 }
 
@@ -160,7 +178,12 @@ void AppSettings::save()
         {"language", readStd(m_language)},
         {"theme", readStd(m_theme)},
         {"sendShortcut", readStd(m_sendShortcut)},
+        {"toolPreset", readStd(m_toolPreset)},
     };
+    auto customTools = nlohmann::json::array();
+    for (const QString &tool : m_customTools)
+        customTools.push_back(readStd(tool));
+    json["customTools"] = std::move(customTools);
     auto providers = nlohmann::json::array();
     for (const ProviderConfig &provider : m_providers) {
         providers.push_back({{"name", readStd(provider.name)},
@@ -378,6 +401,31 @@ void AppSettings::setSendShortcut(const QString &value)
     m_sendShortcut = value == QLatin1String("enter")
                          ? QStringLiteral("enter")
                          : QStringLiteral("ctrl_enter");
+    emit settingsChanged();
+}
+
+void AppSettings::setToolPreset(const QString &value)
+{
+    m_toolPreset = normalizeToolPreset(value);
+    emit settingsChanged();
+}
+
+QVariantList AppSettings::customTools() const
+{
+    QVariantList list;
+    for (const QString &tool : m_customTools)
+        list.append(tool);
+    return list;
+}
+
+void AppSettings::setCustomTools(const QVariantList &tools)
+{
+    m_customTools.clear();
+    for (const QVariant &entry : tools) {
+        const QString name = entry.toString().trimmed();
+        if (!name.isEmpty())
+            m_customTools.append(name);
+    }
     emit settingsChanged();
 }
 

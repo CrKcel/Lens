@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QBuffer>
+#include <QSet>
 #include <QTimer>
 #include <lens/core/context/AgentDocs.hpp>
 #include <lens/core/context/EnvironmentPrompt.hpp>
@@ -39,6 +40,7 @@ ChatController::ChatController(SessionStore *store, AppSettings *settings, const
     , m_conversationModel(new ConversationListModel(store, this))
 {
     registerBuiltinTools();
+    applyToolSettings();
     // 单价属于激活供应商配置，改动后费用展示需重算
     connect(m_settings, &AppSettings::settingsChanged, this, &ChatController::usageChanged);
     QTimer::singleShot(0, this, [this] {
@@ -53,13 +55,48 @@ ChatController::ChatController(SessionStore *store, AppSettings *settings, const
 
 void ChatController::registerBuiltinTools()
 {
-    m_registry.registerTool(std::make_shared<ReadTool>());
-    m_registry.registerTool(std::make_shared<WriteTool>());
-    m_registry.registerTool(std::make_shared<EditTool>());
-    m_registry.registerTool(std::make_shared<BashTool>());
+    const auto registerBuiltin = [this](std::shared_ptr<IBuiltinTool> tool) {
+        m_builtinToolNames.append(tool->name());
+        m_registry.registerTool(std::move(tool));
+    };
+    registerBuiltin(std::make_shared<ReadTool>());
+    registerBuiltin(std::make_shared<WriteTool>());
+    registerBuiltin(std::make_shared<EditTool>());
+    registerBuiltin(std::make_shared<BashTool>());
     const auto search = std::make_shared<WebSearchTool>();
     search->setConfig(m_settings->webSearchEndpoint(), m_settings->webSearchApiKey());
-    m_registry.registerTool(search);
+    m_webSearchTool = search;
+    registerBuiltin(search);
+}
+
+// 预设语义：full 全部启用；chat 仅 web_search；read_only 仅 read + web_search；
+// custom 取 customTools 清单。MCP 工具不受预设影响，始终启用
+void ChatController::applyToolSettings()
+{
+    // 搜索端点/密钥属工具配置，保存后立即生效（注册时只初始化一次）
+    m_webSearchTool->setConfig(m_settings->webSearchEndpoint(),
+                               m_settings->webSearchApiKey());
+    const QString preset = m_settings->toolPreset();
+    QSet<QString> enabled;
+    if (preset == QLatin1String("chat")) {
+        enabled.insert(QStringLiteral("web_search"));
+    } else if (preset == QLatin1String("read_only")) {
+        enabled.insert(QStringLiteral("read"));
+        enabled.insert(QStringLiteral("web_search"));
+    } else if (preset == QLatin1String("custom")) {
+        const QVariantList customTools = m_settings->customTools();
+        for (const QVariant &entry : customTools)
+            enabled.insert(entry.toString());
+    } else {
+        for (const QString &name : m_builtinToolNames)
+            enabled.insert(name);
+    }
+    QSet<QString> disabled;
+    for (const QString &name : m_builtinToolNames) {
+        if (!enabled.contains(name))
+            disabled.insert(name);
+    }
+    m_registry.setDisabledTools(disabled);
 }
 
 void ChatController::loadMcpTools()
@@ -113,7 +150,9 @@ void ChatController::rebuildToolList()
         }
         m_toolList.append(QVariantMap{{QStringLiteral("name"), spec.name},
                                       {QStringLiteral("description"), spec.description},
-                                      {QStringLiteral("origin"), origin}});
+                                      {QStringLiteral("origin"), origin},
+                                      {QStringLiteral("enabled"),
+                                       m_registry.isEnabled(spec.name)}});
     }
     emit contextChanged();
 }
@@ -242,6 +281,7 @@ void ChatController::deleteConversation(qint64 conversationId)
 
 void ChatController::refreshContext()
 {
+    applyToolSettings();
     m_lastSections = collectSections();
     rebuildToolList();
     emit contextChanged();

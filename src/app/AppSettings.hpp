@@ -46,6 +46,8 @@ class AppSettings : public QObject
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY settingsChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY settingsChanged)
     Q_PROPERTY(QString sendShortcut READ sendShortcut WRITE setSendShortcut NOTIFY settingsChanged)
+    Q_PROPERTY(QString toolPreset READ toolPreset WRITE setToolPreset NOTIFY settingsChanged)
+    Q_PROPERTY(QVariantList customTools READ customTools WRITE setCustomTools NOTIFY settingsChanged)
     Q_PROPERTY(bool dark READ dark NOTIFY settingsChanged)
 
 public:
@@ -90,6 +92,13 @@ public:
     QString sendShortcut() const { return m_sendShortcut; }
     void setSendShortcut(const QString &value);
 
+    // 内置工具预设：chat（仅 web_search）/ read_only（read + web_search）/
+    // full（全部，默认）/ custom（customTools 清单里列出的工具）
+    QString toolPreset() const { return m_toolPreset; }
+    void setToolPreset(const QString &value);
+    QVariantList customTools() const;
+    void setCustomTools(const QVariantList &tools);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reset();
 
@@ -111,6 +120,8 @@ private:
     QString m_language = QStringLiteral("system");   // system | zh | en
     QString m_theme = QStringLiteral("system");      // system | dark | light
     QString m_sendShortcut = QStringLiteral("ctrl_enter"); // ctrl_enter | enter
+    QString m_toolPreset = QStringLiteral("full"); // chat | read_only | full | custom
+    QStringList m_customTools;                     // preset=custom 时启用的内置工具名
 };
 
 } // namespace lens

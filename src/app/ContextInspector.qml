@@ -164,7 +164,8 @@ Popup {
         }
 
         Label {
-            text: qsTr("启用工具（%1）").arg(chat.contextTools.length)
+            property int enabledCount: chat.contextTools.filter(t => t.enabled).length
+            text: qsTr("启用工具（%1/%2）").arg(enabledCount).arg(chat.contextTools.length)
             color: theme.text; font.bold: true; font.pixelSize: 13
         }
         ListView {
@@ -183,7 +184,8 @@ Popup {
                       + qsTr("　[%1]").arg(modelData.origin)
                       + (modelData.description.length > 0
                          ? "　— " + modelData.description : "")
-                color: theme.textDim
+                      + (modelData.enabled ? "" : qsTr("　（已禁用）"))
+                color: modelData.enabled ? theme.textDim : theme.textFaint
                 font.pixelSize: 11
                 elide: Text.ElideRight
             }
