@@ -17,8 +17,13 @@ ColumnLayout {
     signal sendRequested()
     signal stopRequested()
 
-    anchors.margins: 16
+    anchors.topMargin: 16
+    anchors.bottomMargin: 16
+    anchors.leftMargin: 64
+    anchors.rightMargin: 64
     spacing: 10
+
+    readonly property real contentMaxWidth: 860
 
     function clearInput() {
         input.clear()
@@ -72,6 +77,8 @@ ColumnLayout {
         id: messageList
         objectName: "messageListView"
         Layout.fillWidth: true
+        Layout.maximumWidth: chatRoot.contentMaxWidth
+        Layout.alignment: Qt.AlignHCenter
         // 空会话时高度收为 0，让输入框经弹性 spacer 居中
         Layout.fillHeight: messageList.count > 0
         visible: messageList.count > 0
@@ -167,7 +174,7 @@ ColumnLayout {
                                             width: Math.min(implicitWidth, parent.width - 12)
                                             text: "📄 " + modelData.name
                                             color: theme.textDim
-                                            font.pixelSize: 11
+                                            font.pixelSize: Math.round(11 * settings.fontScale)
                                             elide: Label.ElideMiddle
                                             textFormat: Text.PlainText
                                         }
@@ -180,7 +187,10 @@ ColumnLayout {
                                 text: model.text
                                 color: theme.bubbleUserText
                                 wrapMode: Text.Wrap
-                                font.pixelSize: 13
+                                textFormat: Text.PlainText
+                                lineHeight: settings.lineSpacing
+                                lineHeightMode: Text.ProportionalHeight
+                                font.pixelSize: Math.round(13 * settings.fontScale)
                             }
                         }
                     }
@@ -207,14 +217,14 @@ ColumnLayout {
                                 text: reasoningExpanded ? "▾" : "▸"
                                 flat: true
                                 display: AbstractButton.TextOnly
-                                font.pixelSize: 10
+                                font.pixelSize: Math.round(10 * settings.fontScale)
                                 leftPadding: 0
                                 rightPadding: 0
                             }
                             Label {
                                 text: qsTr("思考过程")
                                 color: theme.textDim
-                                font.pixelSize: 11
+                                font.pixelSize: Math.round(11 * settings.fontScale)
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
@@ -225,7 +235,7 @@ ColumnLayout {
                                 visible: model.streaming && model.text.length === 0
                                 text: qsTr("（生成中…）")
                                 color: theme.textFaint
-                                font.pixelSize: 11
+                                font.pixelSize: Math.round(11 * settings.fontScale)
                             }
                         }
                         Label {
@@ -234,9 +244,11 @@ ColumnLayout {
                             Layout.fillWidth: true
                             text: model.reasoning + (model.streaming && model.text.length === 0 ? " ▌" : "")
                             color: theme.textDim
-                            font.pixelSize: 12
+                            font.pixelSize: Math.round(12 * settings.fontScale)
                             wrapMode: Text.Wrap
                             textFormat: Text.PlainText
+                            lineHeight: settings.lineSpacing
+                            lineHeightMode: Text.ProportionalHeight
                         }
 
                         Label {
@@ -248,7 +260,9 @@ ColumnLayout {
                             color: theme.textSoft
                             wrapMode: Text.Wrap
                             textFormat: Text.MarkdownText
-                            font.pixelSize: 13
+                            lineHeight: settings.lineSpacing
+                            lineHeightMode: Text.ProportionalHeight
+                            font.pixelSize: Math.round(13 * settings.fontScale)
                         }
                     }
 
@@ -292,7 +306,7 @@ ColumnLayout {
                                     text: model.toolName
                                           + (model.toolPending ? qsTr("　运行中…") : "")
                                     color: model.toolPending ? theme.accent : theme.textSoft
-                                    font.pixelSize: 12
+                                    font.pixelSize: Math.round(12 * settings.fontScale)
                                     font.bold: true
                                 }
                             }
@@ -302,7 +316,7 @@ ColumnLayout {
                                 text: model.toolArgs
                                 color: theme.textDim
                                 font.family: "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: Math.round(11 * settings.fontScale)
                                 wrapMode: Text.Wrap
                                 maximumLineCount: 6
                                 elide: Text.ElideRight
@@ -337,7 +351,7 @@ ColumnLayout {
                                 text: model.text
                                 color: theme.success
                                 font.family: "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: Math.round(11 * settings.fontScale)
                                 wrapMode: Text.Wrap
                                 maximumLineCount: 12
                                 elide: Text.ElideRight
@@ -367,7 +381,7 @@ ColumnLayout {
                             text: qsTr("⚠ %1").arg(model.text)
                             color: theme.error
                             wrapMode: Text.Wrap
-                            font.pixelSize: 12
+                            font.pixelSize: Math.round(12 * settings.fontScale)
                         }
                     }
                 }
@@ -393,7 +407,7 @@ ColumnLayout {
                     anchors.centerIn: parent
                     text: "◎"
                     color: theme.accent
-                    font.pixelSize: 20
+                    font.pixelSize: Math.round(20 * settings.fontScale)
                 }
             }
             Label {
@@ -401,7 +415,7 @@ ColumnLayout {
                 text: qsTr("在「设置」中填入 API 地址与 Key\n发送第一条消息即自动创建会话")
                 horizontalAlignment: Text.AlignHCenter
                 color: theme.textFaint
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
             }
         }
     }
@@ -412,6 +426,8 @@ ColumnLayout {
         id: inputCard
         objectName: "inputCard"
         Layout.fillWidth: true
+        Layout.maximumWidth: chatRoot.contentMaxWidth
+        Layout.alignment: Qt.AlignHCenter
         readonly property real lineH: input.font.pixelSize * 1.5
         readonly property real maxH: chatRoot.height / 4
         // 右下角按钮条：按钮 36px + 8px 间距，文本经 bottomPadding 避开；
@@ -444,7 +460,7 @@ ColumnLayout {
                   : qsTr("输入消息，Ctrl+Enter 发送，Enter 换行")
             wrapMode: TextArea.Wrap
             color: theme.text
-            font.pixelSize: 13
+            font.pixelSize: Math.round(13 * settings.fontScale)
             background: null
             leftPadding: 6
             bottomPadding: inputCard.bottomReserved
@@ -506,7 +522,7 @@ ColumnLayout {
                         visible: !stripEntry.modelData.isImage
                         text: stripEntry.modelData.name
                         color: theme.textDim
-                        font.pixelSize: 10
+                        font.pixelSize: Math.round(10 * settings.fontScale)
                         wrapMode: Text.WrapAnywhere
                         elide: Label.ElideRight
                         maximumLineCount: 4
@@ -525,7 +541,7 @@ ColumnLayout {
                         contentItem: Label {
                             text: "✕"
                             color: "#ffffff"
-                            font.pixelSize: 9
+                            font.pixelSize: Math.round(9 * settings.fontScale)
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -563,7 +579,7 @@ ColumnLayout {
                 text: settings.model
                 elide: Text.ElideRight
                 color: theme.text
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -634,7 +650,7 @@ ColumnLayout {
                 id: thinkingLabel
                 text: thinkingMenu.currentLabel
                 color: chatRoot.thinkingLevel !== "disabled" ? theme.accent : theme.textFaint
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -689,7 +705,7 @@ ColumnLayout {
             }
             contentItem: Label {
                 text: "📎"
-                font.pixelSize: 14
+                font.pixelSize: Math.round(14 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -703,7 +719,7 @@ ColumnLayout {
             visible: text.length > 0
             text: chatRoot.formatUsageSummary()
             color: theme.textDim
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * settings.fontScale)
             elide: Text.ElideRight
             // 限宽避免挤压按钮条：右缘固定在 modelButton 左侧，左界到附件按钮
             width: Math.min(implicitWidth, attachButton.x - 16)
@@ -734,7 +750,7 @@ ColumnLayout {
             contentItem: Label {
                 text: chat.streaming ? "⏹" : "➤"
                 color: sendButton.enabled ? "#ffffff" : theme.textFaint
-                font.pixelSize: 14
+                font.pixelSize: Math.round(14 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }

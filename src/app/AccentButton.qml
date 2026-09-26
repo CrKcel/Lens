@@ -5,7 +5,7 @@ import QtQuick.Controls
 Button {
     id: control
     implicitHeight: 34
-    font.pixelSize: 13
+    font.pixelSize: Math.round(13 * settings.fontScale)
 
     background: Rectangle {
         radius: 8

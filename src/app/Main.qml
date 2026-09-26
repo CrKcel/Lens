@@ -142,7 +142,7 @@ ApplicationWindow {
                 - (root.buttonsLeft ? 0 : 3 * root.buttonW + 10)
             text: chat.currentConversationId === 0 ? qsTr("新会话") : chat.currentTitle
             color: theme.text
-            font.pixelSize: 14
+            font.pixelSize: Math.round(14 * settings.fontScale)
             font.bold: true
             elide: Text.ElideRight
         }
@@ -164,7 +164,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 text: qsTr("生成中…")
                 color: theme.accent
-                font.pixelSize: 11
+                font.pixelSize: Math.round(11 * settings.fontScale)
 
                 SequentialAnimation on opacity {
                     running: chat.streaming
@@ -197,7 +197,7 @@ ApplicationWindow {
             contentItem: Label {
                 text: sidebar.collapsed ? "»" : "«"
                 color: theme.textDim
-                font.pixelSize: 13
+                font.pixelSize: Math.round(13 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }

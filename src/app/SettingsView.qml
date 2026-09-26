@@ -37,6 +37,8 @@ ColumnLayout {
         settings.webSearchApiKey = webSearchApiKeyField.text
         settings.language = languageCombo.currentValue
         settings.theme = themeCombo.currentValue
+        settings.fontScale = fontScaleCombo.currentValue
+        settings.lineSpacing = lineSpacingCombo.currentValue
         settings.sendShortcut = sendShortcutCombo.currentValue
         settings.toolPreset = toolPresetCombo.currentValue
         settings.customTools = settingsRoot.customToolsWorking
@@ -151,6 +153,8 @@ ColumnLayout {
         systemPromptField.text = settings.systemPrompt
         languageCombo.currentIndex = languageCombo.indexOfValue(settings.language)
         themeCombo.currentIndex = themeCombo.indexOfValue(settings.theme)
+        fontScaleCombo.currentIndex = fontScaleCombo.indexOfValue(settings.fontScale)
+        lineSpacingCombo.currentIndex = lineSpacingCombo.indexOfValue(settings.lineSpacing)
         sendShortcutCombo.currentIndex = sendShortcutCombo.indexOfValue(settings.sendShortcut)
         toolPresetCombo.currentIndex = toolPresetCombo.indexOfValue(settings.toolPreset)
         settingsRoot.customToolsWorking = settings.customTools
@@ -221,7 +225,7 @@ ColumnLayout {
             : settingsRoot.settingsCategory === "skills" ? qsTr("Skills")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("快捷键")
             : qsTr("常规")
-        font.pixelSize: 17
+        font.pixelSize: Math.round(17 * settings.fontScale)
         font.bold: true
         color: theme.text
     }
@@ -236,7 +240,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Label { text: qsTr("语言"); color: theme.textDim; font.pixelSize: 12 }
+            Label { text: qsTr("语言"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             ComboBox {
                 id: languageCombo
                 Layout.preferredWidth: 150
@@ -249,7 +253,7 @@ ColumnLayout {
                 ]
             }
             Item { Layout.preferredWidth: 24 }
-            Label { text: qsTr("主题"); color: theme.textDim; font.pixelSize: 12 }
+            Label { text: qsTr("主题"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             ComboBox {
                 id: themeCombo
                 Layout.preferredWidth: 150
@@ -261,11 +265,40 @@ ColumnLayout {
                     { text: qsTr("浅色"), value: "light" }
                 ]
             }
+            Item { Layout.preferredWidth: 24 }
+            Label { text: qsTr("字体大小"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
+            ComboBox {
+                id: fontScaleCombo
+                Layout.preferredWidth: 150
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { text: qsTr("小（85%）"), value: 0.85 },
+                    { text: qsTr("标准（100%）"), value: 1.0 },
+                    { text: qsTr("大（115%）"), value: 1.15 },
+                    { text: qsTr("特大（130%）"), value: 1.3 },
+                    { text: qsTr("最大（150%）"), value: 1.5 }
+                ]
+            }
+            Item { Layout.preferredWidth: 24 }
+            Label { text: qsTr("行间距"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
+            ComboBox {
+                id: lineSpacingCombo
+                Layout.preferredWidth: 150
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { text: qsTr("紧凑（100%）"), value: 1.0 },
+                    { text: qsTr("标准（115%）"), value: 1.15 },
+                    { text: qsTr("宽松（130%）"), value: 1.3 },
+                    { text: qsTr("特宽（150%）"), value: 1.5 }
+                ]
+            }
             Item { Layout.fillWidth: true }
         }
         Label {
             text: qsTr("web_search 搜索接口（Tavily 兼容，留空则不启用）")
-            color: theme.textDim; font.pixelSize: 12
+            color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
         }
         RowLayout {
             Layout.fillWidth: true
@@ -288,7 +321,7 @@ ColumnLayout {
                 background: SettingFieldBg
             }
         }
-        Label { text: qsTr("内置工具"); color: theme.textDim; font.pixelSize: 12 }
+        Label { text: qsTr("内置工具"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
         ComboBox {
             id: toolPresetCombo
             Layout.preferredWidth: 200
@@ -308,7 +341,7 @@ ColumnLayout {
         }
         Label {
             text: qsTr("禁用后的工具不进入上下文，模型无法调用")
-            color: theme.textFaint; font.pixelSize: 11
+            color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
             visible: toolPresetCombo.currentValue !== "full"
         }
         Item { Layout.fillWidth: true }
@@ -336,7 +369,7 @@ ColumnLayout {
                     contentItem: Label {
                         text: toolCheck.text
                         color: theme.text
-                        font.pixelSize: 12
+                        font.pixelSize: Math.round(12 * settings.fontScale)
                         elide: Text.ElideRight
                         leftPadding: toolCheck.indicator.width + 4
                         verticalAlignment: Text.AlignVCenter
@@ -344,7 +377,7 @@ ColumnLayout {
                 }
             }
         }
-        Label { text: qsTr("自定义系统提示词（作为身份提示词，未填时使用内置）"); color: theme.textDim; font.pixelSize: 12 }
+        Label { text: qsTr("自定义系统提示词（作为身份提示词，未填时使用内置）"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
         TextArea {
             id: systemPromptField
             Layout.fillWidth: true
@@ -429,7 +462,7 @@ ColumnLayout {
                         text: modelData.name
                         color: highlighted ? theme.accent : theme.text
                         elide: Text.ElideRight
-                        font.pixelSize: 13
+                        font.pixelSize: Math.round(13 * settings.fontScale)
                     }
                 }
             }
@@ -443,7 +476,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
                     id: providerNameField
                     Layout.fillWidth: true
@@ -451,7 +484,7 @@ ColumnLayout {
                     selectByMouse: true
                     background: SettingFieldBg
                 }
-                Label { text: qsTr("协议"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("协议"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 ComboBox {
                     id: protocolCombo
                     Layout.preferredWidth: 180
@@ -467,18 +500,18 @@ ColumnLayout {
             CheckBox {
                 id: serverSearchCheck
                 text: qsTr("服务端联网搜索（供应商支持时启用）")
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
                 contentItem: Label {
                     text: serverSearchCheck.text
                     color: theme.textDim
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * settings.fontScale)
                     leftPadding: serverSearchCheck.indicator.width + 4
                     verticalAlignment: Text.AlignVCenter
                 }
             }
             Label {
                 text: qsTr("API 地址（含协议路径，或仅主机/根路径自动补全）")
-                color: theme.textDim; font.pixelSize: 12
+                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
             }
             TextField {
                 id: endpointField
@@ -490,7 +523,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Label { text: qsTr("API Key"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("API Key"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
                     id: apiKeyField
                     Layout.fillWidth: true
@@ -502,7 +535,7 @@ ColumnLayout {
             }
             Label {
                 text: qsTr("模型（可手动输入，或从端点获取清单后选择）")
-                color: theme.textDim; font.pixelSize: 12
+                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -522,13 +555,13 @@ ColumnLayout {
             Label {
                 visible: settingsRoot.modelsFetchStatus.length > 0
                 text: settingsRoot.modelsFetchStatus
-                color: theme.textFaint; font.pixelSize: 11
+                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
                 elide: Text.ElideRight
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Label { text: qsTr("输入单价"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("输入单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
                     id: inputPriceField
                     Layout.preferredWidth: 90
@@ -536,7 +569,7 @@ ColumnLayout {
                     selectByMouse: true
                     background: SettingFieldBg
                 }
-                Label { text: qsTr("输出单价"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("输出单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
                     id: outputPriceField
                     Layout.preferredWidth: 90
@@ -546,14 +579,14 @@ ColumnLayout {
                 }
                 Label {
                     text: qsTr("（每百万 token，留空或 0 表示不计费）")
-                    color: theme.textFaint; font.pixelSize: 11
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
                 }
                 Item { Layout.fillWidth: true }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Label { text: qsTr("缓存单价"); color: theme.textDim; font.pixelSize: 12 }
+                Label { text: qsTr("缓存单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
                     id: cachedPriceField
                     Layout.preferredWidth: 90
@@ -563,7 +596,7 @@ ColumnLayout {
                 }
                 Label {
                     text: qsTr("（可选，缓存命中部分的单价；留空或 0 时按输入单价计）")
-                    color: theme.textFaint; font.pixelSize: 11
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -629,7 +662,7 @@ ColumnLayout {
                         text: modelData.name.length > 0 ? modelData.name : qsTr("（未命名）")
                         color: highlighted ? theme.accent : theme.text
                         elide: Text.ElideRight
-                        font.pixelSize: 13
+                        font.pixelSize: Math.round(13 * settings.fontScale)
                     }
                 }
 
@@ -648,7 +681,7 @@ ColumnLayout {
             spacing: 8
             enabled: settingsRoot.mcpServersWorking.length > 0
 
-            Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: 12 }
+            Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             TextField {
                 id: mcpNameField
                 Layout.fillWidth: true
@@ -658,7 +691,7 @@ ColumnLayout {
             }
             Label {
                 text: qsTr("启动命令（stdio 传输，如 npx、python）")
-                color: theme.textDim; font.pixelSize: 12
+                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
             }
             TextField {
                 id: mcpCommandField
@@ -667,20 +700,20 @@ ColumnLayout {
                 selectByMouse: true
                 background: SettingFieldBg
             }
-            Label { text: qsTr("参数（每行一个）"); color: theme.textDim; font.pixelSize: 12 }
+            Label { text: qsTr("参数（每行一个）"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             TextArea {
                 id: mcpArgsField
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 wrapMode: TextArea.Wrap
                 font.family: "monospace"
-                font.pixelSize: 11
+                font.pixelSize: Math.round(11 * settings.fontScale)
                 color: theme.text
                 background: SettingFieldBg
             }
             Label {
                 text: qsTr("连接状态")
-                color: theme.textDim; font.pixelSize: 12
+                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
             }
             Repeater {
                 model: chat.mcpStatus
@@ -690,7 +723,7 @@ ColumnLayout {
                     text: "· MCP " + modelData.name + "　" + modelData.status
                           + qsTr("　[%1]").arg(modelData.command)
                     color: modelData.connected ? theme.success : theme.error
-                    font.pixelSize: 11
+                    font.pixelSize: Math.round(11 * settings.fontScale)
                     elide: Text.ElideRight
                 }
             }
@@ -711,7 +744,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 text: qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
                 color: theme.textDim
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
                 elide: Text.ElideRight
             }
             ToolButton {
@@ -750,14 +783,14 @@ ColumnLayout {
                             text: modelData.name
                             color: theme.accent
                             font.bold: true
-                            font.pixelSize: 13
+                            font.pixelSize: Math.round(13 * settings.fontScale)
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: modelData.origin === "global"
                                   ? qsTr("全局") : qsTr("项目")
                             color: theme.textDim
-                            font.pixelSize: 10
+                            font.pixelSize: Math.round(10 * settings.fontScale)
                         }
                     }
                     Label {
@@ -766,14 +799,14 @@ ColumnLayout {
                         text: modelData.description
                         color: theme.textSoft
                         wrapMode: Text.Wrap
-                        font.pixelSize: 12
+                        font.pixelSize: Math.round(12 * settings.fontScale)
                     }
                     Label {
                         Layout.fillWidth: true
                         text: modelData.path
                         color: theme.textDim
                         font.family: "monospace"
-                        font.pixelSize: 10
+                        font.pixelSize: Math.round(10 * settings.fontScale)
                         elide: Text.ElideMiddle
                     }
                 }
@@ -789,7 +822,7 @@ ColumnLayout {
         Label {
             text: qsTr("全局目录：数据目录下 skills/*/SKILL.md；项目目录：工作文件夹下 .lens/skills/")
             color: theme.textFaint
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * settings.fontScale)
         }
     }
 
@@ -803,7 +836,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Label { text: qsTr("发送消息"); color: theme.textDim; font.pixelSize: 12 }
+            Label { text: qsTr("发送消息"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             ComboBox {
                 id: sendShortcutCombo
                 Layout.preferredWidth: 320
@@ -823,7 +856,7 @@ ColumnLayout {
             Label {
                 text: qsTr("固定快捷键")
                 color: theme.textDim
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * settings.fontScale)
                 font.bold: true
             }
             RowLayout {
@@ -832,20 +865,20 @@ ColumnLayout {
                 Label {
                     text: qsTr("新建会话")
                     color: theme.text
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * settings.fontScale)
                     Layout.fillWidth: true
                 }
                 Label {
                     text: qsTr("Ctrl+N")
                     color: theme.textDim
                     font.family: "monospace"
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * settings.fontScale)
                 }
             }
             Label {
                 text: qsTr("输入框内：Enter / Shift+Enter 均可换行，取决于上方发送方式")
                 color: theme.textFaint
-                font.pixelSize: 11
+                font.pixelSize: Math.round(11 * settings.fontScale)
             }
         }
 

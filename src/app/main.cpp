@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QDir>
+#include <QFont>
 #include <QFileInfo>
 #include <QLibraryInfo>
 #include <QLocale>
@@ -76,6 +77,19 @@ static void applyPalette(bool dark)
     QGuiApplication::setPalette(p);
 }
 
+// 应用默认字体随设置缩放：QML 里显式 font.pixelSize 的文本走 settings.fontScale，
+// 未显式指定的控件（ComboBox 弹层、按钮等）读应用字体，两处需同步缩放。
+static void applyAppFont(double scale)
+{
+    static const double basePointSize = [] {
+        const double size = QGuiApplication::font().pointSizeF();
+        return size > 0 ? size : 10.0;
+    }();
+    QFont font = QGuiApplication::font();
+    font.setPointSizeF(basePointSize * scale);
+    QGuiApplication::setFont(font);
+}
+
 } // namespace lens
 
 int main(int argc, char *argv[])
@@ -109,6 +123,7 @@ int main(int argc, char *argv[])
     lens::AppSettings settings(dataDir + QStringLiteral("/settings.json"));
     lens::ChatController chat(&store, &settings, dataDir);
     lens::applyPalette(settings.dark());
+    lens::applyAppFont(settings.fontScale());
 
     QTranslator translator;
     lens::installTranslator(settings.language(), &translator);
@@ -132,7 +147,10 @@ int main(int argc, char *argv[])
     });
     // 主题切换时同步 QPalette（app 启动后以 settings 为准）
     QObject::connect(&settings, &lens::AppSettings::settingsChanged, &app,
-                     [&settings] { lens::applyPalette(settings.dark()); });
+                     [&settings] {
+                         lens::applyPalette(settings.dark());
+                         lens::applyAppFont(settings.fontScale());
+                     });
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] { QCoreApplication::exit(-1); }, Qt::QueuedConnection);

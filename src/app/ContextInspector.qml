@@ -38,14 +38,14 @@ Rectangle {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("上下文检查器")
-                font.pixelSize: 13
+                font.pixelSize: Math.round(13 * settings.fontScale)
                 font.bold: true
                 color: theme.accent
             }
             ToolButton {
                 text: qsTr("刷新")
                 flat: true
-                font.pixelSize: 11
+                font.pixelSize: Math.round(11 * settings.fontScale)
                 onClicked: chat.refreshContext()
             }
         }
@@ -70,7 +70,7 @@ Rectangle {
                 return lines.join("\n")
             }
             color: theme.textDim
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * settings.fontScale)
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
         }
@@ -105,13 +105,13 @@ Rectangle {
                             text: modelData.name
                             color: theme.accent
                             font.bold: true
-                            font.pixelSize: 12
+                            font.pixelSize: Math.round(12 * settings.fontScale)
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: qsTr("来源：%1").arg(modelData.source)
                             color: theme.textDim
-                            font.pixelSize: 10
+                            font.pixelSize: Math.round(10 * settings.fontScale)
                         }
                     }
                     Label {
@@ -121,7 +121,7 @@ Rectangle {
                         visible: sectionExpanded
                         color: modelData.content.length > 0 ? theme.textSoft : theme.textFaint
                         wrapMode: Text.Wrap
-                        font.pixelSize: 11
+                        font.pixelSize: Math.round(11 * settings.fontScale)
                         textFormat: Text.PlainText
                     }
                 }
@@ -139,7 +139,7 @@ Rectangle {
                 visible: sectionList.count === 0
                 text: qsTr("发送消息后这里会展示系统提示词的分节组成")
                 color: theme.textFaint
-                font.pixelSize: 11
+                font.pixelSize: Math.round(11 * settings.fontScale)
                 wrapMode: Text.Wrap
                 width: parent.width - 20
             }
@@ -150,7 +150,7 @@ Rectangle {
             text: qsTr("启用工具（%1/%2）").arg(enabledCount).arg(chat.contextTools.length)
             color: theme.text
             font.bold: true
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * settings.fontScale)
         }
         ListView {
             id: toolList
@@ -168,7 +168,7 @@ Rectangle {
                       + qsTr("　[%1]").arg(modelData.origin)
                       + (modelData.enabled ? "" : qsTr("　（已禁用）"))
                 color: modelData.enabled ? theme.textDim : theme.textFaint
-                font.pixelSize: 10
+                font.pixelSize: Math.round(10 * settings.fontScale)
                 elide: Text.ElideRight
             }
 
@@ -195,7 +195,7 @@ Rectangle {
                       + modelData.status
                       + qsTr("　[%1]").arg(modelData.command)
                 color: modelData.connected ? theme.success : theme.error
-                font.pixelSize: 10
+                font.pixelSize: Math.round(10 * settings.fontScale)
                 elide: Text.ElideRight
             }
         }

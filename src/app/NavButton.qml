@@ -10,7 +10,7 @@ Button {
     leftPadding: 12
     rightPadding: 12
     implicitHeight: 34
-    font.pixelSize: 13
+    font.pixelSize: Math.round(13 * settings.fontScale)
 
     background: Rectangle {
         radius: 8
@@ -35,7 +35,7 @@ Button {
             visible: control.glyph.length > 0
             text: control.glyph
             color: control.highlighted ? theme.accent : theme.textDim
-            font.pixelSize: 14
+            font.pixelSize: Math.round(14 * settings.fontScale)
         }
         Label {
             Layout.fillWidth: true

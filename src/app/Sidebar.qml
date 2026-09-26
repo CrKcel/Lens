@@ -94,7 +94,7 @@ Rectangle {
                 visible: !sidebarRoot.collapsed
                 Layout.fillWidth: true
                 text: sidebarRoot.settingsMode ? qsTr("设置") : qsTr("Lens")
-                font.pixelSize: 17
+                font.pixelSize: Math.round(17 * settings.fontScale)
                 font.bold: true
                 color: theme.text
             }
@@ -107,7 +107,7 @@ Rectangle {
             placeholderText: qsTr("工作文件夹（默认主目录）")
             color: theme.textSoft
             selectByMouse: true
-            font.pixelSize: 12
+            font.pixelSize: Math.round(12 * settings.fontScale)
             leftPadding: 10
             rightPadding: 10
             background: Rectangle {
@@ -205,14 +205,14 @@ Rectangle {
                             text: title
                             color: highlighted ? theme.accent : theme.text
                             elide: Text.ElideRight
-                            font.pixelSize: 13
+                            font.pixelSize: Math.round(13 * settings.fontScale)
                         }
                         Label {
                             Layout.fillWidth: true
                             text: workdir
                             color: theme.textFaint
                             elide: Text.ElideMiddle
-                            font.pixelSize: 10
+                            font.pixelSize: Math.round(10 * settings.fontScale)
                         }
                     }
                     ToolButton {
@@ -261,7 +261,7 @@ Rectangle {
             id: settingsButton
             Layout.fillWidth: true
             implicitHeight: 34
-            font.pixelSize: 13
+            font.pixelSize: Math.round(13 * settings.fontScale)
             text: sidebarRoot.settingsMode ? qsTr("« 返回聊天") : qsTr("⚙ 设置")
             background: Rectangle {
                 radius: theme.radiusS

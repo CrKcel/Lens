@@ -41,6 +41,38 @@ QString normalizeToolPreset(const QString &value)
     return QStringLiteral("full");
 }
 
+// 字体缩放档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
+double normalizeFontScale(double value)
+{
+    static constexpr double kAllowed[] = {0.85, 1.0, 1.15, 1.3, 1.5};
+    double best = 1.0;
+    double bestDiff = -1.0;
+    for (double allowed : kAllowed) {
+        const double diff = qAbs(value - allowed);
+        if (bestDiff < 0 || diff < bestDiff) {
+            best = allowed;
+            bestDiff = diff;
+        }
+    }
+    return best;
+}
+
+// 行距档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
+double normalizeLineSpacing(double value)
+{
+    static constexpr double kAllowed[] = {1.0, 1.15, 1.3, 1.5};
+    double best = 1.3;
+    double bestDiff = -1.0;
+    for (double allowed : kAllowed) {
+        const double diff = qAbs(value - allowed);
+        if (bestDiff < 0 || diff < bestDiff) {
+            best = allowed;
+            bestDiff = diff;
+        }
+    }
+    return best;
+}
+
 } // namespace
 
 AppSettings::AppSettings(QString filePath, QObject *parent)
@@ -71,6 +103,8 @@ void AppSettings::reset()
     m_webSearchApiKey = QString();
     m_toolPreset = QStringLiteral("full");
     m_customTools.clear();
+    m_fontScale = 1.0;
+    m_lineSpacing = 1.3;
     emit settingsChanged();
 }
 
@@ -161,6 +195,14 @@ void AppSettings::load()
     m_webSearchApiKey = readQStr(json, "webSearchApiKey");
     m_language = normalizeChoice(readQStr(json, "language"), {"zh", "en"});
     m_theme = normalizeChoice(readQStr(json, "theme"), {"dark", "light"});
+    const auto fontScaleIt = json.find("fontScale");
+    m_fontScale = fontScaleIt != json.end() && fontScaleIt->is_number()
+                      ? normalizeFontScale(fontScaleIt->get<double>())
+                      : 1.0;
+    const auto lineSpacingIt = json.find("lineSpacing");
+    m_lineSpacing = lineSpacingIt != json.end() && lineSpacingIt->is_number()
+                        ? normalizeLineSpacing(lineSpacingIt->get<double>())
+                        : 1.3;
     m_sendShortcut = readQStr(json, "sendShortcut") == QLatin1String("enter")
                          ? QStringLiteral("enter")
                          : QStringLiteral("ctrl_enter");
@@ -184,6 +226,8 @@ void AppSettings::save()
         {"webSearchApiKey", readStd(m_webSearchApiKey)},
         {"language", readStd(m_language)},
         {"theme", readStd(m_theme)},
+        {"fontScale", m_fontScale},
+        {"lineSpacing", m_lineSpacing},
         {"sendShortcut", readStd(m_sendShortcut)},
         {"toolPreset", readStd(m_toolPreset)},
     };
@@ -389,6 +433,24 @@ void AppSettings::setLanguage(const QString &value)
 void AppSettings::setTheme(const QString &value)
 {
     m_theme = normalizeChoice(value, {"dark", "light"});
+    emit settingsChanged();
+}
+
+void AppSettings::setFontScale(double value)
+{
+    const double normalized = normalizeFontScale(value);
+    if (normalized == m_fontScale)
+        return;
+    m_fontScale = normalized;
+    emit settingsChanged();
+}
+
+void AppSettings::setLineSpacing(double value)
+{
+    const double normalized = normalizeLineSpacing(value);
+    if (normalized == m_lineSpacing)
+        return;
+    m_lineSpacing = normalized;
     emit settingsChanged();
 }
 

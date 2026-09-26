@@ -17,6 +17,8 @@ private slots:
     void updateProviderWritesModels();
     void legacyProviderJsonWithoutModels();
     void legacyFlatConfigMigration();
+    void fontScaleRoundtripAndNormalization();
+    void lineSpacingRoundtripAndNormalization();
 
 private:
     QString writeJson(const QByteArray &json);
@@ -119,6 +121,60 @@ void TestAppSettings::legacyFlatConfigMigration()
     QCOMPARE(map.value(QStringLiteral("model")).toString(), QStringLiteral("old-model"));
     QCOMPARE(map.value(QStringLiteral("apiKey")).toString(), QStringLiteral("old-key"));
     QVERIFY(map.value(QStringLiteral("models")).toStringList().isEmpty());
+}
+
+void TestAppSettings::fontScaleRoundtripAndNormalization()
+{
+    const QString path = writeJson("{}");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    {
+        AppSettings settings(path);
+        QCOMPARE(settings.fontScale(), 1.0);
+        settings.setFontScale(1.3);
+        settings.save();
+    }
+    AppSettings reloaded(path);
+    QCOMPARE(reloaded.fontScale(), 1.3);
+
+    // 档位归一化：非法值回到最近档位，缺省回 1.0
+    reloaded.setFontScale(0.95);
+    QCOMPARE(reloaded.fontScale(), 1.0);
+    reloaded.setFontScale(2.0);
+    QCOMPARE(reloaded.fontScale(), 1.5);
+    reloaded.setFontScale(0.1);
+    QCOMPARE(reloaded.fontScale(), 0.85);
+
+    const QString invalidPath = writeJson(R"({"fontScale":"large"})");
+    AppSettings invalid(invalidPath);
+    QCOMPARE(invalid.fontScale(), 1.0);
+}
+
+void TestAppSettings::lineSpacingRoundtripAndNormalization()
+{
+    const QString path = writeJson("{}");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    {
+        AppSettings settings(path);
+        QCOMPARE(settings.lineSpacing(), 1.3);
+        settings.setLineSpacing(1.0);
+        settings.save();
+    }
+    AppSettings reloaded(path);
+    QCOMPARE(reloaded.lineSpacing(), 1.0);
+
+    // 档位归一化：非法值回到最近档位，缺省回 1.3
+    reloaded.setLineSpacing(1.2);
+    QCOMPARE(reloaded.lineSpacing(), 1.15);
+    reloaded.setLineSpacing(1.45);
+    QCOMPARE(reloaded.lineSpacing(), 1.5);
+    reloaded.setLineSpacing(3.0);
+    QCOMPARE(reloaded.lineSpacing(), 1.5);
+
+    const QString invalidPath = writeJson(R"({"lineSpacing":"wide"})");
+    AppSettings invalid(invalidPath);
+    QCOMPARE(invalid.lineSpacing(), 1.3);
 }
 
 int main(int argc, char **argv)
