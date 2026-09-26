@@ -12,6 +12,9 @@ ColumnLayout {
     // 侧栏折叠时为真：标题行左移让开悬浮的展开按钮（由 Main 绑定）
     property bool sidebarCollapsed: false
     property var attachments: [] // 待发送图片（文件路径或 data URL）
+    // 思考模式强度（disabled/low/medium/high/max）：会话内临时状态，
+    // 随每次发送传给控制器，不进设置、不持久化；默认 high
+    property string thinkingLevel: "high"
 
     signal sendRequested()
     signal stopRequested()
@@ -541,6 +544,138 @@ ColumnLayout {
                     }
                 }
             }
+        }
+        // 模型切换按钮：文字指示当前模型，菜单按供应商分组（子菜单 = 供应商）。
+        // 选中经 chat.selectModel 切换并持久化；下一次发送生效
+        AbstractButton {
+            id: modelButton
+            anchors.right: thinkingButton.left
+            anchors.bottom: parent.bottom
+            anchors.margins: 8
+            anchors.rightMargin: 6
+            implicitHeight: 36
+            // 文本宽度用 TextMetrics 度量：elide 的 Label 的 implicitWidth 依赖
+            // 自身 width，直接引用会成绑定环
+            implicitWidth: Math.max(36, Math.min(modelMetrics.advanceWidth, 140) + 2 * padding)
+            padding: 8
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("切换模型")
+
+            background: Rectangle {
+                radius: 18
+                color: modelButton.down ? theme.accentSoft
+                     : modelButton.hovered ? theme.accentSoft
+                     : "transparent"
+                border.color: theme.fieldBorder
+                border.width: 1
+            }
+            contentItem: Label {
+                id: modelLabel
+                text: settings.model
+                elide: Text.ElideRight
+                color: theme.text
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: modelMenu.popup(modelButton, 0, modelButton.height)
+        }
+        TextMetrics {
+            id: modelMetrics
+            font: modelLabel.font
+            text: settings.model
+        }
+        Menu {
+            id: modelMenu
+            Instantiator {
+                model: settings.providers
+                delegate: Menu {
+                    id: providerMenu
+                    required property int index
+                    required property var modelData
+                    title: modelData.name
+                    Instantiator {
+                        model: providerMenu.modelData.models.length > 0
+                               ? providerMenu.modelData.models
+                               : [providerMenu.modelData.model]
+                        delegate: MenuItem {
+                            required property string modelData
+                            text: modelData
+                            checkable: true
+                            // 激活供应商勾选当前模型，其余供应商勾选各自保存的模型
+                            checked: settings.activeProvider === providerMenu.index
+                                         ? settings.model === modelData
+                                         : providerMenu.modelData.model === modelData
+                            // 单次调用进 C++ 完成切换+保存：若在此逐条改 settings，
+                            // settingsChanged 触发菜单重建会销毁本 delegate（正在执行的
+                            // onTriggered 的宿主），引发级联错误
+                            onTriggered: chat.selectModel(providerMenu.index, modelData)
+                        }
+                        onObjectAdded: (index, object) => providerMenu.insertItem(index, object)
+                        onObjectRemoved: (index, object) => providerMenu.removeItem(object)
+                    }
+                }
+                onObjectAdded: (index, object) => modelMenu.insertMenu(index, object)
+                onObjectRemoved: (index, object) => modelMenu.removeMenu(object)
+            }
+        }
+        // 思考模式按钮：文字直接指示当前档位，点击弹菜单切换；会话内临时生效
+        AbstractButton {
+            id: thinkingButton
+            anchors.right: attachButton.left
+            anchors.bottom: parent.bottom
+            anchors.margins: 8
+            anchors.rightMargin: 6
+            implicitHeight: 36
+            implicitWidth: Math.max(36, thinkingLabel.implicitWidth + padding * 2)
+            padding: 8
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("思考模式：%1").arg(thinkingMenu.currentLabel)
+
+            background: Rectangle {
+                radius: 18
+                color: thinkingButton.down ? theme.accentSoft
+                     : thinkingButton.hovered ? theme.accentSoft
+                     : chatRoot.thinkingLevel !== "disabled" ? theme.accentSoft
+                     : "transparent"
+                border.color: theme.fieldBorder
+                border.width: 1
+            }
+            contentItem: Label {
+                id: thinkingLabel
+                text: thinkingMenu.currentLabel
+                color: chatRoot.thinkingLevel !== "disabled" ? theme.accent : theme.textFaint
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: thinkingMenu.popup(thinkingButton, 0, thinkingButton.height)
+        }
+        Menu {
+            id: thinkingMenu
+            readonly property string currentLabel: {
+                if (chatRoot.thinkingLevel === "low") return qsTr("低")
+                if (chatRoot.thinkingLevel === "medium") return qsTr("中")
+                if (chatRoot.thinkingLevel === "high") return qsTr("高")
+                if (chatRoot.thinkingLevel === "max") return qsTr("最高")
+                return qsTr("关闭")
+            }
+            component ThinkingMenuItem : MenuItem {
+                property string level
+                text: level === "disabled" ? qsTr("关闭")
+                    : level === "low" ? qsTr("低")
+                    : level === "medium" ? qsTr("中")
+                    : level === "high" ? qsTr("高")
+                    : qsTr("最高")
+                checkable: true
+                checked: chatRoot.thinkingLevel === level
+                onTriggered: chatRoot.thinkingLevel = level
+            }
+            ThinkingMenuItem { level: "disabled" }
+            ThinkingMenuItem { level: "low" }
+            ThinkingMenuItem { level: "medium" }
+            ThinkingMenuItem { level: "high" }
+            ThinkingMenuItem { level: "max" }
         }
         // 附件选择按钮：sendButton 左侧
         AbstractButton {

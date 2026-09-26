@@ -48,3 +48,12 @@ add_test(NAME mcp COMMAND test_mcp)
 add_executable(test_web_search test_web_search.cpp)
 target_link_libraries(test_web_search PRIVATE Lens::Core Qt6::Test)
 add_test(NAME web_search COMMAND test_web_search)
+
+add_executable(test_model_list test_model_list.cpp)
+target_link_libraries(test_model_list PRIVATE Lens::Core Qt6::Test)
+add_test(NAME model_list COMMAND test_model_list)
+
+add_executable(test_app_settings test_app_settings.cpp ../src/app/AppSettings.cpp)
+target_include_directories(test_app_settings PRIVATE ../src/app)
+target_link_libraries(test_app_settings PRIVATE Lens::Core Qt6::Gui Qt6::Test)
+add_test(NAME app_settings COMMAND test_app_settings)

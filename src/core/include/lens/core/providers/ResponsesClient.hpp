@@ -11,6 +11,7 @@ class ResponsesAdapter : public ProtocolAdapter
 {
 public:
     QUrl resolveEndpoint(const QString &baseUrl) const override;
+    QUrl resolveModelsEndpoint(const QString &baseUrl) const override;
     QList<QPair<QByteArray, QByteArray>> extraHeaders(const QString &apiKey) const override;
     nlohmann::json buildRequestBody(const std::vector<Message> &history, const QString &model,
                                     const QString &systemPrompt, bool stream,

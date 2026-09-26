@@ -70,6 +70,11 @@ QUrl ResponsesAdapter::resolveEndpoint(const QString &baseUrl) const
     return QUrl(detail::joinEndpoint(baseUrl, QStringLiteral("responses")));
 }
 
+QUrl ResponsesAdapter::resolveModelsEndpoint(const QString &baseUrl) const
+{
+    return QUrl(detail::openAiModelsEndpoint(baseUrl, QStringLiteral("responses")));
+}
+
 QList<QPair<QByteArray, QByteArray>> ResponsesAdapter::extraHeaders(const QString &apiKey) const
 {
     return {{QByteArrayLiteral("Authorization"), "Bearer " + apiKey.toUtf8()}};
@@ -85,6 +90,9 @@ nlohmann::json ResponsesAdapter::buildRequestBody(const std::vector<Message> &hi
                            {"input", buildInputItems(history)},
                            {"stream", stream},
                            {"store", false}}; // 本地已有完整历史，不让服务端留存状态
+    if (const QString effort = detail::openAiReasoningEffort(features.thinking);
+        !effort.isEmpty())
+        body["reasoning"] = {{"effort", effort.toStdString()}};
     if (!systemPrompt.isEmpty())
         body["instructions"] = systemPrompt.toStdString();
     if (!tools.empty() || features.serverSideSearch) {

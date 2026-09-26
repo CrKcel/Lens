@@ -74,6 +74,7 @@ void AgentSession::startTurn()
 
     RequestFeatures features;
     features.serverSideSearch = m_serverSideSearch;
+    features.thinking = m_thinkingLevel;
     std::vector<ToolSpec> specs = m_registry->specs();
     if (m_serverSideSearch) {
         // 服务端已提供搜索：不下发本地 web_search 工具（冗余，且与 anthropic

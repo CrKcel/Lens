@@ -12,6 +12,12 @@ ColumnLayout {
 
     property string settingsCategory: "general"
 
+    // 模型清单工作副本（当前编辑中的供应商），保存时经 updateProvider 写回 models；
+    // 拉取快照用于判定结果返回时表单是否已被改动（如切走供应商），过期则不应用
+    property var modelsWorking: []
+    property var modelsFetchSnapshot: null
+    property string modelsFetchStatus: ""
+
     anchors.margins: 20
     spacing: 12
 
@@ -23,7 +29,7 @@ ColumnLayout {
     function applySettings() {
         settings.endpoint = endpointField.text
         settings.apiKey = apiKeyField.text
-        settings.model = modelField.text
+        settings.model = modelCombo.editText
         settings.protocol = protocolCombo.currentValue
         settings.serverSearch = serverSearchCheck.checked
         settings.systemPrompt = systemPromptField.text
@@ -45,7 +51,8 @@ ColumnLayout {
               "protocol": protocolCombo.currentValue,
               "endpoint": endpointField.text,
               "apiKey": apiKeyField.text,
-              "model": modelField.text,
+              "model": modelCombo.editText,
+              "models": settingsRoot.modelsWorking,
               "serverSearch": serverSearchCheck.checked,
               "inputPrice": Number(inputPriceField.text) || 0,
               "outputPrice": Number(outputPriceField.text) || 0,
@@ -118,7 +125,6 @@ ColumnLayout {
     function loadSettingsIntoFields() {
         endpointField.text = settings.endpoint
         apiKeyField.text = settings.apiKey
-        modelField.text = settings.model
         protocolCombo.currentIndex = protocolCombo.indexOfValue(settings.protocol)
         serverSearchCheck.checked = settings.serverSearch
         const activeProvider = settings.providers.length > 0
@@ -127,6 +133,16 @@ ColumnLayout {
         inputPriceField.text = activeProvider ? String(activeProvider.inputPrice) : "0"
         outputPriceField.text = activeProvider ? String(activeProvider.outputPrice) : "0"
         cachedPriceField.text = activeProvider ? String(activeProvider.cachedPrice) : "0"
+        // 模型下拉框：清单取当前供应商的 models（空则回退仅含当前模型一项）
+        const models = activeProvider && activeProvider.models.length > 0
+            ? activeProvider.models : (settings.model ? [settings.model] : [])
+        settingsRoot.modelsWorking = models
+        const currentModel = settings.model
+        modelCombo.model = models
+        modelCombo.editText = currentModel
+        modelCombo.currentIndex = modelCombo.find(currentModel)
+        settingsRoot.modelsFetchStatus = ""
+        settingsRoot.modelsFetchSnapshot = null
         webSearchEndpointField.text = settings.webSearchEndpoint
         webSearchApiKeyField.text = settings.webSearchApiKey
         settingsRoot.mcpServersWorking = settings.mcpServers
@@ -138,6 +154,50 @@ ColumnLayout {
         sendShortcutCombo.currentIndex = sendShortcutCombo.indexOfValue(settings.sendShortcut)
         toolPresetCombo.currentIndex = toolPresetCombo.indexOfValue(settings.toolPreset)
         settingsRoot.customToolsWorking = settings.customTools
+    }
+
+    // 从端点拉取模型清单：以当前表单值为准（未保存的修改也可拉取），
+    // 记下快照，结果返回时表单已改动则不应用
+    function fetchModels() {
+        settingsRoot.modelsFetchSnapshot = {
+            "protocol": protocolCombo.currentValue,
+            "endpoint": endpointField.text,
+            "apiKey": apiKeyField.text
+        }
+        settingsRoot.modelsFetchStatus = ""
+        chat.fetchModels(protocolCombo.currentValue, endpointField.text, apiKeyField.text)
+    }
+
+    function modelsFetchStale() {
+        const snap = settingsRoot.modelsFetchSnapshot
+        return !snap || snap.protocol !== protocolCombo.currentValue
+            || snap.endpoint !== endpointField.text || snap.apiKey !== apiKeyField.text
+    }
+
+    Connections {
+        target: chat
+        function onModelsFetched(models) {
+            if (settingsRoot.modelsFetchStale()) {
+                settingsRoot.modelsFetchStatus = qsTr("表单已改动，结果未应用")
+                return
+            }
+            const merged = settingsRoot.modelsWorking.slice()
+            for (let i = 0; i < models.length; i++) {
+                if (merged.indexOf(models[i]) < 0)
+                    merged.push(models[i])
+            }
+            const currentModel = modelCombo.editText
+            settingsRoot.modelsWorking = merged
+            modelCombo.model = merged
+            modelCombo.editText = currentModel
+            modelCombo.currentIndex = modelCombo.find(currentModel)
+            settingsRoot.modelsFetchStatus = qsTr("已获取 %1 个模型").arg(models.length)
+        }
+        function onModelsFetchFailed(error) {
+            if (settingsRoot.modelsFetchStale())
+                return
+            settingsRoot.modelsFetchStatus = qsTr("获取失败：%1").arg(error)
+        }
     }
 
     // CI 冒烟钩子：--qml-check 模拟真实设置流程并验证两轮保存回读，
@@ -152,7 +212,8 @@ ColumnLayout {
         // applySettings 的完整链路，覆盖单价等 provider 字段）
         endpointField.text = "http://qml-check.example/v1"
         apiKeyField.text = "sk-qml-check"
-        modelField.text = "qml-check-model"
+        modelCombo.editText = "qml-check-model"
+        settingsRoot.modelsWorking = ["qml-check-model", "qml-check-model-2"]
         systemPromptField.text = "qml-check-prompt"
         inputPriceField.text = "2.5"
         outputPriceField.text = "10"
@@ -163,7 +224,8 @@ ColumnLayout {
         settingsRoot.qmlCheckStage = 2
         endpointField.text = ""
         apiKeyField.text = ""
-        modelField.text = ""
+        modelCombo.editText = ""
+        settingsRoot.modelsWorking = []
         systemPromptField.text = ""
         settingsRoot.loadSettingsIntoFields()
         settingsRoot.applySettings()
@@ -339,7 +401,8 @@ ColumnLayout {
                             "protocol": protocolCombo.currentValue,
                             "endpoint": endpointField.text,
                             "apiKey": apiKeyField.text,
-                            "model": modelField.text,
+                            "model": modelCombo.editText,
+                            "models": settingsRoot.modelsWorking,
                             "serverSearch": serverSearchCheck.checked,
                             "inputPrice": Number(inputPriceField.text) || 0,
                             "outputPrice": Number(outputPriceField.text) || 0,
@@ -457,14 +520,31 @@ ColumnLayout {
                     selectByMouse: true
                     background: SettingFieldBg
                 }
-                Label { text: qsTr("模型"); color: theme.textDim; font.pixelSize: 12 }
-                TextField {
-                    id: modelField
-                    Layout.preferredWidth: 200
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
+            }
+            Label {
+                text: qsTr("模型（可手动输入，或从端点获取清单后选择）")
+                color: theme.textDim; font.pixelSize: 12
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                ComboBox {
+                    id: modelCombo
+                    Layout.fillWidth: true
+                    editable: true
+                    selectTextByMouse: true
                 }
+                AccentButton {
+                    text: settings.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
+                    enabled: !settings.fetchingModels && endpointField.text.trim().length > 0
+                    onClicked: settingsRoot.fetchModels()
+                }
+            }
+            Label {
+                visible: settingsRoot.modelsFetchStatus.length > 0
+                text: settingsRoot.modelsFetchStatus
+                color: theme.textFaint; font.pixelSize: 11
+                elide: Text.ElideRight
             }
             RowLayout {
                 Layout.fillWidth: true

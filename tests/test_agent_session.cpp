@@ -126,6 +126,7 @@ class TestAgentSession : public QObject
 private slots:
     void fullToolCallLoop();
     void serverSideSearchFiltersLocalSearchTool();
+    void thinkingLevelReachesRequestBody();
     void toolImagesReachModelAndSignal();
 
 private:
@@ -282,6 +283,38 @@ void TestAgentSession::serverSideSearchFiltersLocalSearchTool()
     QFile note(workdir.filePath(QStringLiteral("note.txt")));
     QVERIFY(note.open(QIODevice::ReadOnly)); // 工具循环不受影响
     QCOMPARE(QString::fromUtf8(note.readAll()), QStringLiteral("written by mock"));
+}
+
+// 思考强度是会话内状态：setThinkingLevel 后随下一轮请求进入请求体（max→"xhigh"）
+void TestAgentSession::thinkingLevelReachesRequestBody()
+{
+    QTemporaryDir workdir;
+    QVERIFY(workdir.isValid());
+
+    MockChatServer server;
+    QVERIFY(server.start());
+
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<WriteTool>());
+
+    AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
+    session.setRequestConfig(server.url().toString(), QStringLiteral("k"),
+                             QStringLiteral("mock-model"));
+    session.setWorkdir(workdir.path());
+    session.setThinkingLevel(ThinkingLevel::Max);
+
+    QString failure;
+    connect(&session, &AgentSession::failed,
+            [&](const QString &message) { failure = message; });
+
+    QEventLoop loop;
+    connect(&session, &AgentSession::idle, &loop, &QEventLoop::quit);
+    QTimer::singleShot(15000, &loop, &QEventLoop::quit);
+    session.sendUserMessage(QStringLiteral("把 note 写入工作文件夹"));
+    loop.exec();
+
+    QCOMPARE(failure, QString());
+    QVERIFY(server.bodies[0].contains("\"reasoning_effort\":\"xhigh\""));
 }
 
 // read 工具读图片：ToolResult.images 经 toolCallFinished 发出并进入下一轮请求体

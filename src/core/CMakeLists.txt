@@ -14,6 +14,7 @@ add_library(lens_core STATIC
     include/lens/core/providers/ProtocolAdapter.hpp
     include/lens/core/providers/AnthropicClient.hpp
     include/lens/core/providers/ResponsesClient.hpp
+    include/lens/core/providers/ModelListClient.hpp
     include/lens/core/storage/SessionStore.hpp
     include/lens/core/tools/Shell.hpp
     include/lens/core/tools/ToolArgs.hpp
@@ -30,6 +31,7 @@ add_library(lens_core STATIC
     src/ProtocolAdapter.cpp
     src/AnthropicClient.cpp
     src/ResponsesClient.cpp
+    src/ModelListClient.cpp
     src/McpClient.cpp
     src/WebSearchTool.cpp
     src/SessionStore.cpp

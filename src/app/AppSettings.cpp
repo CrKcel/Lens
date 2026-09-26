@@ -94,6 +94,13 @@ void AppSettings::load()
             provider.endpoint = readQStr(entry, "endpoint");
             provider.apiKey = readQStr(entry, "apiKey");
             provider.model = readQStr(entry, "model");
+            if (entry.contains("models") && entry.at("models").is_array()) {
+                for (const auto &model : entry.at("models")) {
+                    if (model.is_string())
+                        provider.models.append(
+                            QString::fromStdString(model.get<std::string>()));
+                }
+            }
             if (entry.contains("serverSearch") && entry.at("serverSearch").is_boolean())
                 provider.serverSearch = entry.at("serverSearch").get<bool>();
             if (entry.contains("inputPrice") && entry.at("inputPrice").is_number())
@@ -186,11 +193,15 @@ void AppSettings::save()
     json["customTools"] = std::move(customTools);
     auto providers = nlohmann::json::array();
     for (const ProviderConfig &provider : m_providers) {
+        auto models = nlohmann::json::array();
+        for (const QString &model : provider.models)
+            models.push_back(readStd(model));
         providers.push_back({{"name", readStd(provider.name)},
                              {"protocol", readStd(provider.protocol)},
                              {"endpoint", readStd(provider.endpoint)},
                              {"apiKey", readStd(provider.apiKey)},
                              {"model", readStd(provider.model)},
+                             {"models", std::move(models)},
                              {"serverSearch", provider.serverSearch},
                              {"inputPrice", provider.inputPrice},
                              {"outputPrice", provider.outputPrice},
@@ -278,6 +289,7 @@ QVariantMap AppSettings::providerToMap(const ProviderConfig &provider) const
             {QStringLiteral("endpoint"), provider.endpoint},
             {QStringLiteral("apiKey"), provider.apiKey},
             {QStringLiteral("model"), provider.model},
+            {QStringLiteral("models"), provider.models},
             {QStringLiteral("serverSearch"), provider.serverSearch},
             {QStringLiteral("inputPrice"), provider.inputPrice},
             {QStringLiteral("outputPrice"), provider.outputPrice},
@@ -292,6 +304,7 @@ ProviderConfig AppSettings::providerFromMap(const QVariantMap &map) const
     provider.endpoint = map.value(QStringLiteral("endpoint")).toString();
     provider.apiKey = map.value(QStringLiteral("apiKey")).toString();
     provider.model = map.value(QStringLiteral("model")).toString();
+    provider.models = map.value(QStringLiteral("models")).toStringList();
     provider.serverSearch = map.value(QStringLiteral("serverSearch")).toBool();
     provider.inputPrice = map.value(QStringLiteral("inputPrice")).toDouble();
     provider.outputPrice = map.value(QStringLiteral("outputPrice")).toDouble();

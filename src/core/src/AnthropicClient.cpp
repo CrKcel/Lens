@@ -81,6 +81,19 @@ nlohmann::json buildMessages(const std::vector<Message> &history)
     return messages;
 }
 
+// 思考预算（budget_tokens）：档位越高预算越大
+int thinkingBudgetTokens(ThinkingLevel level)
+{
+    switch (level) {
+    case ThinkingLevel::Low: return 4096;
+    case ThinkingLevel::Medium: return 10240;
+    case ThinkingLevel::High: return 20480;
+    case ThinkingLevel::Max: return 32768;
+    case ThinkingLevel::Disabled: break;
+    }
+    return 0;
+}
+
 } // namespace
 
 QUrl AnthropicAdapter::resolveEndpoint(const QString &baseUrl) const
@@ -93,6 +106,19 @@ QUrl AnthropicAdapter::resolveEndpoint(const QString &baseUrl) const
     if (base.endsWith(QStringLiteral("/v1")))
         return QUrl(base + QStringLiteral("/messages"));
     return QUrl(base + QStringLiteral("/v1/messages"));
+}
+
+QUrl AnthropicAdapter::resolveModelsEndpoint(const QString &baseUrl) const
+{
+    const QString base = detail::trimTrailingSlashes(baseUrl.trimmed());
+    const QString messagesPath = QStringLiteral("v1/messages");
+    if (const qsizetype pos = base.indexOf(messagesPath); pos >= 0) {
+        return QUrl(base.left(pos) + QStringLiteral("v1/models")
+                    + base.mid(pos + messagesPath.size()));
+    }
+    if (base.endsWith(QStringLiteral("/v1")))
+        return QUrl(base + QStringLiteral("/models"));
+    return QUrl(base + QStringLiteral("/v1/models"));
 }
 
 QList<QPair<QByteArray, QByteArray>> AnthropicAdapter::extraHeaders(const QString &apiKey) const
@@ -111,6 +137,12 @@ nlohmann::json AnthropicAdapter::buildRequestBody(const std::vector<Message> &hi
                            {"max_tokens", 8192}, // Anthropic 必填字段，取保守上限
                            {"messages", buildMessages(history)},
                            {"stream", stream}};
+    // 扩展思考：max_tokens 必须大于 budget_tokens，开启时同步上调
+    if (features.thinking != ThinkingLevel::Disabled) {
+        const int budget = thinkingBudgetTokens(features.thinking);
+        body["thinking"] = {{"type", "enabled"}, {"budget_tokens", budget}};
+        body["max_tokens"] = budget + 8192;
+    }
     if (!systemPrompt.isEmpty())
         body["system"] = systemPrompt.toStdString();
     if (!tools.empty() || features.serverSideSearch) {

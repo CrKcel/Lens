@@ -15,6 +15,7 @@ compile_commands.json
 *.user
 .vscode/
 .idea/
+.zcodeignore
 .DS_Store
 AGENTS.md
 CLAUDE.md

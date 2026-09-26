@@ -15,6 +15,11 @@ public:
         return QUrl(detail::joinEndpoint(baseUrl, QStringLiteral("chat/completions")));
     }
 
+    QUrl resolveModelsEndpoint(const QString &baseUrl) const override
+    {
+        return QUrl(detail::openAiModelsEndpoint(baseUrl, QStringLiteral("chat/completions")));
+    }
+
     QList<QPair<QByteArray, QByteArray>> extraHeaders(const QString &apiKey) const override
     {
         return {{QByteArrayLiteral("Authorization"), "Bearer " + apiKey.toUtf8()}};
@@ -30,6 +35,9 @@ public:
                                                                 toChatCompletionsTools(tools));
         if (features.serverSideSearch)
             body["web_search_options"] = nlohmann::json::object(); // OpenAI 服务端搜索
+        if (const QString effort = detail::openAiReasoningEffort(features.thinking);
+            !effort.isEmpty())
+            body["reasoning_effort"] = effort.toStdString();
         return body;
     }
 

@@ -83,6 +83,10 @@ private slots:
     void serverSideSearchRequestShape();
     void serverSideSearchOffByDefault();
 
+    // —— 思考模式（RequestFeatures::thinking） ——
+
+    void thinkingLevelRequestShape();
+
     // —— 多模态：Message.images → 各协议请求体 ——
 
     void multimodalImageSerialization();
@@ -468,6 +472,60 @@ void TestProtocols::serverSideSearchOffByDefault()
         {userMessage(QStringLiteral("hi"))}, QStringLiteral("m"), QString(), true, {});
     QVERIFY(!body.contains("web_search_options"));
     QVERIFY(!body.contains("tools"));
+}
+
+void TestProtocols::thinkingLevelRequestShape()
+{
+    const std::vector<Message> history = {userMessage(QStringLiteral("想一下"))};
+    RequestFeatures features;
+
+    // chat completions → reasoning_effort；max 档取 "xhigh"，关闭时缺席
+    const auto chat = makeProtocolAdapter(Protocol::ChatCompletions);
+    features.thinking = ThinkingLevel::Max;
+    QCOMPARE(chat->buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("reasoning_effort")
+                 .get<std::string>(),
+             "xhigh");
+    features.thinking = ThinkingLevel::Medium;
+    QCOMPARE(chat->buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("reasoning_effort")
+                 .get<std::string>(),
+             "medium");
+    QVERIFY(!chat->buildRequestBody(history, QStringLiteral("m"), QString(), true, {},
+                                    RequestFeatures{})
+                 .contains("reasoning_effort"));
+
+    // responses → reasoning.effort
+    const responses::ResponsesAdapter responses;
+    features.thinking = ThinkingLevel::High;
+    QCOMPARE(responses
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("reasoning")
+                 .at("effort")
+                 .get<std::string>(),
+             "high");
+    QVERIFY(!responses
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {},
+                                   RequestFeatures{})
+                 .contains("reasoning"));
+
+    // anthropic → thinking.budget_tokens 档位，max_tokens 必须大于预算
+    const anthropic::AnthropicAdapter anthropic;
+    const ThinkingLevel levels[] = {ThinkingLevel::Low, ThinkingLevel::Medium,
+                                    ThinkingLevel::High, ThinkingLevel::Max};
+    const int budgets[] = {4096, 10240, 20480, 32768};
+    for (int i = 0; i < 4; ++i) {
+        features.thinking = levels[i];
+        const nlohmann::json body = anthropic.buildRequestBody(
+            history, QStringLiteral("m"), QString(), true, {}, features);
+        QCOMPARE(body.at("thinking").at("type").get<std::string>(), "enabled");
+        QCOMPARE(body.at("thinking").at("budget_tokens").get<int>(), budgets[i]);
+        QVERIFY(body.at("max_tokens").get<int>() > budgets[i]);
+    }
+    const nlohmann::json off = anthropic.buildRequestBody(
+        history, QStringLiteral("m"), QString(), true, {}, RequestFeatures{});
+    QVERIFY(!off.contains("thinking"));
+    QCOMPARE(off.at("max_tokens").get<int>(), 8192);
 }
 
 void TestProtocols::factoryAndProtocolNames()

@@ -15,6 +15,7 @@ struct ProviderConfig {
     QString endpoint;
     QString apiKey;
     QString model;
+    QStringList models = {};   // 可选模型清单（端点自动获取或手动维护），model 从中选取
     bool serverSearch = false; // 服务端联网搜索（供应商支持时）
     double inputPrice = 0.0;   // 输入单价（每百万 token），0 表示未配置不计费用
     double outputPrice = 0.0;  // 输出单价（每百万 token）

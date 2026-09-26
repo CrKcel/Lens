@@ -4,6 +4,7 @@
 #include "MessageListModel.hpp"
 #include "lens/core/agent/AgentSession.hpp"
 #include "lens/core/mcp/McpClient.hpp"
+#include "lens/core/providers/ModelListClient.hpp"
 #include "lens/core/tools/ToolRegistry.hpp"
 
 #include <QObject>
@@ -39,6 +40,7 @@ class ChatController : public QObject
     Q_PROPERTY(QVariantList contextTools READ contextTools NOTIFY contextChanged)
     Q_PROPERTY(QVariantList mcpStatus READ mcpStatus NOTIFY contextChanged)
     Q_PROPERTY(QVariantMap usageSummary READ usageSummary NOTIFY usageChanged)
+    Q_PROPERTY(bool fetchingModels READ fetchingModels NOTIFY fetchingModelsChanged)
 
 public:
     explicit ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
@@ -59,20 +61,32 @@ public:
     Q_INVOKABLE void openConversation(qint64 conversationId);
     Q_INVOKABLE void deleteConversation(qint64 conversationId);
     Q_INVOKABLE void send(const QString &text, const QString &workdir = QString());
-    // 带图片附件的发送：attachments 每项为图片文件路径或 data URL
+    // 带图片附件的发送：attachments 每项为图片文件路径或 data URL；
+    // thinkingLevel 为会话内临时状态（disabled/low/medium/high/max），不持久化
     Q_INVOKABLE void send(const QString &text, const QString &workdir,
-                          const QVariantList &attachments);
+                          const QVariantList &attachments,
+                          const QString &thinkingLevel = QStringLiteral("disabled"));
     Q_INVOKABLE void stop();
     Q_INVOKABLE void refreshContext(); // 设置（MCP/工具）变化后重建上下文清单
     Q_INVOKABLE QVariantList skillsList(const QString &workdir) const;
     Q_INVOKABLE bool clipboardHasImage() const;      // 剪贴板是否携带图片（粘贴转附件）
     Q_INVOKABLE QString clipboardImageDataUrl() const; // 剪贴板图片转 data URL，无图片返回空
+    // 从端点拉取可用模型清单。参数取设置页当前表单值（未保存的修改也可拉取）；
+    // 结果经 modelsFetched / modelsFetchFailed 信号返回。
+    Q_INVOKABLE void fetchModels(const QString &protocol, const QString &endpoint,
+                                 const QString &apiKey);
+    // 聊天区模型切换：切激活供应商并写回其模型，立即持久化（越界索引/空模型名忽略）
+    Q_INVOKABLE void selectModel(int providerIndex, const QString &model);
+    bool fetchingModels() const { return m_fetchingModels; }
 
 signals:
     void streamingChanged();
     void currentConversationChanged();
     void contextChanged();
     void usageChanged();
+    void fetchingModelsChanged();
+    void modelsFetched(const QStringList &models);
+    void modelsFetchFailed(const QString &error);
 
 private:
     void connectAgent();
@@ -114,6 +128,9 @@ private:
     QString m_workdir;
     QString m_title;
     bool m_streaming = false;
+
+    ModelListClient m_modelListClient;
+    bool m_fetchingModels = false;
 };
 
 } // namespace lens

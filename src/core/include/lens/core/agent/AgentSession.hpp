@@ -30,6 +30,7 @@ public:
                           const QString &model);
     void setProtocol(Protocol protocol); // 缺省 chat completions，需在发起请求前设置
     void setServerSideSearch(bool enabled) { m_serverSideSearch = enabled; }
+    void setThinkingLevel(ThinkingLevel level) { m_thinkingLevel = level; }
     void setSystemPrompt(const QString &systemPrompt) { m_systemPrompt = systemPrompt; }
     void setWorkdir(const QString &workdir) { m_workdir = workdir; }
     void setHistory(std::vector<Message> history) { m_history = std::move(history); }
@@ -69,6 +70,7 @@ private:
     QString m_model;
     Protocol m_protocol = Protocol::ChatCompletions;
     bool m_serverSideSearch = false;
+    ThinkingLevel m_thinkingLevel = ThinkingLevel::Disabled;
     QString m_systemPrompt;
     QString m_workdir;
     bool m_busy = false;

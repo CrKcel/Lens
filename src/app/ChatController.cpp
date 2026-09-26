@@ -333,7 +333,7 @@ QList<ImageAttachment> ChatController::loadAttachments(const QVariantList &attac
 }
 
 void ChatController::send(const QString &text, const QString &workdir,
-                          const QVariantList &attachments)
+                          const QVariantList &attachments, const QString &thinkingLevel)
 {
     if (m_streaming || text.trimmed().isEmpty())
         return;
@@ -367,6 +367,11 @@ void ChatController::send(const QString &text, const QString &workdir,
     if (const auto protocol = protocolFromString(provider.protocol))
         m_agent->setProtocol(*protocol);
     m_agent->setServerSideSearch(provider.serverSearch);
+    // 思考强度是聊天区会话内临时状态：每次发送随消息带入，非法值回退关闭
+    ThinkingLevel thinking = ThinkingLevel::Disabled;
+    if (const auto parsed = thinkingLevelFromString(thinkingLevel))
+        thinking = *parsed;
+    m_agent->setThinkingLevel(thinking);
     m_lastSections = collectSections();
     PromptAssembler assembler;
     for (const ContextSectionInfo &section : m_lastSections)
@@ -396,6 +401,38 @@ QString ChatController::clipboardImageDataUrl() const
     image.save(&buffer, "PNG");
     ImageAttachment attachment{QStringLiteral("image/png"), png};
     return imageDataUrl(attachment);
+}
+
+void ChatController::selectModel(int providerIndex, const QString &model)
+{
+    const bool indexChanged = m_settings->activeProvider() != providerIndex;
+    m_settings->setActiveProvider(providerIndex);
+    const bool modelChanged = !model.isEmpty() && m_settings->model() != model;
+    if (modelChanged)
+        m_settings->setModel(model);
+    if (indexChanged || modelChanged)
+        m_settings->save();
+}
+
+// 参数取设置页当前表单值（未保存的修改也可拉取）；同一时间仅允许一次拉取，
+// 结果原样经信号返回，“用户已切走”等过期判断由界面侧比对表单快照完成
+void ChatController::fetchModels(const QString &protocol, const QString &endpoint,
+                                 const QString &apiKey)
+{
+    const auto parsed = protocolFromString(protocol);
+    if (!parsed || endpoint.trimmed().isEmpty() || m_fetchingModels)
+        return;
+    m_fetchingModels = true;
+    emit fetchingModelsChanged();
+    m_modelListClient.fetch(*parsed, endpoint.trimmed(), apiKey,
+                            [this](QStringList models, QString error) {
+                                m_fetchingModels = false;
+                                emit fetchingModelsChanged();
+                                if (error.isEmpty())
+                                    emit modelsFetched(models);
+                                else
+                                    emit modelsFetchFailed(error);
+                            });
 }
 
 void ChatController::stop()
