@@ -32,6 +32,9 @@ public:
         const QString path = argString(args, "path");
         if (path.isEmpty())
             return {false, QStringLiteral("缺少 path 参数")};
+        // content 缺失或类型非法时报错而不是写空文件（整体覆盖语义下静默清空是灾难）
+        if (!hasScalarArg(args, "content"))
+            return {false, QStringLiteral("缺少 content 参数（应为字符串）")};
         const QString content = argString(args, "content");
         const QString resolved = resolveWorkdirPath(workdir, path);
 
