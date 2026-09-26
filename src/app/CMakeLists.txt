@@ -19,7 +19,14 @@ qt_add_qml_module(lens
     VERSION 1.0
     QML_FILES
         Main.qml
+        AccentButton.qml
+        ChatView.qml
+        ContextInspector.qml
+        NavButton.qml
         SettingFieldBg.qml
+        SettingsView.qml
+        Sidebar.qml
+        SlimScrollBar.qml
         Theme.qml
 )
 
@@ -33,4 +40,4 @@ qt_add_resources(lens "lens_translations"
     FILES ${LENS_QM_FILES})
 
 target_compile_definitions(lens PRIVATE LENS_VERSION="${PROJECT_VERSION}")
-target_link_libraries(lens PRIVATE Lens::Core Qt6::Quick)
+target_link_libraries(lens PRIVATE Lens::Core Qt6::Quick Qt6::QuickControls2)

@@ -13,7 +13,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Sql Quick Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Sql Quick QuickControls2 Test)
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
