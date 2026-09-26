@@ -103,7 +103,9 @@ ColumnLayout {
         id: messageList
         objectName: "messageListView"
         Layout.fillWidth: true
-        Layout.fillHeight: true
+        // 空会话时高度收为 0，让输入框经弹性 spacer 居中
+        Layout.fillHeight: messageList.count > 0
+        visible: messageList.count > 0
         clip: true
         spacing: 12
         model: chat.messages
@@ -315,9 +317,15 @@ ColumnLayout {
             }
         }
 
+    }
+    // 空会话占位：与输入框一起垂直居中（上下两个弹性 spacer 夹住输入区）
+    Item {
+        visible: messageList.count === 0
+        Layout.fillWidth: true
+        Layout.fillHeight: messageList.count === 0
         ColumnLayout {
-            anchors.centerIn: parent
-            visible: messageList.count === 0
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
             spacing: 10
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
@@ -341,11 +349,20 @@ ColumnLayout {
         }
     }
 
-    // ── 输入区：圆角卡片包裹输入框，右侧圆形发送按钮 ─────────
+    // ── 输入区：圆角卡片，文本占满整行宽度，发送按钮固定右下角 ─────────
+    // 默认三行文本高度 + 底部按钮条，随内容增长，最高不超过窗口四分之一
     Rectangle {
         id: inputCard
+        objectName: "inputCard"
         Layout.fillWidth: true
-        implicitHeight: inputRow.implicitHeight + 16
+        readonly property real lineH: input.font.pixelSize * 1.5
+        readonly property real maxH: chatRoot.height / 4
+        // 右下角按钮条：按钮 36px + 8px 间距，文本经 bottomPadding 避开
+        readonly property real buttonStrip: sendButton.height + 8
+        // 视口 = 高度 − topPadding − bottomPadding，故卡片需补上两侧 padding 与 16px 外边距
+        implicitHeight: Math.min(
+            Math.max(input.contentHeight, 3 * lineH) + input.topPadding + input.bottomPadding + 16,
+            maxH)
         radius: theme.radiusM
         color: theme.field
         border.width: input.activeFocus ? 2 : 1
@@ -353,71 +370,79 @@ ColumnLayout {
 
         Behavior on border.color { ColorAnimation { duration: 100 } }
 
-        RowLayout {
-            id: inputRow
+        TextArea {
+            id: input
+            objectName: "chatInput"
+            anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: parent.top
+            anchors.bottom: parent.bottom
             anchors.margins: 8
-            spacing: 8
-            TextArea {
-                id: input
-                objectName: "chatInput"
-                Layout.fillWidth: true
-                placeholderText: chat.streaming ? qsTr("生成中…")
-                    : settings.sendShortcut === "enter"
-                      ? qsTr("输入消息，Enter 发送，Shift+Enter 换行")
-                      : qsTr("输入消息，Ctrl+Enter 发送，Enter 换行")
-                wrapMode: TextArea.Wrap
-                color: theme.text
-                font.pixelSize: 13
-                background: null
-                leftPadding: 6
-                Keys.onPressed: (event) => {
-                    if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
-                        return
-                    const ctrlHeld = (event.modifiers & Qt.ControlModifier) !== 0
-                    const plainEnter = (event.modifiers & (Qt.ShiftModifier | Qt.ControlModifier)) === 0
-                    // ctrl_enter 模式：Ctrl+Enter 发送、Enter 换行
-                    // enter 模式：Enter 发送、Shift+Enter 换行
-                    if (ctrlHeld || (settings.sendShortcut === "enter" && plainEnter)) {
-                        chatRoot.sendRequested()
-                        event.accepted = true
-                    }
-                    // 其余组合交给 TextArea 默认行为（插入换行）
+            placeholderText: chat.streaming ? qsTr("生成中…")
+                : settings.sendShortcut === "enter"
+                  ? qsTr("输入消息，Enter 发送，Shift+Enter 换行")
+                  : qsTr("输入消息，Ctrl+Enter 发送，Enter 换行")
+            wrapMode: TextArea.Wrap
+            color: theme.text
+            font.pixelSize: 13
+            background: null
+            leftPadding: 6
+            bottomPadding: inputCard.buttonStrip
+            clip: true
+            verticalAlignment: TextInput.AlignTop
+            Keys.onPressed: (event) => {
+                if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                    return
+                const ctrlHeld = (event.modifiers & Qt.ControlModifier) !== 0
+                const plainEnter = (event.modifiers & (Qt.ShiftModifier | Qt.ControlModifier)) === 0
+                // ctrl_enter 模式：Ctrl+Enter 发送、Enter 换行
+                // enter 模式：Enter 发送、Shift+Enter 换行
+                if (ctrlHeld || (settings.sendShortcut === "enter" && plainEnter)) {
+                    chatRoot.sendRequested()
+                    event.accepted = true
                 }
-            }
-            // 圆形发送/停止按钮
-            AbstractButton {
-                id: sendButton
-                implicitWidth: 36
-                implicitHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                enabled: chat.streaming || input.text.trim().length > 0
-                ToolTip.visible: hovered
-                ToolTip.text: chat.streaming ? qsTr("停止") : qsTr("发送")
-
-                background: Rectangle {
-                    radius: 18
-                    color: !sendButton.enabled ? theme.fieldBorder
-                         : chat.streaming ? theme.error
-                         : sendButton.down ? theme.accentPressed
-                         : sendButton.hovered ? theme.accentHover
-                         : theme.accent
-
-                    Behavior on color { ColorAnimation { duration: 100 } }
-                }
-                contentItem: Label {
-                    text: chat.streaming ? "⏹" : "➤"
-                    color: sendButton.enabled ? "#ffffff" : theme.textFaint
-                    font.pixelSize: 14
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                onClicked: chat.streaming ? chatRoot.stopRequested()
-                                          : chatRoot.sendRequested()
+                // 其余组合交给 TextArea 默认行为（插入换行）
             }
         }
+        // 圆形发送/停止按钮：不挤占文本宽度
+        AbstractButton {
+            id: sendButton
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 8
+            implicitWidth: 36
+            implicitHeight: 36
+            enabled: chat.streaming || input.text.trim().length > 0
+            ToolTip.visible: hovered
+            ToolTip.text: chat.streaming ? qsTr("停止") : qsTr("发送")
+
+            background: Rectangle {
+                radius: 18
+                color: !sendButton.enabled ? theme.fieldBorder
+                     : chat.streaming ? theme.error
+                     : sendButton.down ? theme.accentPressed
+                     : sendButton.hovered ? theme.accentHover
+                     : theme.accent
+
+                Behavior on color { ColorAnimation { duration: 100 } }
+            }
+            contentItem: Label {
+                text: chat.streaming ? "⏹" : "➤"
+                color: sendButton.enabled ? "#ffffff" : theme.textFaint
+                font.pixelSize: 14
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: chat.streaming ? chatRoot.stopRequested()
+                                      : chatRoot.sendRequested()
+        }
+    }
+
+    // 空会话时的下方弹性 spacer：与上方 spacer 等分剩余空间，使输入框居中
+    Item {
+        visible: messageList.count === 0
+        Layout.fillWidth: true
+        Layout.fillHeight: messageList.count === 0
     }
 
     ContextInspector {

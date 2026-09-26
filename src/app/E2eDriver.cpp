@@ -125,9 +125,18 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         if (!workdir.isEmpty())
             chat->newConversation(workdir);
         QObject *input = root->findChild<QObject *>(QStringLiteral("chatInput"));
-        if (input)
+        if (input) {
             input->setProperty("text", message);
+            input->setProperty("cursorPosition", message.length());
+        }
+    if (qEnvironmentVariableIsEmpty("LENS_E2E_NOSEND"))
         QMetaObject::invokeMethod(root, "sendAction");
+    else
+        QTimer::singleShot(1200, chat, [chat, &engine] {
+            writeReport(engine, chat);
+            if (qEnvironmentVariableIsEmpty("LENS_E2E_NOEXIT"))
+                QCoreApplication::exit(0);
+        });
     });
 
     // streaming true→false 即回合结束，导出报告
