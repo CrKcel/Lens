@@ -5,6 +5,8 @@ import QtQuick.Layouts
 // 侧栏：应用标识、工作文件夹、新建会话、设置分类导航、会话列表、设置入口。
 // settingsMode / settingsCategory 由 Main 持有；导航点击经 categorySelected
 // 回传，设置按钮经 settingsToggleRequested 请求切换，侧栏不做业务决策。
+// 展开宽度可经右缘拖拽调节（窗口宽度的 1/5 ~ 1/3）；折叠态完全收起
+// （宽度归零），只留一枚悬浮展开按钮；设置模式侧栏始终展开、不可折叠。
 Rectangle {
     id: sidebarRoot
 
@@ -16,8 +18,18 @@ Rectangle {
     signal categorySelected(string category)
 
     property bool collapsed: false
-    width: collapsed ? 52 : 264
+    property real expandedWidth: 264
+    readonly property real minExpandedWidth: parent.width / 5
+    readonly property real maxExpandedWidth: parent.width / 3
+    function clampWidth(w) {
+        return Math.max(minExpandedWidth, Math.min(maxExpandedWidth, w))
+    }
+    width: collapsed ? 0 : clampWidth(expandedWidth)
+    onSettingsModeChanged: if (settingsMode) collapsed = false
+    // z 高于 ChatView：折叠态的悬浮展开按钮才能盖在聊天区上
+    z: 1
     Behavior on width {
+        enabled: !resizeHandle.pressed
         NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
     }
     color: theme.surface
@@ -38,10 +50,30 @@ Rectangle {
         color: theme.divider
     }
 
+    // 右缘拖拽手柄：调节展开宽度，范围 [窗口宽度/5, 窗口宽度/3]
+    MouseArea {
+        id: resizeHandle
+        visible: !sidebarRoot.collapsed
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 6
+        cursorShape: Qt.SizeHorCursor
+        property real pressWidth
+        property real pressX
+        onPressed: (mouse) => {
+            pressWidth = sidebarRoot.expandedWidth
+            pressX = mouse.x
+        }
+        onPositionChanged: (mouse) =>
+            sidebarRoot.expandedWidth = sidebarRoot.clampWidth(pressWidth + mouse.x - pressX)
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
         spacing: 8
+        visible: !sidebarRoot.collapsed
 
         RowLayout {
             Layout.fillWidth: true
@@ -61,13 +93,14 @@ Rectangle {
                 color: theme.text
             }
             ToolButton {
+                visible: !sidebarRoot.settingsMode
                 text: sidebarRoot.collapsed ? "»" : "«"
                 flat: true
                 display: AbstractButton.TextOnly
                 font.pixelSize: 13
                 ToolTip.visible: hovered
-                ToolTip.text: sidebarRoot.collapsed ? qsTr("展开会话列表") : qsTr("折叠会话列表")
-                onClicked: sidebarRoot.collapsed = !sidebarRoot.collapsed
+                ToolTip.text: qsTr("折叠会话列表")
+                onClicked: sidebarRoot.collapsed = true
             }
         }
 
@@ -205,20 +238,15 @@ Rectangle {
             }
         }
 
-        // 占位：列表隐藏（折叠态或设置模式）时把按钮压到底部
-        Item { Layout.fillHeight: true; visible: sidebarRoot.collapsed || sidebarRoot.settingsMode }
+        // 占位：列表隐藏（设置模式）时把按钮压到底部
+        Item { Layout.fillHeight: true; visible: sidebarRoot.settingsMode }
 
         Button {
             id: settingsButton
-            // 折叠态侧栏内宽仅 ~32px：必须始终填宽并去掉水平内边距，
-            // 否则按钮按隐式宽度渲染会伸出侧栏边界
             Layout.fillWidth: true
-            leftPadding: sidebarRoot.collapsed ? 0 : 12
-            rightPadding: sidebarRoot.collapsed ? 0 : 12
             implicitHeight: 34
             font.pixelSize: 13
-            text: sidebarRoot.collapsed ? (sidebarRoot.settingsMode ? "«" : "⚙")
-                  : sidebarRoot.settingsMode ? qsTr("« 返回聊天") : qsTr("⚙ 设置")
+            text: sidebarRoot.settingsMode ? qsTr("« 返回聊天") : qsTr("⚙ 设置")
             background: Rectangle {
                 radius: theme.radiusS
                 color: settingsButton.down ? theme.accentSoft
@@ -234,5 +262,21 @@ Rectangle {
             }
             onClicked: sidebarRoot.settingsToggleRequested()
         }
+    }
+
+    // 折叠态：完全收起，只留一枚悬浮在聊天区左上角的展开按钮
+    ToolButton {
+        visible: sidebarRoot.collapsed
+        anchors.left: sidebarRoot.right
+        anchors.leftMargin: 8
+        anchors.top: sidebarRoot.top
+        anchors.topMargin: 8
+        text: "»"
+        flat: true
+        display: AbstractButton.TextOnly
+        font.pixelSize: 13
+        ToolTip.visible: hovered
+        ToolTip.text: qsTr("展开会话列表")
+        onClicked: sidebarRoot.collapsed = false
     }
 }

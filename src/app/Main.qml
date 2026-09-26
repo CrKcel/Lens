@@ -71,6 +71,7 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.left: sidebar.right
         anchors.right: parent.right
+        sidebarCollapsed: sidebar.collapsed
         onSendRequested: root.sendAction()
         onStopRequested: chat.stop()
     }

@@ -9,6 +9,8 @@ ColumnLayout {
     id: chatRoot
 
     readonly property alias inputText: input.text
+    // 侧栏折叠时为真：标题行左移让开悬浮的展开按钮（由 Main 绑定）
+    property bool sidebarCollapsed: false
     property var attachments: [] // 待发送图片（文件路径或 data URL）
 
     signal sendRequested()
@@ -68,6 +70,8 @@ ColumnLayout {
         spacing: 10
         Label {
             Layout.fillWidth: true
+            // 悬浮展开按钮占位：8px 悬浮边距 + 按钮宽 + 间距
+            leftPadding: chatRoot.sidebarCollapsed ? 36 : 0
             text: chat.currentConversationId === 0
                   ? qsTr("新会话")
                   : chat.currentTitle
