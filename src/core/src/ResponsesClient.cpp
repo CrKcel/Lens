@@ -11,13 +11,18 @@ nlohmann::json buildInputItems(const std::vector<Message> &history)
         if (message.role == Role::System)
             continue; // 系统提示词放 instructions
         switch (message.role) {
-        case Role::User:
-            items.push_back({{"type", "message"},
-                             {"role", "user"},
-                             {"content",
-                              nlohmann::json::array({{{"type", "input_text"},
-                                                      {"text", message.content.toStdString()}}})}});
+        case Role::User: {
+            auto content = nlohmann::json::array();
+            if (!message.content.isEmpty())
+                content.push_back({{"type", "input_text"},
+                                   {"text", message.content.toStdString()}});
+            for (const ImageAttachment &image : message.images) {
+                content.push_back({{"type", "input_image"},
+                                   {"image_url", imageDataUrl(image).toStdString()}});
+            }
+            items.push_back({{"type", "message"}, {"role", "user"}, {"content", std::move(content)}});
             break;
+        }
         case Role::Assistant:
             if (!message.content.isEmpty()) {
                 items.push_back(
@@ -34,11 +39,23 @@ nlohmann::json buildInputItems(const std::vector<Message> &history)
                                  {"arguments", call.arguments.toStdString()}});
             }
             break;
-        case Role::Tool:
+        case Role::Tool: {
             items.push_back({{"type", "function_call_output"},
                              {"call_id", message.toolCallId.toStdString()},
                              {"output", message.content.toStdString()}});
+            // function_call_output 只接受字符串输出：图片紧随其后合成一条 user 消息
+            if (!message.images.isEmpty()) {
+                auto content = nlohmann::json::array(
+                    {{{"type", "input_text"}, {"text", "[工具返回的图片]"}}});
+                for (const ImageAttachment &image : message.images) {
+                    content.push_back({{"type", "input_image"},
+                                       {"image_url", imageDataUrl(image).toStdString()}});
+                }
+                items.push_back(
+                    {{"type", "message"}, {"role", "user"}, {"content", std::move(content)}});
+            }
             break;
+        }
         case Role::System:
             break;
         }

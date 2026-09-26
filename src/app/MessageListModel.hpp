@@ -23,6 +23,7 @@ public:
         ToolPendingRole,
         StreamingRole,
         ReasoningRole,
+        ImagesRole, // QVariantList：data URL 字符串，供 QML Image 显示
     };
 
     struct Item {
@@ -33,7 +34,8 @@ public:
         QString toolCallId;
         bool toolPending = false;
         bool streaming = false;
-        QString reasoning; // Assistant：思考过程
+        QString reasoning;  // Assistant：思考过程
+        QVariantList images; // 随消息展示的图片（data URL）
     };
 
     explicit MessageListModel(QObject *parent = nullptr);
@@ -49,6 +51,8 @@ public:
     void finishStreamingRow(const QString &finalText, const QString &finalReasoning);
     void setToolCallRunning(const QString &callId);
     void setToolCallResult(const QString &callId, const QString &output);
+    void setToolCallResult(const QString &callId, const QString &output,
+                           const QList<ImageAttachment> &images);
     bool hasStreamingRow() const { return m_streamingIndex >= 0; }
     void dropEmptyStreamingRow();
 

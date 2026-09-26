@@ -41,7 +41,9 @@ private slots:
     void writeCoercesScalarContent();
     void readRespectsOffsetAndLimit();
     void readRejectsBinaryFile();
-    void readRejectsImageFile();
+    void readReturnsImageFile();
+    void readRejectsOversizedImage();
+    void readTextFileStartingWithBm();
     void readOffsetBeyondEofFails();
     void readEmptyFilePlaceholder();
     void readTruncatesHugeSingleLine();
@@ -159,19 +161,56 @@ void TestTools::readRejectsBinaryFile()
     QVERIFY(read.output.contains(QStringLiteral("二进制")));
 }
 
-void TestTools::readRejectsImageFile()
+void TestTools::readReturnsImageFile()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
-    QVERIFY(writeFileBytes(dir.filePath(QStringLiteral("logo.png")),
-                           QByteArray("\x89PNG\r\n\x1A\n\x00\x00", 10)));
+    const QByteArray png = QByteArray("\x89PNG\r\n\x1A\n\x00\x00", 10) + QByteArray("pixels");
+    QVERIFY(writeFileBytes(dir.filePath(QStringLiteral("logo.png")), png));
 
     ToolRegistry registry;
     registry.registerTool(std::make_shared<ReadTool>());
     const auto read = registry.execute(
         QStringLiteral("read"), nlohmann::json{{"path", "logo.png"}}, dir.path());
+    QVERIFY(read.ok);
+    QCOMPARE(read.images.size(), 1);
+    QCOMPARE(read.images.first().mimeType, QStringLiteral("image/png"));
+    QCOMPARE(read.images.first().data, png);
+    QVERIFY(read.output.contains(QStringLiteral("image/png")));
+}
+
+void TestTools::readRejectsOversizedImage()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    // 5MB + 若干字节的 PNG 魔数数据，超出单图上限
+    QByteArray huge(5 * 1024 * 1024 + 16, 'x');
+    huge.prepend(QByteArray("\x89PNG\r\n\x1A\n", 8));
+    QVERIFY(writeFileBytes(dir.filePath(QStringLiteral("huge.png")), huge));
+
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<ReadTool>());
+    const auto read = registry.execute(
+        QStringLiteral("read"), nlohmann::json{{"path", "huge.png"}}, dir.path());
     QVERIFY(!read.ok);
-    QVERIFY(read.output.contains(QStringLiteral("PNG")));
+    QVERIFY(read.output.contains(QStringLiteral("压缩")));
+}
+
+void TestTools::readTextFileStartingWithBm()
+{
+    // "BM" 前缀 + 声明大小与实际不符：不是 BMP，按文本读取
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QVERIFY(writeFileBytes(dir.filePath(QStringLiteral("bmw.txt")),
+                           QByteArray("BMW models of 2026\nline two\n")));
+
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<ReadTool>());
+    const auto read = registry.execute(
+        QStringLiteral("read"), nlohmann::json{{"path", "bmw.txt"}}, dir.path());
+    QVERIFY(read.ok);
+    QVERIFY(read.images.isEmpty());
+    QVERIFY(read.output.startsWith(QStringLiteral("BMW models of 2026")));
 }
 
 void TestTools::readOffsetBeyondEofFails()

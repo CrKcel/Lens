@@ -37,7 +37,8 @@ public:
     bool busy() const { return m_busy; }
 
 public slots:
-    void sendUserMessage(const QString &text);
+    void sendUserMessage(const QString &text) { sendUserMessage(text, {}); }
+    void sendUserMessage(const QString &text, const QList<ImageAttachment> &images);
     void cancel();
 
 signals:
@@ -45,7 +46,8 @@ signals:
     void reasoningDelta(const QString &text); // 思考过程增量（reasoning_content）
     void assistantCompleted(const lens::Message &message);
     void toolCallStarted(const QString &id, const QString &name, const QString &args);
-    void toolCallFinished(const QString &id, const QString &output);
+    void toolCallFinished(const QString &id, const QString &output,
+                          const QList<ImageAttachment> &images = {});
     void failed(const QString &message);
     void idle(); 
 

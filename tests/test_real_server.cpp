@@ -2,6 +2,7 @@
 
 #include <QEventLoop>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -9,6 +10,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
+#include <QDir>
 
 #include <lens/core/agent/AgentSession.hpp>
 #include <lens/core/providers/QNetworkTransport.hpp>
@@ -30,6 +32,14 @@ QString stripEndpointPath(const QString &endpoint)
         base.chop(QStringView(u"/chat/completions").size());
     return base;
 }
+
+QByteArray readFileBytes(const QString &path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return file.readAll();
+}
 } // namespace
 
 class TestRealServer : public QObject
@@ -41,10 +51,15 @@ private slots:
     void chatCompletionsToolLoop();
     void responsesToolLoop();
     void anthropicToolLoop();
+    void multimodalVision();
+    void multimodalVisionResponses();
+    void multimodalVisionAnthropic();
 
 private:
     QString pickModel();
     void runToolCallLoop(Protocol protocol, const QString &fileName);
+    QString findIconImage() const;
+    void runVisionTurn(Protocol protocol, const QByteArray &imageData);
 
     QString m_baseEndpoint;
     QString m_anthropicEndpoint; // Anthropic 兼容端点与 OpenAI 系不同前缀的供应商（如 DeepSeek）可覆盖
@@ -182,6 +197,92 @@ void TestRealServer::responsesToolLoop()
 void TestRealServer::anthropicToolLoop()
 {
     runToolCallLoop(Protocol::Anthropic, QStringLiteral("note-anthropic.txt"));
+}
+
+// 项目图标：LENS_REAL_IMAGE 覆盖，否则从当前目录向上找 packaging/icons/lens-256.png
+QString TestRealServer::findIconImage() const
+{
+    const QString fromEnv = qEnvironmentVariable("LENS_REAL_IMAGE");
+    if (!fromEnv.isEmpty())
+        return fromEnv;
+    QDir dir(QDir::currentPath());
+    for (int i = 0; i < 4; ++i) {
+        const QString candidate =
+            dir.filePath(QStringLiteral("packaging/icons/lens-256.png"));
+        if (QFileInfo::exists(candidate))
+            return candidate;
+        if (!dir.cdUp())
+            break;
+    }
+    return {};
+}
+
+// 三协议共用：把图片发给多模态模型并要求描述，校验有正文回复且描述合理。
+// 模型描述对不对是主观判断，逐字断言会脆：硬断言只保证「图片被接受且模型作答」，
+// 关键词命中与否打日志供人工判断。
+void TestRealServer::runVisionTurn(Protocol protocol, const QByteArray &imageData)
+{
+    QVERIFY2(!imageData.isEmpty(),
+             "找不到测试图片（LENS_REAL_IMAGE 或 packaging/icons/lens-256.png）");
+
+    ToolRegistry registry; // 不带工具：纯视觉问答
+    AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
+    const QString endpoint = protocol == Protocol::Anthropic ? m_anthropicEndpoint
+                                                             : m_baseEndpoint;
+    session.setRequestConfig(endpoint, m_apiKey, m_model);
+    session.setProtocol(protocol);
+    session.setSystemPrompt(QStringLiteral("回答使用中文，简明扼要。"));
+
+    QString content;
+    QString failure;
+    connect(&session, &AgentSession::assistantDelta,
+            [&](const QString &delta) { content += delta; });
+    connect(&session, &AgentSession::failed,
+            [&](const QString &message) { failure = message; });
+
+    QEventLoop loop;
+    connect(&session, &AgentSession::idle, &loop, &QEventLoop::quit);
+    QTimer::singleShot(180000, &loop, &QEventLoop::quit);
+    session.sendUserMessage(QStringLiteral("请描述这张图片里是什么。"),
+                            {{QStringLiteral("image/png"), imageData}});
+    loop.exec();
+
+    const QString protocolName = protocolToString(protocol);
+    QVERIFY2(failure.isEmpty(),
+             qPrintable(QStringLiteral("[%1] 会话失败: %2").arg(protocolName, failure)));
+    QVERIFY2(!content.trimmed().isEmpty(),
+             qPrintable(QStringLiteral("[%1] 模型未给出描述").arg(protocolName)));
+    qInfo() << "[" << protocolName << "] 模型描述:" << content;
+
+    const QStringList keywords = {QStringLiteral("蓝"), QStringLiteral("圆"),
+                                  QStringLiteral("球"), QStringLiteral("镜"),
+                                  QStringLiteral("blue"), QStringLiteral("circle"),
+                                  QStringLiteral("sphere"), QStringLiteral("lens")};
+    bool matched = false;
+    for (const QString &keyword : keywords) {
+        if (content.contains(keyword, Qt::CaseInsensitive)) {
+            matched = true;
+            break;
+        }
+    }
+    if (!matched)
+        qWarning("[%s] 描述未命中蓝/圆/球/镜等关键词，请人工核对描述内容",
+                 qPrintable(protocolName));
+}
+
+void TestRealServer::multimodalVision()
+{
+    runVisionTurn(Protocol::ChatCompletions, readFileBytes(findIconImage()));
+}
+
+void TestRealServer::multimodalVisionResponses()
+{
+    runVisionTurn(Protocol::Responses, readFileBytes(findIconImage()));
+}
+
+void TestRealServer::multimodalVisionAnthropic()
+{
+    runVisionTurn(Protocol::Anthropic, readFileBytes(findIconImage()));
 }
 
 QTEST_GUILESS_MAIN(TestRealServer)

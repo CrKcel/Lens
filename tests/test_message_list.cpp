@@ -13,6 +13,7 @@ private slots:
     void reasoningStreamsIntoSameRow();
     void emptyStreamingRowDropped();
     void resetFromMessagesBuildsReasoningAndToolRows();
+    void imagesRoleRoundtrip();
 };
 
 void TestMessageList::streamingDeltasAccumulateInOneRow()
@@ -112,6 +113,64 @@ void TestMessageList::resetFromMessagesBuildsReasoningAndToolRows()
     QVERIFY(!model.data(model.index(2, 0), MessageListModel::ToolPendingRole).toBool());
     QCOMPARE(model.data(model.index(3, 0), MessageListModel::TextRole).toString(),
              QStringLiteral("完成"));
+}
+
+void TestMessageList::imagesRoleRoundtrip()
+{
+    // resetFromMessages：Message.images → ImagesRole data URL，user 行与工具卡片都带
+    MessageListModel model;
+    QList<Message> history;
+
+    Message user;
+    user.role = Role::User;
+    user.content = QStringLiteral("看图");
+    ImageAttachment attachment;
+    attachment.mimeType = QStringLiteral("image/png");
+    attachment.data = QByteArray("\x89PNG\r\n\x1A\n", 8);
+    user.images.append(attachment);
+    history.append(user);
+
+    Message assistant;
+    assistant.role = Role::Assistant;
+    assistant.toolCalls.append({QStringLiteral("call_1"), QStringLiteral("read"),
+                                QStringLiteral("{}")});
+    history.append(assistant);
+
+    Message tool;
+    tool.role = Role::Tool;
+    tool.content = QStringLiteral("图片已读");
+    tool.toolCallId = QStringLiteral("call_1");
+    tool.images.append(attachment);
+    history.append(tool);
+
+    model.resetFromMessages(history);
+
+    // data URL 前缀 + base64 载荷
+    const QVariantList userImages =
+        model.data(model.index(0, 0), MessageListModel::ImagesRole).toList();
+    QCOMPARE(userImages.size(), 1);
+    QVERIFY(userImages.first().toString().startsWith(
+        QStringLiteral("data:image/png;base64,")));
+
+    // 行序：user(0) → 工具卡片(1)（assistant 无文本不占行）；无主 tool 行不重复
+    const QVariantList toolImages =
+        model.data(model.index(1, 0), MessageListModel::ImagesRole).toList();
+    QCOMPARE(toolImages.size(), 1);
+    QVERIFY(toolImages.first().toString() == userImages.first().toString());
+    QCOMPARE(model.rowCount(), 2);
+
+    // 运行中工具卡片经 setToolCallResult 回填结果图片
+    MessageListModel live;
+    MessageListModel::Item call;
+    call.kind = MessageListModel::ToolCallItem;
+    call.toolCallId = QStringLiteral("call_9");
+    call.toolPending = true;
+    live.appendItem(call);
+    live.setToolCallResult(QStringLiteral("call_9"), QStringLiteral("ok"), {attachment});
+    const QModelIndex idx = live.index(0, 0);
+    QVERIFY(!live.data(idx, MessageListModel::ToolPendingRole).toBool());
+    QCOMPARE(live.data(idx, MessageListModel::TextRole).toString(), QStringLiteral("ok"));
+    QCOMPARE(live.data(idx, MessageListModel::ImagesRole).toList().size(), 1);
 }
 
 QTEST_GUILESS_MAIN(TestMessageList)

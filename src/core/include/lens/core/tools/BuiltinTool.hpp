@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lens/core/Conversation.hpp"
 #include "lens/core/tools/ToolArgs.hpp"
 #include <QDir>
 #include <QFile>
@@ -12,6 +13,7 @@ namespace lens {
 struct ToolResult {
     bool ok = true;
     QString output;
+    QList<ImageAttachment> images = {}; // 多模态工具（如 read）返回的图片，随工具结果发给模型
 };
 
 // 工具描述符：name 与 JSON Schema 会被拼进请求的 tools 字段，

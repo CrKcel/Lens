@@ -2,6 +2,7 @@
 
 #include <lens/core/providers/ProtocolAdapter.hpp>
 #include <lens/core/providers/AnthropicClient.hpp>
+#include <lens/core/providers/ChatCompletionsClient.hpp>
 #include <lens/core/providers/ResponsesClient.hpp>
 
 using namespace lens;
@@ -22,6 +23,26 @@ Message userMessage(const QString &content)
     message.role = Role::User;
     message.content = content;
     return message;
+}
+
+Message messageWithImage(Role role, const QString &content, const QString &toolCallId = {})
+{
+    Message message;
+    message.role = role;
+    message.content = content;
+    message.toolCallId = toolCallId;
+    ImageAttachment image;
+    image.mimeType = QStringLiteral("image/png");
+    image.data = QByteArray::fromHex("89504e47");
+    message.images.append(image);
+    return message;
+}
+
+// data URL 的 base64 载荷与 image/png 的魔数一致
+bool carriesPngDataUrl(const nlohmann::json &url)
+{
+    return url.is_string()
+           && url.get<std::string>().rfind("data:image/png;base64,iVBORw==", 0) == 0;
 }
 
 } // namespace
@@ -61,6 +82,10 @@ private slots:
 
     void serverSideSearchRequestShape();
     void serverSideSearchOffByDefault();
+
+    // —— 多模态：Message.images → 各协议请求体 ——
+
+    void multimodalImageSerialization();
 };
 
 void TestProtocols::chatEndpointResolution()
@@ -462,6 +487,69 @@ void TestProtocols::factoryAndProtocolNames()
             {userMessage(QStringLiteral("hi"))}, QStringLiteral("m"), QString(), true, {});
         QCOMPARE(body.at("model").get<std::string>(), "m");
     }
+}
+
+void TestProtocols::multimodalImageSerialization()
+{
+    // —— chat completions：user 消息 content 变 parts 数组；tool 带图合成 user 消息 ——
+    const auto chat = makeProtocolAdapter(Protocol::ChatCompletions);
+    const nlohmann::json chatBody = chat->buildRequestBody(
+        {messageWithImage(Role::User, QStringLiteral("看这张图")),
+         messageWithImage(Role::Assistant, QStringLiteral("done")),
+         messageWithImage(Role::Tool, QStringLiteral("图片已读"), QStringLiteral("call_1"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &chatMessages = chatBody.at("messages");
+    QCOMPARE(chatMessages.size(), 4); // user / assistant / tool / user(合成图片)
+    QCOMPARE(chatMessages[0].at("content")[0].at("type").get<std::string>(), "text");
+    QCOMPARE(chatMessages[0].at("content")[0].at("text").get<std::string>(), "看这张图");
+    QVERIFY(carriesPngDataUrl(chatMessages[0].at("content")[1].at("image_url").at("url")));
+    // tool 消息本体仍是字符串输出，图片在紧随的 user 消息里
+    QCOMPARE(chatMessages[2].at("role").get<std::string>(), "tool");
+    QCOMPARE(chatMessages[2].at("content").get<std::string>(), "图片已读");
+    QCOMPARE(chatMessages[3].at("role").get<std::string>(), "user");
+    QCOMPARE(chatMessages[3].at("content")[0].at("type").get<std::string>(), "text");
+    QVERIFY(carriesPngDataUrl(chatMessages[3].at("content")[1].at("image_url").at("url")));
+
+    // 纯文本 user 消息保持字符串 content
+    const nlohmann::json plainBody = chat->buildRequestBody(
+        {userMessage(QStringLiteral("hi"))}, QStringLiteral("m"), QString(), true, {});
+    QVERIFY(plainBody.at("messages")[0].at("content").is_string());
+
+    // —— responses：input_text/input_image parts；tool 图片同样合成 user 消息 ——
+    const responses::ResponsesAdapter responses;
+    const nlohmann::json responsesBody = responses.buildRequestBody(
+        {messageWithImage(Role::User, QStringLiteral("看这张图")),
+         messageWithImage(Role::Tool, QStringLiteral("图片已读"), QStringLiteral("call_1"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &items = responsesBody.at("input");
+    QCOMPARE(items.size(), 3); // user / function_call_output / user(合成图片)
+    QCOMPARE(items[0].at("content")[0].at("type").get<std::string>(), "input_text");
+    QCOMPARE(items[0].at("content")[1].at("type").get<std::string>(), "input_image");
+    QVERIFY(carriesPngDataUrl(items[0].at("content")[1].at("image_url")));
+    QCOMPARE(items[1].at("type").get<std::string>(), "function_call_output");
+    QCOMPARE(items[2].at("role").get<std::string>(), "user");
+    QCOMPARE(items[2].at("content")[0].at("type").get<std::string>(), "input_text");
+    QCOMPARE(items[2].at("content")[1].at("type").get<std::string>(), "input_image");
+    QVERIFY(carriesPngDataUrl(items[2].at("content")[1].at("image_url")));
+
+    // —— anthropic：user 块数组 + tool_result 原生图片块 ——
+    const anthropic::AnthropicAdapter anthropic;
+    const nlohmann::json anthropicBody = anthropic.buildRequestBody(
+        {messageWithImage(Role::User, QStringLiteral("看这张图")),
+         messageWithImage(Role::Tool, QStringLiteral("图片已读"), QStringLiteral("call_1"))},
+        QStringLiteral("m"), QString(), true, {});
+    const auto &anthropicMessages = anthropicBody.at("messages");
+    QCOMPARE(anthropicMessages.size(), 2);
+    const auto &userBlocks = anthropicMessages[0].at("content");
+    QCOMPARE(userBlocks.size(), 2); // text + image
+    QCOMPARE(userBlocks[1].at("type").get<std::string>(), "image");
+    QCOMPARE(userBlocks[1].at("source").at("type").get<std::string>(), "base64");
+    QCOMPARE(userBlocks[1].at("source").at("media_type").get<std::string>(), "image/png");
+    QCOMPARE(userBlocks[1].at("source").at("data").get<std::string>(), "iVBORw==");
+    const auto &toolResult = anthropicMessages[1].at("content")[0];
+    QCOMPARE(toolResult.at("type").get<std::string>(), "tool_result");
+    QCOMPARE(toolResult.at("content")[0].at("type").get<std::string>(), "text");
+    QCOMPARE(toolResult.at("content")[1].at("type").get<std::string>(), "image");
 }
 
 QTEST_GUILESS_MAIN(TestProtocols)

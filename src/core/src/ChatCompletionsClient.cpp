@@ -3,10 +3,33 @@
 namespace lens::chatcompletions {
 namespace {
 
+nlohmann::json imageParts(const QList<ImageAttachment> &images)
+{
+    auto parts = nlohmann::json::array();
+    for (const ImageAttachment &image : images) {
+        parts.push_back({{"type", "image_url"},
+                         {"image_url", {{"url", imageDataUrl(image).toStdString()}}}});
+    }
+    return parts;
+}
+
+// 多模态 content 数组：文本非空时带 text part，后接图片 parts
+nlohmann::json multimodalContent(const QString &text, const QList<ImageAttachment> &images)
+{
+    auto parts = nlohmann::json::array();
+    if (!text.isEmpty())
+        parts.push_back({{"type", "text"}, {"text", text.toStdString()}});
+    for (auto &part : imageParts(images))
+        parts.push_back(std::move(part));
+    return parts;
+}
+
 nlohmann::json messageToJson(const Message &message)
 {
     nlohmann::json j = {{"role", roleToString(message.role).toStdString()},
                         {"content", message.content.toStdString()}};
+    if (message.role == Role::User && !message.images.isEmpty())
+        j["content"] = multimodalContent(message.content, message.images);
     if (message.role == Role::Assistant && !message.toolCalls.isEmpty()) {
         auto calls = nlohmann::json::array();
         for (const ToolCall &call : message.toolCalls) {
@@ -38,6 +61,13 @@ nlohmann::json buildRequestBody(const std::vector<Message> &history,
         if (message.role == Role::System)
             continue;
         messages.push_back(messageToJson(message));
+        // OpenAI 系 tool 角色的 content 只接受字符串：工具返回的图片
+        // 紧随其后合成一条 user 消息携带，兼容性最好
+        if (message.role == Role::Tool && !message.images.isEmpty()) {
+            messages.push_back({{"role", "user"},
+                                {"content", multimodalContent(QStringLiteral("[工具返回的图片]"),
+                                                              message.images)}});
+        }
     }
     nlohmann::json body = {{"model", model.toStdString()},
                            {"messages", std::move(messages)},

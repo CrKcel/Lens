@@ -9,6 +9,19 @@ nlohmann::json parseArgumentsOrEmpty(const QString &arguments)
     return parsed.is_discarded() || !parsed.is_object() ? nlohmann::json::object() : parsed;
 }
 
+nlohmann::json imageBlocks(const QList<ImageAttachment> &images)
+{
+    auto blocks = nlohmann::json::array();
+    for (const ImageAttachment &image : images) {
+        blocks.push_back({{"type", "image"},
+                          {"source",
+                           {{"type", "base64"},
+                            {"media_type", image.mimeType.toStdString()},
+                            {"data", QString::fromLatin1(image.data.toBase64()).toStdString()}}}});
+    }
+    return blocks;
+}
+
 // history → messages 数组：Tool 结果合并进相邻的同一 user 消息（tool_result 块）
 nlohmann::json buildMessages(const std::vector<Message> &history)
 {
@@ -25,9 +38,16 @@ nlohmann::json buildMessages(const std::vector<Message> &history)
         if (message.role == Role::System)
             continue; // 系统提示词放在顶层 system 字段
         if (message.role == Role::Tool) {
+            // tool_result 原生支持图片：content 变为 text + image 块数组
+            nlohmann::json resultContent = nlohmann::json::array();
+            if (!message.content.isEmpty() || message.images.isEmpty())
+                resultContent.push_back(
+                    {{"type", "text"}, {"text", message.content.toStdString()}});
+            for (auto &block : imageBlocks(message.images))
+                resultContent.push_back(std::move(block));
             pendingToolResults.push_back({{"type", "tool_result"},
                                           {"tool_use_id", message.toolCallId.toStdString()},
-                                          {"content", message.content.toStdString()}});
+                                          {"content", std::move(resultContent)}});
             continue;
         }
         flushToolResults();
@@ -42,6 +62,8 @@ nlohmann::json buildMessages(const std::vector<Message> &history)
         }
         if (!message.content.isEmpty())
             blocks.push_back({{"type", "text"}, {"text", message.content.toStdString()}});
+        for (auto &block : imageBlocks(message.images))
+            blocks.push_back(std::move(block));
         if (message.role == Role::Assistant) {
             for (const ToolCall &call : message.toolCalls) {
                 blocks.push_back({{"type", "tool_use"},

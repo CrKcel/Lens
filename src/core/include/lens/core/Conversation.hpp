@@ -3,6 +3,8 @@
 #include <QDateTime>
 #include <QList>
 #include <QString>
+#include <QByteArray>
+#include <QtEndian>
 #include <nlohmann/json.hpp>
 #include <optional>
 
@@ -74,14 +76,51 @@ inline TokenUsage usageFromJson(const nlohmann::json &json)
     return usage;
 }
 
+// 消息携带的一张图片附件（用户附加或 read 工具返回），原始字节按 mimeType 编码
+struct ImageAttachment {
+    QString mimeType; // 形如 image/png
+    QByteArray data;
+};
+
+// base64 数据 URL，协议层与 QML（Image.source）共用
+inline QString imageDataUrl(const ImageAttachment &image)
+{
+    return QStringLiteral("data:%1;base64,").arg(image.mimeType)
+        + QString::fromLatin1(image.data.toBase64());
+}
+
+// 按魔数嗅探图片 MIME 类型（JPEG/PNG/GIF/WebP/BMP）；非图片返回空。
+// BMP 仅凭 "BM" 前缀会误判 "BM" 开头的文本文件，需用头部的声明文件大小做
+// 合理性校验（fileSize 未知时传 -1，退回纯前缀判断）
+inline QString sniffImageMime(const QByteArray &head, qint64 fileSize = -1)
+{
+    if (head.startsWith("\xFF\xD8\xFF"))
+        return QStringLiteral("image/jpeg");
+    if (head.startsWith("\x89PNG\r\n\x1A\n"))
+        return QStringLiteral("image/png");
+    if (head.startsWith("GIF87a") || head.startsWith("GIF89a"))
+        return QStringLiteral("image/gif");
+    if (head.size() >= 12 && head.startsWith("RIFF") && head.mid(8, 4) == "WEBP")
+        return QStringLiteral("image/webp");
+    if (head.startsWith("BM") && head.size() >= 6) {
+        const auto declared = qFromLittleEndian<quint32>(
+            reinterpret_cast<const uchar *>(head.constData()) + 2);
+        if (fileSize >= 0 && declared != 0 && declared != static_cast<quint64>(fileSize))
+            return {};
+        return QStringLiteral("image/bmp");
+    }
+    return {};
+}
+
 struct Message {
     Role role = Role::User;
-    QString content;
-    QDateTime createdAt;
-    QList<ToolCall> toolCalls; // 仅 Assistant
-    QString toolCallId;        // 仅 Tool：对应的调用 id
-    QString reasoning;         // 仅 Assistant：思考过程（reasoning_content），不回传给 API
-    TokenUsage usage;          // 仅 Assistant：服务端用量上报，未上报时 valid=false
+    QString content = {};
+    QDateTime createdAt = {};
+    QList<ToolCall> toolCalls = {}; // 仅 Assistant
+    QString toolCallId = {};        // 仅 Tool：对应的调用 id
+    QString reasoning = {};         // 仅 Assistant：思考过程（reasoning_content），不回传给 API
+    TokenUsage usage = {};          // 仅 Assistant：服务端用量上报，未上报时 valid=false
+    QList<ImageAttachment> images = {}; // User / Tool：随消息发给多模态模型的图片
 };
 
 struct Conversation {

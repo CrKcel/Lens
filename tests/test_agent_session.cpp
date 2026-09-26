@@ -11,6 +11,7 @@
 #include <lens/core/providers/QNetworkTransport.hpp>
 #include <lens/core/storage/SessionStore.hpp>
 #include <lens/core/tools/ToolRegistry.hpp>
+#include <lens/core/tools/builtins/ReadTool.hpp>
 #include <lens/core/tools/builtins/WebSearchTool.hpp>
 #include <lens/core/tools/builtins/WriteTool.hpp>
 
@@ -40,6 +41,10 @@ public:
 
     int requestCount = 0;
     QList<QByteArray> bodies;
+    // 请求 1 下发的工具调用（默认 write note.txt，多模态用例改为 read 图片）；
+    // toolArgs 是模型给出的参数文本，引号需按 SSE JSON 字符串转义
+    QByteArray toolName = "write";
+    QByteArray toolArgs = "{\\\"path\\\":\\\"note.txt\\\",\\\"content\\\":\\\"written by mock\\\"}";
 
 private slots:
     void handleConnection()
@@ -76,12 +81,16 @@ private slots:
     {
         QByteArray sse;
         if (requestNumber == 1) {
-            // 请求模型调用 write 工具，参数分两个分片下发
+            // 请求模型调用工具，参数分两个分片下发
             sse += "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_abc\","
-                   "\"type\":\"function\",\"function\":{\"name\":\"write\",\"arguments\":\"\"}}]}}]}\n\n";
+                   "\"type\":\"function\",\"function\":{\"name\":\"";
+            sse += toolName;
+            sse += "\",\"arguments\":\"\"}}]}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":"
-                   "{\"arguments\":\"{\\\"path\\\":\\\"note.txt\\\",\\\"content\\\":\\\"written by mock\\\"}\"}}]}}]}\n\n";
+                   "{\"arguments\":\"";
+            sse += toolArgs;
+            sse += "\"}}]}}]}\n\n";
             sse += "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n";
             sse += "data: {\"usage\":{\"prompt_tokens\":110,\"completion_tokens\":25,"
                    "\"total_tokens\":135,\"prompt_tokens_details\":{\"cached_tokens\":60}}}\n\n";
@@ -117,6 +126,7 @@ class TestAgentSession : public QObject
 private slots:
     void fullToolCallLoop();
     void serverSideSearchFiltersLocalSearchTool();
+    void toolImagesReachModelAndSignal();
 
 private:
     static QString collectText(const std::vector<Message> &history)
@@ -272,6 +282,65 @@ void TestAgentSession::serverSideSearchFiltersLocalSearchTool()
     QFile note(workdir.filePath(QStringLiteral("note.txt")));
     QVERIFY(note.open(QIODevice::ReadOnly)); // 工具循环不受影响
     QCOMPARE(QString::fromUtf8(note.readAll()), QStringLiteral("written by mock"));
+}
+
+// read 工具读图片：ToolResult.images 经 toolCallFinished 发出并进入下一轮请求体
+void TestAgentSession::toolImagesReachModelAndSignal()
+{
+    QTemporaryDir workdir;
+    QVERIFY(workdir.isValid());
+    const QByteArray png = QByteArray("\x89PNG\r\n\x1A\n", 8) + QByteArray("pixels");
+    QFile logo(workdir.filePath(QStringLiteral("logo.png")));
+    QVERIFY(logo.open(QIODevice::WriteOnly));
+    QCOMPARE(logo.write(png), qint64(png.size()));
+    logo.close();
+
+    MockChatServer server;
+    QVERIFY(server.start());
+    server.toolName = "read";
+    // JSON 字符串里的引号需要转义为 \\"，进入 SSE 后成为模型给出的参数文本
+    server.toolArgs = "{\\\"path\\\":\\\"logo.png\\\"}";
+
+    ToolRegistry registry;
+    registry.registerTool(std::make_shared<ReadTool>());
+
+    AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
+    session.setRequestConfig(server.url().toString(), QStringLiteral("k"),
+                             QStringLiteral("mock-model"));
+    session.setWorkdir(workdir.path());
+
+    QString failure;
+    QList<ImageAttachment> signalImages;
+    connect(&session, &AgentSession::failed,
+            [&](const QString &message) { failure = message; });
+    connect(&session, &AgentSession::toolCallFinished,
+            [&](const QString &, const QString &, const QList<ImageAttachment> &images) {
+                signalImages = images;
+            });
+
+    QEventLoop loop;
+    connect(&session, &AgentSession::idle, &loop, &QEventLoop::quit);
+    QTimer::singleShot(15000, &loop, &QEventLoop::quit);
+    session.sendUserMessage(QStringLiteral("看看 logo.png"));
+    loop.exec();
+
+    QCOMPARE(failure, QString());
+    QCOMPARE(server.requestCount, 2);
+    // 工具结果图片出现在下一轮请求体里（合成 user 消息的 image_url parts）
+    QVERIFY(server.bodies[1].contains("image_url"));
+    QVERIFY(server.bodies[1].contains("data:image/png;base64,"));
+    QVERIFY(server.bodies[1].contains(png.toBase64()));
+    // toolCallFinished 信号同样携带图片
+    QCOMPARE(signalImages.size(), 1);
+    QCOMPARE(signalImages.first().mimeType, QStringLiteral("image/png"));
+    QCOMPARE(signalImages.first().data, png);
+    // 历史中的 Tool 消息带图片，回灌请求经 messageToJson 序列化
+    bool toolMessageHasImage = false;
+    for (const Message &message : session.history()) {
+        if (message.role == Role::Tool && !message.images.isEmpty())
+            toolMessageHasImage = true;
+    }
+    QVERIFY(toolMessageHasImage);
 }
 
 QTEST_GUILESS_MAIN(TestAgentSession)

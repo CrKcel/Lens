@@ -16,6 +16,7 @@ private slots:
     void roundtripPersistsAcrossReopen();
     void messagesAreOrderedPerConversation();
     void toolCallsAndResultsRoundtrip();
+    void imagesRoundtrip();
     void usageRoundtripAndLegacyMigration();
     void renameAndDeleteConversation();
 };
@@ -128,6 +129,40 @@ void TestSessionStore::toolCallsAndResultsRoundtrip()
     QCOMPARE(messages[1].role, Role::Tool);
     QCOMPARE(messages[1].toolCallId, QStringLiteral("call_1"));
     QCOMPARE(messages[1].content, QStringLiteral("file contents"));
+}
+
+void TestSessionStore::imagesRoundtrip()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString dbPath = dir.filePath(QStringLiteral("sessions.db"));
+
+    const QByteArray png = QByteArray("\x89PNG\r\n\x1A\n", 8) + QByteArray("pixels");
+    const QByteArray jpeg = QByteArray("\xFF\xD8\xFF", 3) + QByteArray("data");
+    qint64 conversationId = 0;
+    {
+        SessionStore store(dbPath);
+        QVERIFY(store.open());
+        conversationId = store.createConversation(QStringLiteral("images"), QString());
+        QVERIFY(conversationId > 0);
+        Message user;
+        user.role = Role::User;
+        user.content = QStringLiteral("看这两张图");
+        user.images.append({QStringLiteral("image/png"), png});
+        user.images.append({QStringLiteral("image/jpeg"), jpeg});
+        QVERIFY(store.appendMessage(conversationId, user));
+    }
+
+    // 重开后回读：字节与 MIME 均无损
+    SessionStore store(dbPath);
+    QVERIFY(store.open());
+    const auto messages = store.messages(conversationId);
+    QCOMPARE(messages.size(), 1);
+    QCOMPARE(messages[0].images.size(), 2);
+    QCOMPARE(messages[0].images[0].mimeType, QStringLiteral("image/png"));
+    QCOMPARE(messages[0].images[0].data, png);
+    QCOMPARE(messages[0].images[1].mimeType, QStringLiteral("image/jpeg"));
+    QCOMPARE(messages[0].images[1].data, jpeg);
 }
 
 void TestSessionStore::usageRoundtripAndLegacyMigration()

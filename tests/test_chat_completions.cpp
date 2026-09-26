@@ -31,8 +31,8 @@ private slots:
 void TestChatCompletions::buildsRequestWithRolesAndStream()
 {
     const std::vector<Message> history{
-        {Role::User, QStringLiteral("hi"), {}, {}, {}, {}},
-        {Role::Assistant, QStringLiteral("hello"), {}, {}, {}, {}},
+        {Role::User, QStringLiteral("hi")},
+        {Role::Assistant, QStringLiteral("hello")},
     };
     const auto body = chatcompletions::buildRequestBody(
         history, QStringLiteral("test-model"), QStringLiteral("you are lens"), true);
@@ -74,8 +74,8 @@ void TestChatCompletions::serializesToolCallsInHistory()
 void TestChatCompletions::ignoresSystemMessagesInHistory()
 {
     const std::vector<Message> history{
-        {Role::System, QStringLiteral("stray system"), {}, {}, {}, {}},
-        {Role::User, QStringLiteral("question"), {}, {}, {}, {}},
+        {Role::System, QStringLiteral("stray system")},
+        {Role::User, QStringLiteral("question")},
     };
     // systemPrompt 为空时不插入 system 段，历史中的 System 消息也被忽略
     const auto body = chatcompletions::buildRequestBody(

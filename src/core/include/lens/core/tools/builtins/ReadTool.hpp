@@ -7,17 +7,18 @@
 
 namespace lens {
 
-// 读取文本文件。offset/limit 按 1 起始的行号选取，默认读前 2000 行；
+// 读取文件。文本：offset/limit 按 1 起始的行号选取，默认读前 2000 行；
 // 选中的内容超过 50KB 时再按字节截断（对齐主流实现的 2000 行 / 50KB 双上限）。
-// 图片与二进制文件（魔数 / NUL 字节嗅探）拒绝读取，避免把乱码灌进上下文。
-// 输出为纯文本，便于 edit 工具用原文片段匹配。
+// 图片（JPEG/PNG/GIF/WebP/BMP 魔数识别）作为图片附件返回，供多模态模型查看，
+// 单图上限 5MB；其余二进制文件（NUL 字节嗅探）拒绝读取，避免把乱码灌进上下文。
+// 文本输出为纯文本，便于 edit 工具用原文片段匹配。
 class ReadTool final : public IBuiltinTool
 {
 public:
     QString name() const override { return QStringLiteral("read"); }
     QString description() const override
     {
-        return QStringLiteral("读取工作文件夹中的文本文件内容（图片和二进制文件不支持）");
+        return QStringLiteral("读取工作文件夹中的文件内容（支持文本与图片，其他二进制文件不支持）");
     }
     nlohmann::json parametersSchema() const override
     {
@@ -42,11 +43,16 @@ public:
         if (!file.open(QIODevice::ReadOnly))
             return {false, QStringLiteral("无法读取文件 %1：%2").arg(resolved, file.errorString())};
 
-        if (const QString binaryNote = binaryKind(file.peek(kSniffBytes)); !binaryNote.isEmpty())
+        const qint64 fileSize = file.size();
+        if (const QString imageMime = sniffImageMime(file.peek(kSniffBytes), fileSize);
+            !imageMime.isEmpty())
+            return readImage(file, imageMime);
+
+        if (file.peek(kSniffBytes).contains('\0'))
             return {false,
-                    QStringLiteral("无法读取 %1：%2。read 工具仅支持文本内容，"
+                    QStringLiteral("无法读取 %1：二进制文件。read 工具仅支持文本与图片内容，"
                                    "可用 bash 工具检查该文件（如 file、xxd、ls -la）")
-                        .arg(resolved, binaryNote)};
+                        .arg(resolved)};
 
         // 为支持 offset 选取，最多扫描前 2MB；更大的文件只暴露前 2MB 并给出提示
         const QByteArray raw = file.read(kMaxScanBytes);
@@ -108,23 +114,27 @@ private:
     static constexpr qint64 kMaxOutputBytes = 50 * 1024;
     static constexpr qint64 kMaxScanBytes = 2 * 1024 * 1024;
     static constexpr int kSniffBytes = 8192;
+    static constexpr qint64 kMaxImageBytes = 5 * 1024 * 1024;
 
-    // 返回人类可读的文件类型描述；文本文件返回空
-    static QString binaryKind(const QByteArray &head)
+    // 读取图片文件为附件；超过 5MB 报错（主流 API 的单图上限）
+    static ToolResult readImage(QFile &file, const QString &mime)
     {
-        if (head.startsWith("\xFF\xD8\xFF"))
-            return QStringLiteral("JPEG 图片");
-        if (head.startsWith("\x89PNG\r\n\x1A\n"))
-            return QStringLiteral("PNG 图片");
-        if (head.startsWith("GIF87a") || head.startsWith("GIF89a"))
-            return QStringLiteral("GIF 图片");
-        if (head.size() >= 12 && head.startsWith("RIFF") && head.mid(8, 4) == "WEBP")
-            return QStringLiteral("WebP 图片");
-        if (head.startsWith("BM"))
-            return QStringLiteral("BMP 图片");
-        if (head.contains('\0'))
-            return QStringLiteral("二进制文件");
-        return {};
+        const qint64 size = file.size();
+        if (size > kMaxImageBytes)
+            return {false,
+                    QStringLiteral("无法读取 %1：图片超过 %2MB（当前 %3MB），请先压缩或缩小分辨率")
+                        .arg(file.fileName())
+                        .arg(kMaxImageBytes / (1024 * 1024))
+                        .arg(QString::number(size / (1024.0 * 1024.0), 'f', 1))};
+        const QByteArray data = file.readAll();
+        file.close();
+        ToolResult result;
+        result.ok = true;
+        result.output = QStringLiteral("图片 %1（%2 KB），已附加到上下文供模型查看")
+                            .arg(mime)
+                            .arg((data.size() + 1023) / 1024);
+        result.images.append({mime, data});
+        return result;
     }
 };
 

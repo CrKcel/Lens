@@ -2,7 +2,12 @@
 
 #include "AppSettings.hpp"
 
+#include <QClipboard>
 #include <QDir>
+#include <QFile>
+#include <QGuiApplication>
+#include <QImage>
+#include <QBuffer>
 #include <QTimer>
 #include <lens/core/context/AgentDocs.hpp>
 #include <lens/core/context/EnvironmentPrompt.hpp>
@@ -156,12 +161,14 @@ void ChatController::connectAgent()
                 m_messageModel->setToolCallRunning(id);
             });
     connect(m_agent.get(), &AgentSession::toolCallFinished, this,
-            [this](const QString &id, const QString &output) {
-                m_messageModel->setToolCallResult(id, output);
+            [this](const QString &id, const QString &output,
+                   const QList<ImageAttachment> &images) {
+                m_messageModel->setToolCallResult(id, output, images);
                 Message toolMessage;
                 toolMessage.role = Role::Tool;
                 toolMessage.content = output;
                 toolMessage.toolCallId = id;
+                toolMessage.images = images;
                 m_store->appendMessage(m_conversationId, toolMessage);
             });
     connect(m_agent.get(), &AgentSession::failed, this, [this](const QString &message) {
@@ -242,14 +249,63 @@ void ChatController::refreshContext()
 
 void ChatController::send(const QString &text, const QString &workdir)
 {
+    send(text, workdir, {});
+}
+
+// 附件条目：文件路径（可带 file:// 前缀）或 data URL；无法识别的条目跳过并告警
+QList<ImageAttachment> ChatController::loadAttachments(const QVariantList &attachments) const
+{
+    static constexpr qint64 kMaxImageBytes = 5 * 1024 * 1024; // 主流 API 的单图上限
+    QList<ImageAttachment> result;
+    for (const QVariant &entry : attachments) {
+        const QString value = entry.toString();
+        ImageAttachment image;
+        if (value.startsWith(QLatin1String("data:"))) { // data:<mime>;base64,<payload>
+            const QString payload = value.section(QLatin1String("base64,"), 1);
+            image.mimeType = value.mid(5, value.indexOf(QLatin1Char(';')) - 5);
+            image.data = QByteArray::fromBase64(payload.toLatin1());
+        } else {
+            const QString path = value.startsWith(QLatin1String("file:"))
+                                     ? QUrl(value).toLocalFile()
+                                     : value;
+            QFile file(path);
+            if (!file.open(QIODevice::ReadOnly)) {
+                qWarning("附件 %s 无法打开，已跳过", qPrintable(path));
+                continue;
+            }
+            image.mimeType = sniffImageMime(file.peek(8192), file.size());
+            image.data = file.read(kMaxImageBytes + 1);
+            file.close();
+        }
+        if (image.mimeType.isEmpty() || image.data.isEmpty()) {
+            qWarning("附件 %s 不是受支持的图片（png/jpg/gif/webp/bmp），已跳过",
+                     qPrintable(value));
+            continue;
+        }
+        if (image.data.size() > kMaxImageBytes) {
+            qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(value),
+                     kMaxImageBytes / (1024 * 1024));
+            continue;
+        }
+        result.append(image);
+    }
+    return result;
+}
+
+void ChatController::send(const QString &text, const QString &workdir,
+                          const QVariantList &attachments)
+{
     if (m_streaming || text.trimmed().isEmpty())
         return;
     if (m_conversationId == 0)
         createAndOpenConversation(workdir); // 发送时无会话：自动创建
 
+    const QList<ImageAttachment> images = loadAttachments(attachments);
+
     Message userMessage;
     userMessage.role = Role::User;
     userMessage.content = text;
+    userMessage.images = images;
     m_store->appendMessage(m_conversationId, userMessage);
 
     if (m_title == QStringLiteral("新会话")) { // 首条消息作为会话标题
@@ -262,6 +318,8 @@ void ChatController::send(const QString &text, const QString &workdir)
     MessageListModel::Item item;
     item.kind = MessageListModel::User;
     item.text = text;
+    for (const ImageAttachment &image : images)
+        item.images.append(imageDataUrl(image));
     m_messageModel->appendItem(item);
 
     const ProviderConfig provider = m_settings->activeProviderConfig();
@@ -275,11 +333,29 @@ void ChatController::send(const QString &text, const QString &workdir)
         assembler.setSection(section.name, section.content);
     m_agent->setSystemPrompt(assembler.assemble());
     m_agent->setWorkdir(m_workdir);
-    m_agent->sendUserMessage(text);
+    m_agent->sendUserMessage(text, images);
 
     m_streaming = true;
     emit streamingChanged();
     emit contextChanged();
+}
+
+bool ChatController::clipboardHasImage() const
+{
+    return !QGuiApplication::clipboard()->image().isNull();
+}
+
+QString ChatController::clipboardImageDataUrl() const
+{
+    const QImage image = QGuiApplication::clipboard()->image();
+    if (image.isNull())
+        return {};
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    ImageAttachment attachment{QStringLiteral("image/png"), png};
+    return imageDataUrl(attachment);
 }
 
 void ChatController::stop()

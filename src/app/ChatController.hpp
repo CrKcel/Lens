@@ -58,9 +58,14 @@ public:
     Q_INVOKABLE void openConversation(qint64 conversationId);
     Q_INVOKABLE void deleteConversation(qint64 conversationId);
     Q_INVOKABLE void send(const QString &text, const QString &workdir = QString());
+    // 带图片附件的发送：attachments 每项为图片文件路径或 data URL
+    Q_INVOKABLE void send(const QString &text, const QString &workdir,
+                          const QVariantList &attachments);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void refreshContext(); // 设置（MCP/工具）变化后重建上下文清单
     Q_INVOKABLE QVariantList skillsList(const QString &workdir) const;
+    Q_INVOKABLE bool clipboardHasImage() const;      // 剪贴板是否携带图片（粘贴转附件）
+    Q_INVOKABLE QString clipboardImageDataUrl() const; // 剪贴板图片转 data URL，无图片返回空
 
 signals:
     void streamingChanged();
@@ -70,6 +75,7 @@ signals:
 
 private:
     void connectAgent();
+    QList<ImageAttachment> loadAttachments(const QVariantList &attachments) const;
     qint64 createAndOpenConversation(const QString &workdir);
     QVector<ContextSectionInfo> collectSections() const;
     void setErrorRow(const QString &text);

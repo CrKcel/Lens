@@ -33,8 +33,8 @@ ApplicationWindow {
         const text = chatView.inputText.trim()
         if (text.length === 0)
             return
-        // 无会话时由控制器自动创建（工作文件夹取侧栏输入）
-        chat.send(chatView.inputText, sidebar.workdirText)
+        // 无会话时由控制器自动创建（工作文件夹取侧栏输入）；图片附件一并传给控制器
+        chat.send(chatView.inputText, sidebar.workdirText, chatView.attachments)
         chatView.clearInput()
     }
 

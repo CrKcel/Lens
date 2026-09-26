@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 // 聊天主区：标题行（含流式状态与用量）、消息流、输入区、上下文检查器。
@@ -8,6 +9,7 @@ ColumnLayout {
     id: chatRoot
 
     readonly property alias inputText: input.text
+    property var attachments: [] // 待发送图片（文件路径或 data URL）
 
     signal sendRequested()
     signal stopRequested()
@@ -17,6 +19,23 @@ ColumnLayout {
 
     function clearInput() {
         input.clear()
+        chatRoot.attachments = []
+    }
+
+    function addAttachment(url) {
+        if (chatRoot.attachments.length >= 8) { // 预览条容量上限，避免挤占输入区
+            console.warn("附件数量已达上限（8），忽略新增")
+            return
+        }
+        const next = chatRoot.attachments.slice()
+        next.push(String(url))
+        chatRoot.attachments = next
+    }
+
+    function removeAttachment(index) {
+        const next = chatRoot.attachments.slice()
+        next.splice(index, 1)
+        chatRoot.attachments = next
     }
 
     function formatTokens(n) {
@@ -133,22 +152,55 @@ ColumnLayout {
                         id: bubbleWrap
                         anchors.right: parent.right
                         anchors.rightMargin: 4
-                        implicitWidth: Math.min(userText.implicitWidth + 24,
-                                                messageList.width * 0.72, 560)
-                        implicitHeight: userText.implicitHeight + 22
+                        readonly property bool hasImages: model.images.length > 0
+                        implicitWidth: Math.min(
+                            Math.max(userText.implicitWidth + 24,
+                                     bubbleWrap.hasImages ? 280 : 0),
+                            messageList.width * 0.72, 560)
+                        implicitHeight: (bubbleWrap.hasImages ? userImages.height + 10 : 0)
+                                        + userText.implicitHeight + 22
                         radius: theme.radiusM
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: theme.bubbleUser }
                             GradientStop { position: 1.0; color: theme.bubbleUser2 }
                         }
-                        Label {
-                            id: userText
+                        Column {
+                            id: userContent
                             anchors.fill: parent
                             anchors.margins: 11
-                            text: model.text
-                            color: theme.bubbleUserText
-                            wrapMode: Text.Wrap
-                            font.pixelSize: 13
+                            spacing: 8
+                            Grid {
+                                id: userImages
+                                visible: bubbleWrap.hasImages
+                                columns: 2
+                                columnSpacing: 6
+                                rowSpacing: 6
+                                Repeater {
+                                    model: userImages.visible ? model.images : []
+                                    delegate: Rectangle {
+                                        width: 124
+                                        height: 92
+                                        radius: theme.radiusS
+                                        color: theme.field
+                                        clip: true
+                                        Image {
+                                            anchors.fill: parent
+                                            anchors.margins: 2
+                                            source: modelData
+                                            fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true
+                                        }
+                                    }
+                                }
+                            }
+                            Label {
+                                id: userText
+                                width: userContent.width
+                                text: model.text
+                                color: theme.bubbleUserText
+                                wrapMode: Text.Wrap
+                                font.pixelSize: 13
+                            }
                         }
                     }
                 }
@@ -274,6 +326,30 @@ ColumnLayout {
                                 maximumLineCount: 6
                                 elide: Text.ElideRight
                             }
+                            // 工具返回的图片（如 read 读图片文件），缩略图供用户确认
+                            Grid {
+                                visible: model.images.length > 0
+                                columns: 6
+                                columnSpacing: 4
+                                rowSpacing: 4
+                                Repeater {
+                                    model: model.images
+                                    delegate: Rectangle {
+                                        width: 64
+                                        height: 48
+                                        radius: theme.radiusS
+                                        color: theme.field
+                                        clip: true
+                                        Image {
+                                            anchors.fill: parent
+                                            anchors.margins: 1
+                                            source: modelData
+                                            fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true
+                                        }
+                                    }
+                                }
+                            }
                             Label {
                                 Layout.fillWidth: true
                                 visible: model.text.length > 0
@@ -357,8 +433,11 @@ ColumnLayout {
         Layout.fillWidth: true
         readonly property real lineH: input.font.pixelSize * 1.5
         readonly property real maxH: chatRoot.height / 4
-        // 右下角按钮条：按钮 36px + 8px 间距，文本经 bottomPadding 避开
+        // 右下角按钮条：按钮 36px + 8px 间距，文本经 bottomPadding 避开；
+        // 有附件预览时再让出预览条高度
         readonly property real buttonStrip: sendButton.height + 8
+        readonly property real bottomReserved: inputCard.buttonStrip
+            + (attachmentStrip.visible ? attachmentStrip.height + 8 : 0)
         // 视口 = 高度 − topPadding − bottomPadding，故卡片需补上两侧 padding 与 16px 外边距
         implicitHeight: Math.min(
             Math.max(input.contentHeight, 3 * lineH) + input.topPadding + input.bottomPadding + 16,
@@ -387,10 +466,17 @@ ColumnLayout {
             font.pixelSize: 13
             background: null
             leftPadding: 6
-            bottomPadding: inputCard.buttonStrip
+            bottomPadding: inputCard.bottomReserved
             clip: true
             verticalAlignment: TextInput.AlignTop
             Keys.onPressed: (event) => {
+                // 剪贴板有图片时 Ctrl+V 转为附件，不再走文本粘贴
+                if (event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier) !== 0
+                        && chat.clipboardHasImage()) {
+                    chatRoot.addAttachment(chat.clipboardImageDataUrl())
+                    event.accepted = true
+                    return
+                }
                 if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
                     return
                 const ctrlHeld = (event.modifiers & Qt.ControlModifier) !== 0
@@ -403,6 +489,83 @@ ColumnLayout {
                 }
                 // 其余组合交给 TextArea 默认行为（插入换行）
             }
+        }
+        // 附件预览条：缩略图 + 删除，位于文本下方、按钮条上方左侧
+        Row {
+            id: attachmentStrip
+            objectName: "attachmentStrip"
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 10
+            anchors.bottomMargin: 10
+            spacing: 6
+            visible: chatRoot.attachments.length > 0
+            Repeater {
+                model: chatRoot.attachments
+                delegate: Rectangle {
+                    required property int index
+                    required property var modelData
+                    width: 52
+                    height: 52
+                    radius: theme.radiusS
+                    color: theme.field
+                    clip: true
+                    Image {
+                        anchors.fill: parent
+                        source: modelData
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                    }
+                    // 删除角标
+                    AbstractButton {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        width: 16
+                        height: 16
+                        background: Rectangle {
+                            radius: 8
+                            color: parent.hovered ? theme.error : theme.cardBorder
+                        }
+                        contentItem: Label {
+                            text: "✕"
+                            color: "#ffffff"
+                            font.pixelSize: 9
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        onClicked: chatRoot.removeAttachment(index)
+                    }
+                }
+            }
+        }
+        // 附件选择按钮：sendButton 左侧
+        AbstractButton {
+            id: attachButton
+            anchors.right: sendButton.left
+            anchors.bottom: parent.bottom
+            anchors.margins: 8
+            anchors.rightMargin: 6
+            implicitWidth: 36
+            implicitHeight: 36
+            enabled: !chat.streaming
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("附加图片")
+
+            background: Rectangle {
+                radius: 18
+                color: attachButton.down ? theme.accentSoft
+                     : attachButton.hovered ? theme.accentSoft
+                     : "transparent"
+                border.color: theme.fieldBorder
+                border.width: 1
+            }
+            contentItem: Label {
+                text: "📎"
+                font.pixelSize: 14
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: imageDialog.open()
         }
         // 圆形发送/停止按钮：不挤占文本宽度
         AbstractButton {
@@ -435,6 +598,16 @@ ColumnLayout {
             }
             onClicked: chat.streaming ? chatRoot.stopRequested()
                                       : chatRoot.sendRequested()
+        }
+
+        FileDialog {
+            id: imageDialog
+            fileMode: FileDialog.OpenFiles
+            nameFilters: [qsTr("图片文件 (*.png *.jpg *.jpeg *.gif *.webp *.bmp)")]
+            onAccepted: {
+                for (const url of selectedFiles)
+                    chatRoot.addAttachment(url)
+            }
         }
     }
 

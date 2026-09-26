@@ -34,13 +34,14 @@ void AgentSession::setProtocol(Protocol protocol)
     m_adapter = makeProtocolAdapter(protocol);
 }
 
-void AgentSession::sendUserMessage(const QString &text)
+void AgentSession::sendUserMessage(const QString &text, const QList<ImageAttachment> &images)
 {
     if (m_busy || text.trimmed().isEmpty())
         return;
     Message message;
     message.role = Role::User;
     message.content = text;
+    message.images = images;
     message.createdAt = QDateTime::currentDateTimeUtc();
     m_history.push_back(message);
 
@@ -193,11 +194,12 @@ void AgentSession::processNextToolCall()
             [this, generation, call, result] {
                 if (generation != m_generation) // 已取消，丢弃过期结果
                     return;
-                emit toolCallFinished(call.id, result.output);
+                emit toolCallFinished(call.id, result.output, result.images);
                 Message toolMessage;
                 toolMessage.role = Role::Tool;
                 toolMessage.content = result.output;
                 toolMessage.toolCallId = call.id;
+                toolMessage.images = result.images;
                 toolMessage.createdAt = QDateTime::currentDateTimeUtc();
                 m_history.push_back(toolMessage);
                 processNextToolCall();

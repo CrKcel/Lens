@@ -4,6 +4,18 @@
 
 namespace lens {
 
+namespace {
+
+QVariantList imageDataUrls(const QList<ImageAttachment> &images)
+{
+    QVariantList result;
+    for (const ImageAttachment &image : images)
+        result.append(imageDataUrl(image));
+    return result;
+}
+
+} // namespace
+
 MessageListModel::MessageListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -27,6 +39,7 @@ QVariant MessageListModel::data(const QModelIndex &index, int role) const
     case ToolPendingRole: return item.toolPending;
     case StreamingRole: return item.streaming;
     case ReasoningRole: return item.reasoning;
+    case ImagesRole: return item.images;
     }
     return {};
 }
@@ -39,7 +52,8 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
             {ToolArgsRole, "toolArgs"},
             {ToolPendingRole, "toolPending"},
             {StreamingRole, "streaming"},
-            {ReasoningRole, "reasoning"}};
+            {ReasoningRole, "reasoning"},
+            {ImagesRole, "images"}};
 }
 
 void MessageListModel::resetFromMessages(const QList<Message> &messages)
@@ -49,22 +63,24 @@ void MessageListModel::resetFromMessages(const QList<Message> &messages)
     m_streamingIndex = -1;
 
     // 工具结果先建索引，用于把结果回填到对应工具卡片
-    QHash<QString, QString> toolResults;
+    QHash<QString, QPair<QString, QVariantList>> toolResults;
     for (const Message &message : messages) {
         if (message.role == Role::Tool)
-            toolResults.insert(message.toolCallId, message.content);
+            toolResults.insert(message.toolCallId,
+                               {message.content, imageDataUrls(message.images)});
     }
     QSet<QString> consumedResults;
 
     for (const Message &message : messages) {
         switch (message.role) {
         case Role::User:
-            m_items.append({User, message.content, {}, {}, {}, false, false, {}});
+            m_items.append({User, message.content, {}, {}, {}, false, false, {},
+                            imageDataUrls(message.images)});
             break;
         case Role::Assistant:
             if (!message.content.isEmpty() || !message.reasoning.isEmpty())
                 m_items.append({Assistant, message.content, {}, {}, {}, false, false,
-                                message.reasoning});
+                                message.reasoning, {}});
             for (const ToolCall &call : message.toolCalls) {
                 Item item;
                 item.kind = ToolCallItem;
@@ -72,7 +88,8 @@ void MessageListModel::resetFromMessages(const QList<Message> &messages)
                 item.toolArgs = call.arguments;
                 item.toolCallId = call.id;
                 if (toolResults.contains(call.id)) {
-                    item.text = toolResults.value(call.id);
+                    item.text = toolResults.value(call.id).first;
+                    item.images = toolResults.value(call.id).second;
                     consumedResults.insert(call.id);
                 } else {
                     item.toolPending = true;
@@ -83,7 +100,8 @@ void MessageListModel::resetFromMessages(const QList<Message> &messages)
         case Role::Tool:
             if (!consumedResults.contains(message.toolCallId)) // 无主结果兜底显示
                 m_items.append({ToolCallItem, message.content, QStringLiteral("tool"),
-                                message.toolCallId, message.toolCallId, false, false, {}});
+                                message.toolCallId, message.toolCallId, false, false, {},
+                                imageDataUrls(message.images)});
             break;
         case Role::System:
             break;
@@ -163,12 +181,20 @@ void MessageListModel::setToolCallRunning(const QString &callId)
 
 void MessageListModel::setToolCallResult(const QString &callId, const QString &output)
 {
+    setToolCallResult(callId, output, {});
+}
+
+void MessageListModel::setToolCallResult(const QString &callId, const QString &output,
+                                         const QList<ImageAttachment> &images)
+{
     const int row = findIndexByToolCallId(callId);
     if (row < 0)
         return;
     m_items[row].toolPending = false;
     m_items[row].text = output;
-    emit dataChanged(createIndex(row, 0), createIndex(row, 0), {ToolPendingRole, TextRole});
+    m_items[row].images = imageDataUrls(images);
+    emit dataChanged(createIndex(row, 0), createIndex(row, 0),
+                     {ToolPendingRole, TextRole, ImagesRole});
 }
 
 int MessageListModel::findIndexByToolCallId(const QString &callId) const
