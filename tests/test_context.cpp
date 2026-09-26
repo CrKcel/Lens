@@ -128,6 +128,7 @@ void TestContext::environmentPromptGitRepository()
     QVERIFY(writeFile(workdir + QStringLiteral("/a.txt"), QStringLiteral("dirty")));
 
     const QString prompt = envprompt::build(workdir);
+    QVERIFY(prompt.contains(QStringLiteral("工作文件夹：")));
     QVERIFY(prompt.contains(QStringLiteral("Git 分支：")));
     QVERIFY(prompt.contains(QStringLiteral("未提交变更")));
 }
@@ -137,6 +138,8 @@ void TestContext::environmentPromptPlainDirectoryHasNoGit()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     QVERIFY(!envprompt::build(dir.path()).contains(QStringLiteral("Git 分支：")));
+    QVERIFY(envprompt::build(dir.path()).contains(QStringLiteral("工作文件夹：")));
+    QVERIFY(!envprompt::build(QString()).contains(QStringLiteral("工作文件夹：")));
 }
 
 void TestContext::skillsDiscover()

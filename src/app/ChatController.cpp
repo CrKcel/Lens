@@ -500,9 +500,11 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
         sections.append({name, source, content});
     };
 
-    add(QStringLiteral("identity"), QStringLiteral("内置"), kBasePrompt);
-    add(QStringLiteral("workspace"), QStringLiteral("会话设置"),
-        QStringLiteral("当前工作文件夹：%1").arg(m_workdir));
+    // 用户自定义提示词即 identity 段：覆盖内置身份提示词，未设置时回退内置
+    const QString customPrompt = m_settings->systemPrompt().trimmed();
+    add(QStringLiteral("identity"), customPrompt.isEmpty() ? QStringLiteral("内置")
+                                                           : QStringLiteral("用户设置"),
+        customPrompt.isEmpty() ? kBasePrompt : customPrompt);
     add(QStringLiteral("environment"), QStringLiteral("自动生成"),
         envprompt::build(m_workdir));
 
@@ -530,8 +532,6 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
                 + skillLines.join(QLatin1Char('\n')));
     }
 
-    if (!m_settings->systemPrompt().trimmed().isEmpty())
-        add(QStringLiteral("custom"), QStringLiteral("用户设置"), m_settings->systemPrompt());
     return sections;
 }
 

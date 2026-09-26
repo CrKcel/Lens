@@ -5,7 +5,6 @@
 #include <QString>
 #include <QStringList>
 #include <QSysInfo>
-#include "lens/core/tools/Shell.hpp"
 
 namespace lens::envprompt {
 namespace detail {
@@ -45,17 +44,16 @@ inline QString gitSummary(const QString &workdir)
 
 } // namespace detail
 
-// 工作环境提示词段落：操作系统、当前日期、Shell 与 Git 状态。
-// workdir 不是 Git 仓库（或 git 不可用）时省略 Git 行。
+// 工作环境提示词段落：工作文件夹、操作系统、当前日期与 Git 状态。
+// workdir 为空时省略工作文件夹行；不是 Git 仓库（或 git 不可用）时省略 Git 行。
 inline QString build(const QString &workdir)
 {
     QStringList lines;
     lines << QStringLiteral("## 运行环境");
+    if (!workdir.trimmed().isEmpty())
+        lines << QStringLiteral("- 工作文件夹：%1").arg(workdir.trimmed());
     lines << QStringLiteral("- 操作系统：%1").arg(QSysInfo::prettyProductName());
     lines << QStringLiteral("- 当前日期：%1").arg(QDate::currentDate().toString(Qt::ISODate));
-    const QString shell = lens::shell::resolve().name;
-    if (!shell.isEmpty())
-        lines << QStringLiteral("- Shell：%1").arg(shell);
     if (!workdir.trimmed().isEmpty()) {
         const QString git = detail::gitSummary(workdir.trimmed());
         if (!git.isEmpty())

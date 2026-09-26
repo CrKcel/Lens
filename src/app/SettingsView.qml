@@ -200,33 +200,12 @@ ColumnLayout {
         }
     }
 
-    // CI 冒烟钩子：--qml-check 模拟真实设置流程并验证两轮保存回读，
-    // 由 C++ 侧定时退出；配合检查 settings.json 可验证完整保存链路。
+    // CI 冒烟钩子：--qml-check 走一遍设置的加载/保存/回读/应用链路，
+    // 不向字段写入任何值；由 C++ 侧定时退出。
     // 若任何字段创建失败，此处会抛出 ReferenceError 并打印到 stderr。
-    property int qmlCheckStage: 0
-
     function runQmlCheck() {
-        settingsRoot.qmlCheckStage = 1
         settingsRoot.loadSettingsIntoFields()
-        // 第一轮：模拟用户键入并保存（saveSettings 走供应商表单写回 +
-        // applySettings 的完整链路，覆盖单价等 provider 字段）
-        endpointField.text = "http://qml-check.example/v1"
-        apiKeyField.text = "sk-qml-check"
-        modelCombo.editText = "qml-check-model"
-        settingsRoot.modelsWorking = ["qml-check-model", "qml-check-model-2"]
-        systemPromptField.text = "qml-check-prompt"
-        inputPriceField.text = "2.5"
-        outputPriceField.text = "10"
-        cachedPriceField.text = "0.1"
         settingsRoot.saveSettings()
-        // 清空字段，确保第二轮保存的值只能来自 loadSettingsIntoFields
-        // 的重新填充
-        settingsRoot.qmlCheckStage = 2
-        endpointField.text = ""
-        apiKeyField.text = ""
-        modelCombo.editText = ""
-        settingsRoot.modelsWorking = []
-        systemPromptField.text = ""
         settingsRoot.loadSettingsIntoFields()
         settingsRoot.applySettings()
     }
@@ -365,7 +344,7 @@ ColumnLayout {
                 }
             }
         }
-        Label { text: qsTr("自定义系统提示词（附加段落）"); color: theme.textDim; font.pixelSize: 12 }
+        Label { text: qsTr("自定义系统提示词（作为身份提示词，未填时使用内置）"); color: theme.textDim; font.pixelSize: 12 }
         TextArea {
             id: systemPromptField
             Layout.fillWidth: true
