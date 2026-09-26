@@ -4,130 +4,126 @@
 <context>
     <name>ChatView</name>
     <message>
-        <location filename="../ChatView.qml" line="60"/>
+        <location filename="../ChatView.qml" line="59"/>
         <source>上下文 %1 · 累计 %2</source>
         <translation>Context %1 · Total %2</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="64"/>
+        <location filename="../ChatView.qml" line="63"/>
         <source> · 花费 %1</source>
         <translation> · Cost %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="81"/>
         <source>新会话</source>
-        <translation>New Chat</translation>
+        <translation type="vanished">New Chat</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="99"/>
-        <location filename="../ChatView.qml" line="498"/>
+        <location filename="../ChatView.qml" line="442"/>
         <source>生成中…</source>
         <translation>Generating…</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="118"/>
         <source>上下文</source>
-        <translation>Context</translation>
+        <translation type="vanished">Context</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="122"/>
         <source>查看当前上下文组成</source>
-        <translation>Inspect the current context composition</translation>
+        <translation type="vanished">Inspect the current context composition</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="272"/>
+        <location filename="../ChatView.qml" line="216"/>
         <source>思考过程</source>
         <translation>Reasoning</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="283"/>
+        <location filename="../ChatView.qml" line="227"/>
         <source>（生成中…）</source>
         <translation> (generating…)</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="350"/>
+        <location filename="../ChatView.qml" line="294"/>
         <source>&#x3000;运行中…</source>
         <translation>&#x3000;Running…</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="424"/>
+        <location filename="../ChatView.qml" line="368"/>
         <source>⚠ %1</source>
         <translation>⚠ %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="458"/>
+        <location filename="../ChatView.qml" line="402"/>
         <source>在「设置」中填入 API 地址与 Key
 发送第一条消息即自动创建会话</source>
         <translation>Fill in the API endpoint and key in Settings.
 The first message creates a conversation automatically.</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="500"/>
+        <location filename="../ChatView.qml" line="444"/>
         <source>输入消息，Enter 发送，Shift+Enter 换行</source>
         <translation>Type a message. Enter to send, Shift+Enter for a new line</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="501"/>
+        <location filename="../ChatView.qml" line="445"/>
         <source>输入消息，Ctrl+Enter 发送，Enter 换行</source>
         <translation>Type a message. Ctrl+Enter to send, Enter for a new line</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="514"/>
+        <location filename="../ChatView.qml" line="458"/>
         <source>剪贴板图片.png</source>
         <translation>Clipboard image.png</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="608"/>
+        <location filename="../ChatView.qml" line="552"/>
         <source>切换模型</source>
         <translation>Switch model</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="679"/>
+        <location filename="../ChatView.qml" line="623"/>
         <source>思考模式：%1</source>
         <translation>Thinking mode: %1</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="703"/>
-        <location filename="../ChatView.qml" line="712"/>
+        <location filename="../ChatView.qml" line="647"/>
+        <location filename="../ChatView.qml" line="656"/>
         <source>低</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="704"/>
-        <location filename="../ChatView.qml" line="713"/>
+        <location filename="../ChatView.qml" line="648"/>
+        <location filename="../ChatView.qml" line="657"/>
         <source>中</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="705"/>
-        <location filename="../ChatView.qml" line="714"/>
+        <location filename="../ChatView.qml" line="649"/>
+        <location filename="../ChatView.qml" line="658"/>
         <source>高</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="706"/>
-        <location filename="../ChatView.qml" line="715"/>
+        <location filename="../ChatView.qml" line="650"/>
+        <location filename="../ChatView.qml" line="659"/>
         <source>最高</source>
         <translation>Max</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="707"/>
-        <location filename="../ChatView.qml" line="711"/>
+        <location filename="../ChatView.qml" line="651"/>
+        <location filename="../ChatView.qml" line="655"/>
         <source>关闭</source>
         <translation>Off</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="737"/>
+        <location filename="../ChatView.qml" line="681"/>
         <source>附加文件</source>
         <translation>Attach files</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="794"/>
+        <location filename="../ChatView.qml" line="752"/>
         <source>文本文件 (*.txt *.md *.json *.xml *.yaml *.yml *.toml *.ini *.csv *.log *.html *.css *.js *.ts *.py *.c *.h *.cpp *.hpp *.qml *.sh *.cmake)</source>
         <translation>Text files (*.txt *.md *.json *.xml *.yaml *.yml *.toml *.ini *.csv *.log *.html *.css *.js *.ts *.py *.c *.h *.cpp *.hpp *.qml *.sh *.cmake)</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="797"/>
+        <location filename="../ChatView.qml" line="755"/>
         <source>所有文件 (*)</source>
         <translation>All files (*)</translation>
     </message>
@@ -136,17 +132,17 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Attach image</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="765"/>
+        <location filename="../ChatView.qml" line="723"/>
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="765"/>
+        <location filename="../ChatView.qml" line="723"/>
         <source>发送</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../ChatView.qml" line="793"/>
+        <location filename="../ChatView.qml" line="751"/>
         <source>图片文件 (*.png *.jpg *.jpeg *.gif *.webp *.bmp)</source>
         <translation>Image files (*.png *.jpg *.jpeg *.gif *.webp *.bmp)</translation>
     </message>
@@ -159,47 +155,46 @@ The first message creates a conversation automatically.</translation>
         <translation>Context Inspector</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="45"/>
+        <location filename="../ContextInspector.qml" line="46"/>
         <source>刷新</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="69"/>
         <source>用量统计</source>
-        <translation>Usage</translation>
+        <translation type="vanished">Usage</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="79"/>
+        <location filename="../ContextInspector.qml" line="60"/>
         <source>当前上下文（最近一次输入）：%1 tokens</source>
         <translation>Current context (last input): %1 tokens</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="81"/>
+        <location filename="../ContextInspector.qml" line="62"/>
         <source>会话累计：输入 %1 / 输出 %2 / 缓存命中 %3 tokens</source>
         <translation>Session total: input %1 / output %2 / cached %3 tokens</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="87"/>
+        <location filename="../ContextInspector.qml" line="68"/>
         <source>累计花费：%1</source>
         <translation>Total cost: %1</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="133"/>
+        <location filename="../ContextInspector.qml" line="112"/>
         <source>来源：%1</source>
         <translation>Source: %1</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="141"/>
+        <location filename="../ContextInspector.qml" line="120"/>
         <source>（空，未注入）</source>
         <translation>(empty, not injected)</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="161"/>
+        <location filename="../ContextInspector.qml" line="140"/>
         <source>发送消息后这里会展示系统提示词的分节组成</source>
         <translation>After sending a message, the system prompt sections are shown here</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="168"/>
+        <location filename="../ContextInspector.qml" line="150"/>
         <source>启用工具（%1/%2）</source>
         <translation>Enabled tools (%1/%2)</translation>
     </message>
@@ -208,18 +203,18 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Enabled tools (%1)</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="184"/>
-        <location filename="../ContextInspector.qml" line="214"/>
+        <location filename="../ContextInspector.qml" line="168"/>
+        <location filename="../ContextInspector.qml" line="196"/>
         <source>&#x3000;[%1]</source>
         <translation>&#x3000;[%1]</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="187"/>
+        <location filename="../ContextInspector.qml" line="169"/>
         <source>&#x3000;（已禁用）</source>
         <translation>&#x3000;(disabled)</translation>
     </message>
     <message>
-        <location filename="../ContextInspector.qml" line="196"/>
+        <location filename="../ContextInspector.qml" line="178"/>
         <source>无</source>
         <translation>None</translation>
     </message>
@@ -230,6 +225,26 @@ The first message creates a conversation automatically.</translation>
         <location filename="../Main.qml" line="14"/>
         <source>Lens</source>
         <translation>Lens</translation>
+    </message>
+    <message>
+        <location filename="../Main.qml" line="239"/>
+        <source>最小化</source>
+        <translation>Minimize</translation>
+    </message>
+    <message>
+        <location filename="../Main.qml" line="257"/>
+        <source>还原</source>
+        <translation>Restore</translation>
+    </message>
+    <message>
+        <location filename="../Main.qml" line="257"/>
+        <source>最大化</source>
+        <translation>Maximize</translation>
+    </message>
+    <message>
+        <location filename="../Main.qml" line="213"/>
+        <source>关闭</source>
+        <translation>Close</translation>
     </message>
     <message>
         <source>上下文 %1 · 累计 %2</source>
@@ -244,12 +259,14 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">New server</translation>
     </message>
     <message>
+        <location filename="../Main.qml" line="187"/>
         <source>展开会话列表</source>
-        <translation type="vanished">Expand conversation list</translation>
+        <translation>Expand conversation list</translation>
     </message>
     <message>
+        <location filename="../Main.qml" line="187"/>
         <source>折叠会话列表</source>
-        <translation type="vanished">Collapse conversation list</translation>
+        <translation>Collapse conversation list</translation>
     </message>
     <message>
         <source>工作文件夹（默认主目录）</source>
@@ -300,12 +317,14 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">« Back to Chat</translation>
     </message>
     <message>
+        <location filename="../Main.qml" line="141"/>
         <source>新会话</source>
-        <translation type="vanished">New Chat</translation>
+        <translation>New Chat</translation>
     </message>
     <message>
+        <location filename="../Main.qml" line="163"/>
         <source>生成中…</source>
-        <translation type="vanished">Generating…</translation>
+        <translation>Generating…</translation>
     </message>
     <message>
         <source>上下文</source>
@@ -965,82 +984,90 @@ The first message creates a conversation automatically.</translation>
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../Sidebar.qml" line="90"/>
+        <location filename="../Sidebar.qml" line="96"/>
         <source>设置</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="90"/>
+        <location filename="../Sidebar.qml" line="96"/>
         <source>Lens</source>
         <translation>Lens</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="279"/>
         <source>展开会话列表</source>
-        <translation>Expand conversation list</translation>
+        <translation type="vanished">Expand conversation list</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="102"/>
         <source>折叠会话列表</source>
-        <translation>Collapse conversation list</translation>
+        <translation type="vanished">Collapse conversation list</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="111"/>
+        <location filename="../Sidebar.qml" line="107"/>
         <source>工作文件夹（默认主目录）</source>
         <translation>Working folder (default: home directory)</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="127"/>
+        <location filename="../Sidebar.qml" line="123"/>
         <source>＋ 新建会话</source>
         <translation>＋ New Chat</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="139"/>
+        <location filename="../Sidebar.qml" line="135"/>
         <source>常规</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="145"/>
+        <location filename="../Sidebar.qml" line="141"/>
         <source>模型提供商</source>
         <translation>Model Providers</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="151"/>
+        <location filename="../Sidebar.qml" line="147"/>
         <source>MCP</source>
         <translation>MCP</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="157"/>
+        <location filename="../Sidebar.qml" line="153"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="163"/>
+        <location filename="../Sidebar.qml" line="159"/>
         <source>快捷键</source>
         <translation>Shortcuts</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="223"/>
+        <location filename="../Sidebar.qml" line="219"/>
         <source>×</source>
         <translation>×</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="227"/>
+        <location filename="../Sidebar.qml" line="223"/>
         <source>删除会话</source>
         <translation>Delete conversation</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="236"/>
+        <location filename="../Sidebar.qml" line="232"/>
         <source>暂无会话</source>
         <translation>No conversations yet</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="249"/>
+        <location filename="../Sidebar.qml" line="252"/>
+        <source>收起上下文</source>
+        <translation>Collapse Context</translation>
+    </message>
+    <message>
+        <location filename="../Sidebar.qml" line="252"/>
+        <source>上下文</source>
+        <translation>Context</translation>
+    </message>
+    <message>
+        <location filename="../Sidebar.qml" line="265"/>
         <source>« 返回聊天</source>
         <translation>« Back to Chat</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="249"/>
+        <location filename="../Sidebar.qml" line="265"/>
         <source>⚙ 设置</source>
         <translation>⚙ Settings</translation>
     </message>

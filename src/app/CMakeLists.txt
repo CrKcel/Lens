@@ -12,6 +12,8 @@ qt_add_executable(lens
     ConversationListModel.cpp
     MessageListModel.hpp
     MessageListModel.cpp
+    TitleBarLayout.hpp
+    TitleBarLayout.cpp
 )
 
 qt_add_qml_module(lens

@@ -3,14 +3,12 @@ import QtQuick.Controls
 import Qt.labs.platform as NativeDialogs
 import QtQuick.Layouts
 
-// 聊天主区：标题行（含流式状态与用量）、消息流、输入区、上下文检查器。
+// 聊天主区：消息流、输入区。
 // 发送动作由 Main.sendAction 统一处理（工作文件夹在侧栏）。
 ColumnLayout {
     id: chatRoot
 
     readonly property alias inputText: input.text
-    // 侧栏折叠时为真：标题行左移让开悬浮的展开按钮（由 Main 绑定）
-    property bool sidebarCollapsed: false
     property var attachments: [] // 待发送附件 {url, name, isImage}（文件路径/data URL）
     // 思考模式强度（disabled/low/medium/high/max）：会话内临时状态，
     // 随每次发送传给控制器，不进设置、不持久化；默认 high
@@ -68,63 +66,6 @@ ColumnLayout {
     Theme {
         id: theme
         dark: settings.dark
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 10
-        Label {
-            Layout.fillWidth: true
-            // 悬浮展开按钮占位：8px 悬浮边距 + 按钮宽 + 间距
-            leftPadding: chatRoot.sidebarCollapsed ? 36 : 0
-            text: chat.currentConversationId === 0
-                  ? qsTr("新会话")
-                  : chat.currentTitle
-            color: theme.text
-            font.pixelSize: 16
-            font.bold: true
-            elide: Text.ElideRight
-        }
-        // 生成中状态：accent 药丸 + 呼吸动画
-        Rectangle {
-            visible: chat.streaming
-            implicitWidth: streamingLabel.implicitWidth + 18
-            implicitHeight: 24
-            radius: 12
-            color: theme.accentSoft
-
-            Label {
-                id: streamingLabel
-                anchors.centerIn: parent
-                text: qsTr("生成中…")
-                color: theme.accent
-                font.pixelSize: 11
-
-                SequentialAnimation on opacity {
-                    running: chat.streaming
-                    loops: Animation.Infinite
-                    NumberAnimation { to: 0.4; duration: 700; easing.type: Easing.InOutQuad }
-                    NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
-                }
-            }
-        }
-        Label {
-            visible: text.length > 0
-            text: chatRoot.formatUsageSummary()
-            color: theme.textDim
-            font.pixelSize: 11
-        }
-        ToolButton {
-            text: qsTr("上下文")
-            flat: true
-            font.pixelSize: 12
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("查看当前上下文组成")
-            onClicked: {
-                chat.refreshContext()
-                contextPopup.open()
-            }
-        }
     }
 
     ListView {
@@ -754,6 +695,20 @@ ColumnLayout {
             }
             onClicked: imageDialog.open()
         }
+        // 用量统计：输入框底部按钮左侧
+        Label {
+            anchors.right: modelButton.left
+            anchors.rightMargin: 6
+            anchors.verticalCenter: modelButton.verticalCenter
+            visible: text.length > 0
+            text: chatRoot.formatUsageSummary()
+            color: theme.textDim
+            font.pixelSize: 11
+            elide: Text.ElideRight
+            // 限宽避免挤压按钮条：右缘固定在 modelButton 左侧，左界到附件按钮
+            width: Math.min(implicitWidth, attachButton.x - 16)
+        }
+
         // 圆形发送/停止按钮：不挤占文本宽度
         AbstractButton {
             id: sendButton
@@ -813,10 +768,5 @@ ColumnLayout {
         visible: messageList.count === 0
         Layout.fillWidth: true
         Layout.fillHeight: messageList.count === 0
-    }
-
-    ContextInspector {
-        id: contextPopup
-        formatTokens: chatRoot.formatTokens
     }
 }

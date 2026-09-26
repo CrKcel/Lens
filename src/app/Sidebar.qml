@@ -2,11 +2,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// 侧栏：应用标识、工作文件夹、新建会话、设置分类导航、会话列表、设置入口。
+// 侧栏：应用标识、工作文件夹、新建会话、设置分类导航、会话列表、
+// 上下文检查器（设置按钮上方）、设置入口。折叠/展开按钮在 Main 的标题栏。
 // settingsMode / settingsCategory 由 Main 持有；导航点击经 categorySelected
 // 回传，设置按钮经 settingsToggleRequested 请求切换，侧栏不做业务决策。
 // 展开宽度可经右缘拖拽调节（窗口宽度的 1/5 ~ 1/3）；折叠态完全收起
-// （宽度归零），只留一枚悬浮展开按钮；设置模式侧栏始终展开、不可折叠。
+// （宽度归零）；设置模式侧栏始终展开、不可折叠。
 Rectangle {
     id: sidebarRoot
 
@@ -19,6 +20,9 @@ Rectangle {
 
     property bool collapsed: false
     property real expandedWidth: 264
+    // 顶部让出自绘标题栏的拖拽带（Main 里绑定 titleBar.height），
+    // 侧栏背景直接顶到窗口上缘
+    property real topInset: 0
     readonly property real minExpandedWidth: parent.width / 5
     readonly property real maxExpandedWidth: parent.width / 3
     function clampWidth(w) {
@@ -56,6 +60,7 @@ Rectangle {
         visible: !sidebarRoot.collapsed
         anchors.right: parent.right
         anchors.top: parent.top
+        anchors.topMargin: sidebarRoot.topInset
         anchors.bottom: parent.bottom
         width: 6
         cursorShape: Qt.SizeHorCursor
@@ -72,6 +77,7 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
+        anchors.topMargin: 10 + sidebarRoot.topInset
         spacing: 8
         visible: !sidebarRoot.collapsed
 
@@ -91,16 +97,6 @@ Rectangle {
                 font.pixelSize: 17
                 font.bold: true
                 color: theme.text
-            }
-            ToolButton {
-                visible: !sidebarRoot.settingsMode
-                text: sidebarRoot.collapsed ? "»" : "«"
-                flat: true
-                display: AbstractButton.TextOnly
-                font.pixelSize: 13
-                ToolTip.visible: hovered
-                ToolTip.text: qsTr("折叠会话列表")
-                onClicked: sidebarRoot.collapsed = true
             }
         }
 
@@ -241,6 +237,26 @@ Rectangle {
         // 占位：列表隐藏（设置模式）时把按钮压到底部
         Item { Layout.fillHeight: true; visible: sidebarRoot.settingsMode }
 
+        // 上下文检查器（内嵌面板）与开关：位于设置按钮之上，仅聊天模式显示。
+        // 展开时先刷新上下文快照
+        ContextInspector {
+            id: contextPanel
+            visible: !sidebarRoot.settingsMode && contextPanel.expanded
+            Layout.fillWidth: true
+            Layout.preferredHeight: contextPanel.expanded ? 340 : 0
+        }
+        NavButton {
+            visible: !sidebarRoot.settingsMode
+            Layout.fillWidth: true
+            highlighted: contextPanel.expanded
+            text: contextPanel.expanded ? qsTr("收起上下文") : qsTr("上下文")
+            onClicked: {
+                if (!contextPanel.expanded)
+                    chat.refreshContext()
+                contextPanel.expanded = !contextPanel.expanded
+            }
+        }
+
         Button {
             id: settingsButton
             Layout.fillWidth: true
@@ -262,21 +278,5 @@ Rectangle {
             }
             onClicked: sidebarRoot.settingsToggleRequested()
         }
-    }
-
-    // 折叠态：完全收起，只留一枚悬浮在聊天区左上角的展开按钮
-    ToolButton {
-        visible: sidebarRoot.collapsed
-        anchors.left: sidebarRoot.right
-        anchors.leftMargin: 8
-        anchors.top: sidebarRoot.top
-        anchors.topMargin: 8
-        text: "»"
-        flat: true
-        display: AbstractButton.TextOnly
-        font.pixelSize: 13
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("展开会话列表")
-        onClicked: sidebarRoot.collapsed = false
     }
 }

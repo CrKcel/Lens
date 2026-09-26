@@ -14,6 +14,7 @@
 #include "AppSettings.hpp"
 #include "ChatController.hpp"
 #include "E2eDriver.hpp"
+#include "TitleBarLayout.hpp"
 #include <lens/core/storage/SessionStore.hpp>
 
 namespace lens {
@@ -118,6 +119,9 @@ int main(int argc, char *argv[])
                                              QGuiApplication::applicationVersion());
     engine.rootContext()->setContextProperty(QStringLiteral("chat"), &chat);
     engine.rootContext()->setContextProperty(QStringLiteral("settings"), &settings);
+    // 自绘标题栏按钮方位（macOS 左上，Linux 跟随桌面环境设定）
+    engine.rootContext()->setContextProperty(QStringLiteral("titleBarButtonsLeft"),
+                                             lens::titleBarButtonsOnLeft());
     QObject::connect(&settings, &lens::AppSettings::settingsChanged, &app, [&] {
         const QString language = settings.language();
         if (language == installedLanguage)
