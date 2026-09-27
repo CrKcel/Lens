@@ -9,6 +9,11 @@ import QtQuick.Layouts
 // setter 每次都发 settingsChanged，若字段挂活绑定，写入时会把还没读到的
 // 字段刷回旧值，因此 loadSettingsIntoFields 采用一次性填充而非活绑定。
 // settingsCategory 由 Main 持有并注入；--qml-check 冒烟钩子入口为 runQmlCheck()。
+//
+// 排版组件（inline component）：SettingsPageHeader 页头、SettingsSection
+// 卡片分节、SettingsRow 标签居左/控件居右的设置行、SettingsField 标签在上
+// 的字段组、KeyCap 快捷键键帽。所有 qsTr 都写在本文件（组件经 property
+// 接收文本），保证翻译上下文始终是 SettingsView。
 ColumnLayout {
     id: settingsRoot
 
@@ -29,6 +34,170 @@ ColumnLayout {
     Theme {
         id: theme
         dark: settings.dark
+    }
+
+    // ── 排版组件 ─────────────────────────────────────────────
+
+    // 页头：分类标题 + 一句话说明（说明为空则不显示）
+    component SettingsPageHeader: ColumnLayout {
+        id: pageHeader
+
+        property alias title: pageTitle.text
+        property alias description: pageDesc.text
+        spacing: 2
+
+        Theme {
+            id: headerTheme
+            dark: settings.dark
+        }
+
+        Label {
+            id: pageTitle
+            color: headerTheme.text
+            font.pixelSize: Math.round(18 * settings.fontScale)
+            font.bold: true
+        }
+        Label {
+            id: pageDesc
+            visible: text.length > 0
+            color: headerTheme.textDim
+            font.pixelSize: Math.round(12 * settings.fontScale)
+        }
+    }
+
+    // 卡片分节：圆角容器 + 标题 + 可选行内说明，default 子项即卡片内容。
+    // 高度随内容自适应，卡片内不放 fillHeight 元素。
+    component SettingsSection: Rectangle {
+        id: sectionCard
+
+        default property alias content: sectionColumn.data
+        property alias title: sectionTitle.text
+        property string hint: ""
+
+        color: sectionTheme.card
+        radius: sectionTheme.radiusM
+        border.color: sectionTheme.cardBorder
+        implicitHeight: sectionColumn.implicitHeight + 32
+
+        Theme {
+            id: sectionTheme
+            dark: settings.dark
+        }
+
+        ColumnLayout {
+            id: sectionColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 16
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Label {
+                    id: sectionTitle
+                    color: sectionTheme.text
+                    font.pixelSize: Math.round(14 * settings.fontScale)
+                    font.bold: true
+                }
+                Label {
+                    visible: sectionCard.hint.length > 0
+                    text: sectionCard.hint
+                    color: sectionTheme.textFaint
+                    font.pixelSize: Math.round(11 * settings.fontScale)
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+            }
+        }
+    }
+
+    component SettingsRow: RowLayout {
+        id: settingRow
+
+        default property alias content: rowControls.data
+        property alias label: rowLabel.text
+        spacing: 12
+
+        Theme {
+            id: rowTheme
+            dark: settings.dark
+        }
+
+        Label {
+            id: rowLabel
+            color: rowTheme.text
+            font.pixelSize: Math.round(13 * settings.fontScale)
+        }
+        Item { Layout.fillWidth: true }
+        RowLayout {
+            id: rowControls
+            spacing: 8
+        }
+    }
+
+    component SettingsField: ColumnLayout {
+        id: settingField
+
+        default property alias content: fieldControls.data
+        property alias label: fieldLabel.text
+        property string hint: ""
+        spacing: 6
+
+        Theme {
+            id: fieldTheme
+            dark: settings.dark
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Label {
+                id: fieldLabel
+                color: fieldTheme.text
+                font.pixelSize: Math.round(13 * settings.fontScale)
+            }
+            Label {
+                visible: settingField.hint.length > 0
+                text: settingField.hint
+                color: fieldTheme.textFaint
+                font.pixelSize: Math.round(11 * settings.fontScale)
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+        RowLayout {
+            id: fieldControls
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 8
+        }
+    }
+
+    component KeyCap: Rectangle {
+        id: keyCap
+
+        property alias text: keyCapText.text
+
+        implicitWidth: keyCapText.implicitWidth + 20
+        implicitHeight: Math.round(24 * settings.fontScale)
+        radius: keyCapTheme.radiusS
+        color: keyCapTheme.field
+        border.color: keyCapTheme.fieldBorder
+
+        Theme {
+            id: keyCapTheme
+            dark: settings.dark
+        }
+
+        Label {
+            id: keyCapText
+            anchors.centerIn: parent
+            color: keyCapTheme.textSoft
+            font.family: "monospace"
+            font.pixelSize: Math.round(11 * settings.fontScale)
+        }
     }
 
     // 防抖提交：文本字段每次编辑重启，停止输入 600ms 后提交
@@ -261,182 +430,225 @@ ColumnLayout {
     property int skillsRevision: 0
     property var customToolsWorking: [] // preset=custom 时勾选的内置工具名，保存时写回
 
-    Label {
-        text: settingsRoot.settingsCategory === "providers" ? qsTr("模型提供商")
+    // ── 页头 ─────────────────────────────────────────────────
+    SettingsPageHeader {
+        title: settingsRoot.settingsCategory === "providers" ? qsTr("模型提供商")
             : settingsRoot.settingsCategory === "mcp" ? qsTr("MCP")
             : settingsRoot.settingsCategory === "skills" ? qsTr("Skills")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("快捷键")
             : qsTr("常规")
-        font.pixelSize: Math.round(17 * settings.fontScale)
-        font.bold: true
-        color: theme.text
+        description: settingsRoot.settingsCategory === "providers" ? qsTr("管理模型供应商与接入参数")
+            : settingsRoot.settingsCategory === "mcp" ? qsTr("经 stdio 连接 Model Context Protocol 服务器")
+            : settingsRoot.settingsCategory === "skills" ? qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
+            : settingsRoot.settingsCategory === "shortcuts" ? qsTr("配置消息的发送方式")
+            : qsTr("语言、主题与阅读体验")
     }
 
-    // ── 常规：外观、web_search、系统提示词 ───────────────────
-    ColumnLayout {
+    // ── 常规：外观 / 联网搜索 / 内置工具 / 系统提示词 ─────────
+    ScrollView {
+        id: generalScroll
         visible: settingsRoot.settingsCategory === "general"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 8
+        contentWidth: availableWidth
+        contentHeight: generalContent.implicitHeight
+        ScrollBar.vertical: SlimScrollBar {}
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Label { text: qsTr("语言"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            ComboBox {
-                id: languageCombo
-                Layout.preferredWidth: 150
-                textRole: "text"
-                valueRole: "value"
-                onActivated: settingsRoot.commitSettings()
-                model: [
-                    { text: qsTr("跟随系统"), value: "system" },
-                    { text: qsTr("中文"), value: "zh" },
-                    { text: qsTr("English"), value: "en" }
-                ]
-            }
-            Item { Layout.preferredWidth: 24 }
-            Label { text: qsTr("主题"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            ComboBox {
-                id: themeCombo
-                Layout.preferredWidth: 150
-                textRole: "text"
-                valueRole: "value"
-                onActivated: settingsRoot.commitSettings()
-                model: [
-                    { text: qsTr("跟随系统"), value: "system" },
-                    { text: qsTr("深色"), value: "dark" },
-                    { text: qsTr("浅色"), value: "light" }
-                ]
-            }
-            Item { Layout.preferredWidth: 24 }
-            Label { text: qsTr("字体大小"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            ComboBox {
-                id: fontScaleCombo
-                Layout.preferredWidth: 150
-                textRole: "text"
-                valueRole: "value"
-                onActivated: settingsRoot.commitSettings()
-                model: [
-                    { text: qsTr("小（85%）"), value: 0.85 },
-                    { text: qsTr("标准（100%）"), value: 1.0 },
-                    { text: qsTr("大（115%）"), value: 1.15 },
-                    { text: qsTr("特大（130%）"), value: 1.3 },
-                    { text: qsTr("最大（150%）"), value: 1.5 }
-                ]
-            }
-            Item { Layout.preferredWidth: 24 }
-            Label { text: qsTr("行间距"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            ComboBox {
-                id: lineSpacingCombo
-                Layout.preferredWidth: 150
-                textRole: "text"
-                valueRole: "value"
-                onActivated: settingsRoot.commitSettings()
-                model: [
-                    { text: qsTr("紧凑（100%）"), value: 1.0 },
-                    { text: qsTr("标准（115%）"), value: 1.15 },
-                    { text: qsTr("宽松（130%）"), value: 1.3 },
-                    { text: qsTr("特宽（150%）"), value: 1.5 }
-                ]
-            }
-            Item { Layout.fillWidth: true }
-        }
-        Label {
-            text: qsTr("web_search 搜索接口（Tavily 兼容，留空则不启用）")
-            color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            TextField {
-                id: webSearchEndpointField
-                Layout.fillWidth: true
-                placeholderText: qsTr("搜索端点")
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
-            }
-            TextField {
-                id: webSearchApiKeyField
-                Layout.preferredWidth: 220
-                placeholderText: qsTr("密钥")
-                echoMode: TextInput.Password
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
-            }
-        }
-        Label { text: qsTr("内置工具"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-        ComboBox {
-            id: toolPresetCombo
-            Layout.preferredWidth: 200
-            textRole: "text"
-            valueRole: "value"
-            model: [
-                { text: qsTr("完整（全部工具）"), value: "full" },
-                { text: qsTr("对话（仅搜索）"), value: "chat" },
-                { text: qsTr("只读（read + 搜索）"), value: "read_only" },
-                { text: qsTr("自定义"), value: "custom" }
-            ]
-            onActivated: {
-                if (currentValue === "custom" && settingsRoot.customToolsWorking.length === 0) {
-                    // 从 full 切到 custom：默认与 full 一致，避免空清单禁掉所有工具
-                    settingsRoot.customToolsWorking =
-                        chat.contextTools.filter(t => t.origin === "内置").map(t => t.name)
-                }
-                settingsRoot.commitSettings()
-            }
-        }
-        Label {
-            text: qsTr("禁用后的工具不进入上下文，模型无法调用")
-            color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-            visible: toolPresetCombo.currentValue !== "full"
-        }
-        Item { Layout.fillWidth: true }
         ColumnLayout {
-            visible: toolPresetCombo.currentValue === "custom"
-            Layout.fillWidth: true
-            Layout.leftMargin: 12
-            spacing: 0
+            id: generalContent
+            width: generalScroll.availableWidth
+            spacing: 12
 
-            Repeater {
-                model: chat.contextTools.filter(t => t.origin === "内置")
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("外观")
 
-                delegate: CheckBox {
-                    id: toolCheck
-                    required property var modelData
-                    readonly property bool enabledInCopy:
-                        settingsRoot.customToolsWorking.indexOf(modelData.name) >= 0
-                    text: modelData.name
-                          + (modelData.description.length > 0
-                             ? "　— " + modelData.description : "")
-                    checked: enabledInCopy
-                    onEnabledInCopyChanged: checked = enabledInCopy
-                    onToggled: settingsRoot.setCustomToolEnabled(modelData.name, checked)
-
-                    contentItem: Label {
-                        text: toolCheck.text
-                        color: theme.text
-                        font.pixelSize: Math.round(12 * settings.fontScale)
-                        elide: Text.ElideRight
-                        leftPadding: toolCheck.indicator.width + 4
-                        verticalAlignment: Text.AlignVCenter
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("语言")
+                    ComboBox {
+                        id: languageCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("跟随系统"), value: "system" },
+                            { text: qsTr("中文"), value: "zh" },
+                            { text: qsTr("English"), value: "en" }
+                        ]
+                    }
+                }
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("主题")
+                    ComboBox {
+                        id: themeCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("跟随系统"), value: "system" },
+                            { text: qsTr("深色"), value: "dark" },
+                            { text: qsTr("浅色"), value: "light" }
+                        ]
+                    }
+                }
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("字体大小")
+                    ComboBox {
+                        id: fontScaleCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("小（85%）"), value: 0.85 },
+                            { text: qsTr("标准（100%）"), value: 1.0 },
+                            { text: qsTr("大（115%）"), value: 1.15 },
+                            { text: qsTr("特大（130%）"), value: 1.3 },
+                            { text: qsTr("最大（150%）"), value: 1.5 }
+                        ]
+                    }
+                }
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("行间距")
+                    ComboBox {
+                        id: lineSpacingCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("紧凑（100%）"), value: 1.0 },
+                            { text: qsTr("标准（115%）"), value: 1.15 },
+                            { text: qsTr("宽松（130%）"), value: 1.3 },
+                            { text: qsTr("特宽（150%）"), value: 1.5 }
+                        ]
                     }
                 }
             }
-        }
-        Label { text: qsTr("自定义系统提示词（作为身份提示词，未填时使用内置）"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-        TextArea {
-            id: systemPromptField
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            wrapMode: TextArea.Wrap
-            color: theme.text
-            background: SettingFieldBg
-            onTextEdited: settingsRoot.scheduleCommit()
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("联网搜索")
+                hint: qsTr("web_search 搜索接口（Tavily 兼容，留空则不启用）")
+
+                SettingsField {
+                    Layout.fillWidth: true
+                    label: qsTr("搜索端点")
+                    TextField {
+                        id: webSearchEndpointField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("搜索端点")
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
+                }
+                SettingsField {
+                    Layout.fillWidth: true
+                    label: qsTr("密钥")
+                    TextField {
+                        id: webSearchApiKeyField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("密钥")
+                        echoMode: TextInput.Password
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
+                }
+            }
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("内置工具")
+
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("预设")
+                    ComboBox {
+                        id: toolPresetCombo
+                        Layout.preferredWidth: 220
+                        textRole: "text"
+                        valueRole: "value"
+                        model: [
+                            { text: qsTr("完整（全部工具）"), value: "full" },
+                            { text: qsTr("对话（仅搜索）"), value: "chat" },
+                            { text: qsTr("只读（read + 搜索）"), value: "read_only" },
+                            { text: qsTr("自定义"), value: "custom" }
+                        ]
+                        onActivated: {
+                            if (currentValue === "custom" && settingsRoot.customToolsWorking.length === 0) {
+                                // 从 full 切到 custom：默认与 full 一致，避免空清单禁掉所有工具
+                                settingsRoot.customToolsWorking =
+                                    chat.contextTools.filter(t => t.origin === "内置").map(t => t.name)
+                            }
+                            settingsRoot.commitSettings()
+                        }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("禁用后的工具不进入上下文，模型无法调用")
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                    visible: toolPresetCombo.currentValue !== "full"
+                }
+                ColumnLayout {
+                    visible: toolPresetCombo.currentValue === "custom"
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 12
+                    spacing: 0
+
+                    Repeater {
+                        model: chat.contextTools.filter(t => t.origin === "内置")
+
+                        delegate: CheckBox {
+                            id: toolCheck
+                            required property var modelData
+                            readonly property bool enabledInCopy:
+                                settingsRoot.customToolsWorking.indexOf(modelData.name) >= 0
+                            text: modelData.name
+                                  + (modelData.description.length > 0
+                                     ? "　— " + modelData.description : "")
+                            checked: enabledInCopy
+                            onEnabledInCopyChanged: checked = enabledInCopy
+                            onToggled: settingsRoot.setCustomToolEnabled(modelData.name, checked)
+
+                            contentItem: Label {
+                                text: toolCheck.text
+                                color: theme.text
+                                font.pixelSize: Math.round(12 * settings.fontScale)
+                                elide: Text.ElideRight
+                                leftPadding: toolCheck.indicator.width + 4
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+                }
+            }
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("系统提示词")
+                hint: qsTr("作为身份提示词，未填时使用内置")
+
+                TextArea {
+                    id: systemPromptField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.round(160 * settings.fontScale)
+                    wrapMode: TextArea.Wrap
+                    color: theme.text
+                    background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
+                }
+            }
         }
     }
 
@@ -526,32 +738,38 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
+            spacing: 14
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-                TextField {
-                    id: providerNameField
+                spacing: 12
+                SettingsField {
                     Layout.fillWidth: true
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
+                    label: qsTr("名称")
+                    TextField {
+                        id: providerNameField
+                        Layout.fillWidth: true
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
                 }
-                Label { text: qsTr("协议"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-                ComboBox {
-                    id: protocolCombo
-                    Layout.preferredWidth: 180
-                    textRole: "text"
-                    valueRole: "value"
-                    onActivated: settingsRoot.commitSettings()
-                    model: [
-                        { text: qsTr("chat completions"), value: "chat_completions" },
-                        { text: qsTr("responses"), value: "responses" },
-                        { text: qsTr("anthropic"), value: "anthropic" }
-                    ]
+                SettingsField {
+                    Layout.preferredWidth: 220
+                    label: qsTr("协议")
+                    ComboBox {
+                        id: protocolCombo
+                        Layout.fillWidth: true
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("chat completions"), value: "chat_completions" },
+                            { text: qsTr("responses"), value: "responses" },
+                            { text: qsTr("anthropic"), value: "anthropic" }
+                        ]
+                    }
                 }
             }
             CheckBox {
@@ -567,22 +785,22 @@ ColumnLayout {
                     verticalAlignment: Text.AlignVCenter
                 }
             }
-            Label {
-                text: qsTr("API 地址（含协议路径，或仅主机/根路径自动补全）")
-                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
-            }
-            TextField {
-                id: endpointField
+            SettingsField {
                 Layout.fillWidth: true
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
+                label: qsTr("API 地址")
+                hint: qsTr("含协议路径，或仅主机/根路径自动补全")
+                TextField {
+                    id: endpointField
+                    Layout.fillWidth: true
+                    color: theme.text
+                    selectByMouse: true
+                    background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
+                }
             }
-            RowLayout {
+            SettingsField {
                 Layout.fillWidth: true
-                spacing: 6
-                Label { text: qsTr("API Key"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
+                label: qsTr("API Key")
                 TextField {
                     id: apiKeyField
                     Layout.fillWidth: true
@@ -593,13 +811,10 @@ ColumnLayout {
                     onTextEdited: settingsRoot.scheduleCommit()
                 }
             }
-            Label {
-                text: qsTr("模型（可手动输入，或从端点获取清单后选择）")
-                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
-            }
-            RowLayout {
+            SettingsField {
                 Layout.fillWidth: true
-                spacing: 6
+                label: qsTr("模型")
+                hint: qsTr("可手动输入，或从端点获取清单后选择")
                 ComboBox {
                     id: modelCombo
                     Layout.fillWidth: true
@@ -624,48 +839,53 @@ ColumnLayout {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                Label { text: qsTr("输入单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-                TextField {
-                    id: inputPriceField
-                    Layout.preferredWidth: 90
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
+                spacing: 12
+                SettingsField {
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 140
+                    label: qsTr("输入单价")
+                    TextField {
+                        id: inputPriceField
+                        Layout.fillWidth: true
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
                 }
-                Label { text: qsTr("输出单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-                TextField {
-                    id: outputPriceField
-                    Layout.preferredWidth: 90
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
+                SettingsField {
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 140
+                    label: qsTr("输出单价")
+                    TextField {
+                        id: outputPriceField
+                        Layout.fillWidth: true
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
                 }
-                Label {
-                    text: qsTr("（每百万 token，留空或 0 表示不计费）")
-                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                SettingsField {
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 140
+                    label: qsTr("缓存单价")
+                    TextField {
+                        id: cachedPriceField
+                        Layout.fillWidth: true
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
+                    }
                 }
                 Item { Layout.fillWidth: true }
             }
-            RowLayout {
+            Label {
+                text: qsTr("每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计")
+                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                wrapMode: Text.Wrap
                 Layout.fillWidth: true
-                spacing: 6
-                Label { text: qsTr("缓存单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-                TextField {
-                    id: cachedPriceField
-                    Layout.preferredWidth: 90
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
-                }
-                Label {
-                    text: qsTr("（可选，缓存命中部分的单价；留空或 0 时按输入单价计）")
-                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-                }
-                Item { Layout.fillWidth: true }
             }
             Item { Layout.fillHeight: true }
         }
@@ -746,46 +966,51 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
+            spacing: 14
             enabled: settingsRoot.mcpServersWorking.length > 0
 
-            Label { text: qsTr("名称"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            TextField {
-                id: mcpNameField
+            SettingsField {
                 Layout.fillWidth: true
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
+                label: qsTr("名称")
+                TextField {
+                    id: mcpNameField
+                    Layout.fillWidth: true
+                    color: theme.text
+                    selectByMouse: true
+                    background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
+                }
             }
-            Label {
-                text: qsTr("启动命令（stdio 传输，如 npx、python）")
-                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
-            }
-            TextField {
-                id: mcpCommandField
+            SettingsField {
                 Layout.fillWidth: true
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
+                label: qsTr("启动命令")
+                hint: qsTr("stdio 传输，如 npx、python")
+                TextField {
+                    id: mcpCommandField
+                    Layout.fillWidth: true
+                    color: theme.text
+                    selectByMouse: true
+                    background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
+                }
             }
-            Label { text: qsTr("参数（每行一个）"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            TextArea {
-                id: mcpArgsField
+            SettingsField {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                wrapMode: TextArea.Wrap
-                font.family: "monospace"
-                font.pixelSize: Math.round(11 * settings.fontScale)
-                color: theme.text
-                background: SettingFieldBg
-                onTextEdited: settingsRoot.scheduleCommit()
+                label: qsTr("参数（每行一个）")
+                TextArea {
+                    id: mcpArgsField
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    wrapMode: TextArea.Wrap
+                    font.family: "monospace"
+                    font.pixelSize: Math.round(11 * settings.fontScale)
+                    color: theme.text
+                    background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
+                }
             }
-            Label {
-                text: qsTr("连接状态")
-                color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale)
-            }
+            Label { text: qsTr("连接状态"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             Repeater {
                 model: chat.mcpStatus
                 Label {
@@ -806,18 +1031,11 @@ ColumnLayout {
         visible: settingsRoot.settingsCategory === "skills"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 8
+        spacing: 12
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
-                color: theme.textDim
-                font.pixelSize: Math.round(12 * settings.fontScale)
-                elide: Text.ElideRight
-            }
+            Item { Layout.fillWidth: true }
             ToolButton {
                 text: qsTr("刷新")
                 onClicked: settingsRoot.skillsRevision++
@@ -898,62 +1116,58 @@ ColumnLayout {
     }
 
     // ── 快捷键：发送方式可配置，其余固定 ─────────────────────
-    ColumnLayout {
+    ScrollView {
+        id: shortcutsScroll
         visible: settingsRoot.settingsCategory === "shortcuts"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 12
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Label { text: qsTr("发送消息"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
-            ComboBox {
-                id: sendShortcutCombo
-                Layout.preferredWidth: 320
-                textRole: "text"
-                valueRole: "value"
-                onActivated: settingsRoot.commitSettings()
-                model: [
-                    { text: qsTr("Ctrl+Enter 发送，Enter 换行"), value: "ctrl_enter" },
-                    { text: qsTr("Enter 发送，Shift+Enter 换行"), value: "enter" }
-                ]
-            }
-            Item { Layout.fillWidth: true }
-        }
+        contentWidth: availableWidth
+        contentHeight: shortcutsContent.implicitHeight
+        ScrollBar.vertical: SlimScrollBar {}
 
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Label {
-                text: qsTr("固定快捷键")
-                color: theme.textDim
-                font.pixelSize: Math.round(12 * settings.fontScale)
-                font.bold: true
-            }
-            RowLayout {
+            id: shortcutsContent
+            width: shortcutsScroll.availableWidth
+            spacing: 12
+
+            SettingsSection {
                 Layout.fillWidth: true
-                spacing: 12
-                Label {
-                    text: qsTr("新建会话")
-                    color: theme.text
-                    font.pixelSize: Math.round(12 * settings.fontScale)
+                title: qsTr("发送消息")
+
+                SettingsRow {
                     Layout.fillWidth: true
+                    label: qsTr("发送方式")
+                    ComboBox {
+                        id: sendShortcutCombo
+                        Layout.preferredWidth: 320
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("Ctrl+Enter 发送，Enter 换行"), value: "ctrl_enter" },
+                            { text: qsTr("Enter 发送，Shift+Enter 换行"), value: "enter" }
+                        ]
+                    }
                 }
                 Label {
-                    text: qsTr("Ctrl+N")
-                    color: theme.textDim
-                    font.family: "monospace"
-                    font.pixelSize: Math.round(12 * settings.fontScale)
+                    Layout.fillWidth: true
+                    text: qsTr("输入框内：Enter / Shift+Enter 均可换行，取决于上方发送方式")
+                    color: theme.textFaint
+                    font.pixelSize: Math.round(11 * settings.fontScale)
+                    wrapMode: Text.Wrap
                 }
             }
-            Label {
-                text: qsTr("输入框内：Enter / Shift+Enter 均可换行，取决于上方发送方式")
-                color: theme.textFaint
-                font.pixelSize: Math.round(11 * settings.fontScale)
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("固定快捷键")
+
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("新建会话")
+                    KeyCap { text: qsTr("Ctrl+N") }
+                }
             }
         }
-
-        Item { Layout.fillHeight: true }
     }
 }
