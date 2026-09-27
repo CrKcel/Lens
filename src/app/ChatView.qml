@@ -13,6 +13,16 @@ ColumnLayout {
     // 思考模式强度（disabled/low/medium/high/max）：会话内临时状态，
     // 随每次发送传给控制器，不进设置、不持久化；默认 high
     property string thinkingLevel: "high"
+    // 滑块档位与思考强度的映射（滑块 0..4 ↔ 档位枚举）
+    readonly property var thinkingLevels: ["disabled", "low", "medium", "high", "max"]
+
+    function thinkingLevelLabel(level) {
+        if (level === "low") return qsTr("低")
+        if (level === "medium") return qsTr("中")
+        if (level === "high") return qsTr("高")
+        if (level === "max") return qsTr("最高")
+        return qsTr("关闭")
+    }
 
     signal sendRequested()
     signal stopRequested()
@@ -430,8 +440,8 @@ ColumnLayout {
         Layout.alignment: Qt.AlignHCenter
         readonly property real lineH: input.font.pixelSize * 1.5
         readonly property real maxH: chatRoot.height / 4
-        // 右下角按钮条：按钮 36px + 8px 间距，文本经 bottomPadding 避开；
-        // 有附件预览时再让出预览条高度
+        // 左下角附件按钮 + 右下角按钮条：按钮 36px + 8px 间距，文本经
+        // bottomPadding 避开；有附件预览时再让出预览条高度（预览条在按钮行上方）
         readonly property real buttonStrip: sendButton.height + 8
         readonly property real bottomReserved: inputCard.buttonStrip
             + (attachmentStrip.visible ? attachmentStrip.height + 8 : 0)
@@ -487,14 +497,14 @@ ColumnLayout {
                 // 其余组合交给 TextArea 默认行为（插入换行）
             }
         }
-        // 附件预览条：缩略图 + 删除，位于文本下方、按钮条上方左侧
+        // 附件预览条：缩略图 + 删除，位于底部按钮行上方左侧
         Row {
             id: attachmentStrip
             objectName: "attachmentStrip"
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.leftMargin: 10
-            anchors.bottomMargin: 10
+            anchors.bottomMargin: inputCard.buttonStrip + 6
             spacing: 6
             visible: chatRoot.attachments.length > 0
             Repeater {
@@ -550,21 +560,25 @@ ColumnLayout {
                 }
             }
         }
-        // 模型切换按钮：文字指示当前模型，菜单按供应商分组（子菜单 = 供应商）。
-        // 选中经 chat.selectModel 切换并持久化；下一次发送生效
+        // 合并按钮：模型 + 思考强度。文字指示当前模型与思考档位，点击弹出自绘
+        // 弹层：上半是按供应商分组的模型清单，下半是思考强度滑块。
+        // 选中模型经 chat.selectModel 切换并持久化；下一次发送生效
         AbstractButton {
             id: modelButton
-            anchors.right: thinkingButton.left
+            anchors.right: sendButton.left
             anchors.bottom: parent.bottom
             anchors.margins: 8
             anchors.rightMargin: 6
             implicitHeight: 36
             // 文本宽度用 TextMetrics 度量：elide 的 Label 的 implicitWidth 依赖
             // 自身 width，直接引用会成绑定环
-            implicitWidth: Math.max(36, Math.min(modelMetrics.advanceWidth, 140) + 2 * padding)
+            readonly property string label: settings.model
+                + (chatRoot.thinkingLevel !== "disabled"
+                   ? " · " + chatRoot.thinkingLevelLabel(chatRoot.thinkingLevel) : "")
+            implicitWidth: Math.max(36, Math.min(modelMetrics.advanceWidth, 160) + 2 * padding)
             padding: 8
             ToolTip.visible: hovered
-            ToolTip.text: qsTr("切换模型")
+            ToolTip.text: qsTr("模型与思考强度")
 
             background: Rectangle {
                 radius: 18
@@ -576,119 +590,230 @@ ColumnLayout {
             }
             contentItem: Label {
                 id: modelLabel
-                text: settings.model
+                text: modelButton.label
                 elide: Text.ElideRight
                 color: theme.text
                 font.pixelSize: Math.round(12 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
-            onClicked: modelMenu.popup(modelButton, 0, modelButton.height)
+            onClicked: modelMenu.open()
         }
         TextMetrics {
             id: modelMetrics
             font: modelLabel.font
-            text: settings.model
+            text: modelButton.label
         }
-        Menu {
+        // 自绘弹层（不用 Menu：其 contentItem ListView 对非菜单条目的布局
+        // 在动态子菜单场景下不可靠，Popup 内布局完全自控）
+        Popup {
             id: modelMenu
-            Instantiator {
-                model: settings.providers
-                delegate: Menu {
-                    id: providerMenu
-                    required property int index
-                    required property var modelData
-                    title: modelData.name
-                    Instantiator {
-                        model: providerMenu.modelData.models.length > 0
-                               ? providerMenu.modelData.models
-                               : [providerMenu.modelData.model]
-                        delegate: MenuItem {
-                            required property string modelData
-                            text: modelData
-                            checkable: true
-                            // 激活供应商勾选当前模型，其余供应商勾选各自保存的模型
-                            checked: settings.activeProvider === providerMenu.index
-                                         ? settings.model === modelData
-                                         : providerMenu.modelData.model === modelData
-                            // 单次调用进 C++ 完成切换+保存：若在此逐条改 settings，
-                            // settingsChanged 触发菜单重建会销毁本 delegate（正在执行的
-                            // onTriggered 的宿主），引发级联错误
-                            onTriggered: chat.selectModel(providerMenu.index, modelData)
-                        }
-                        onObjectAdded: (index, object) => providerMenu.insertItem(index, object)
-                        onObjectRemoved: (index, object) => providerMenu.removeItem(object)
-                    }
-                }
-                onObjectAdded: (index, object) => modelMenu.insertMenu(index, object)
-                onObjectRemoved: (index, object) => modelMenu.removeMenu(object)
-            }
-        }
-        // 思考模式按钮：文字直接指示当前档位，点击弹菜单切换；会话内临时生效
-        AbstractButton {
-            id: thinkingButton
-            anchors.right: attachButton.left
-            anchors.bottom: parent.bottom
-            anchors.margins: 8
-            anchors.rightMargin: 6
-            implicitHeight: 36
-            implicitWidth: Math.max(36, thinkingLabel.implicitWidth + padding * 2)
-            padding: 8
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("思考模式：%1").arg(thinkingMenu.currentLabel)
+            parent: modelButton
+            // 右缘对齐按钮右缘、向左展开，向上弹出（输入框贴窗口底部）；
+            // 显式 x/y 不走 Qt 的自动收边，须自行保证在窗口内
+            x: parent.width - width
+            y: -height - 8
+            width: 264
+            padding: 6
+            closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+            // 打开时把滑块对齐到当前档位（交互会解除 value 的声明式绑定，
+            // 每次打开重设，避免外部状态变化后错位）
+            onAboutToShow:
+                thinkingSlider.value = chatRoot.thinkingLevels.indexOf(chatRoot.thinkingLevel)
 
             background: Rectangle {
-                radius: 18
-                color: thinkingButton.down ? theme.accentSoft
-                     : thinkingButton.hovered ? theme.accentSoft
-                     : chatRoot.thinkingLevel !== "disabled" ? theme.accentSoft
-                     : "transparent"
-                border.color: theme.fieldBorder
-                border.width: 1
+                radius: theme.radiusM
+                color: theme.card
+                border.color: theme.cardBorder
             }
-            contentItem: Label {
-                id: thinkingLabel
-                text: thinkingMenu.currentLabel
-                color: chatRoot.thinkingLevel !== "disabled" ? theme.accent : theme.textFaint
-                font.pixelSize: Math.round(12 * settings.fontScale)
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+
+            contentItem: ColumnLayout {
+                spacing: 6
+
+                // 模型清单：供应商小标题 + 条目平铺，条目过多时内部滚动
+                ScrollView {
+                    id: modelsScroll
+                    Layout.fillWidth: true
+                    Layout.maximumHeight: 340
+                    Layout.preferredHeight: modelsColumn.implicitHeight
+                    contentWidth: modelsScroll.availableWidth
+                    contentHeight: modelsColumn.implicitHeight
+                    ScrollBar.vertical: SlimScrollBar {}
+                    clip: true
+
+                    ColumnLayout {
+                        id: modelsColumn
+                        width: modelsScroll.availableWidth
+                        spacing: 0
+
+                        Repeater {
+                            model: settings.providers
+                            delegate: ColumnLayout {
+                                id: providerSection
+                                required property int index
+                                required property var modelData
+                                readonly property var providerData: modelData
+                                readonly property int providerIndex: index
+                                spacing: 0
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: 8
+                                    Layout.topMargin: 6
+                                    text: providerSection.providerData.name
+                                    color: theme.textFaint
+                                    font.pixelSize: Math.round(11 * settings.fontScale)
+                                    elide: Text.ElideRight
+                                }
+                                Repeater {
+                                    model: providerSection.providerData.models.length > 0
+                                           ? providerSection.providerData.models
+                                           : [providerSection.providerData.model]
+                                    delegate: AbstractButton {
+                                        id: modelItem
+                                        required property string modelData
+                                        readonly property bool current:
+                                            settings.activeProvider === providerSection.providerIndex
+                                                ? settings.model === modelItem.modelData
+                                                : providerSection.providerData.model === modelItem.modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: 30
+                                        leftPadding: 10
+                                        rightPadding: 10
+
+                                        background: Rectangle {
+                                            radius: theme.radiusS
+                                            color: modelItem.pressed ? theme.accentSoft
+                                                 : modelItem.hovered ? theme.accentSoft
+                                                 : "transparent"
+                                        }
+                                        contentItem: RowLayout {
+                                            spacing: 6
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: modelItem.modelData
+                                                elide: Text.ElideRight
+                                                color: modelItem.current ? theme.accent
+                                                     : theme.text
+                                                font.pixelSize: Math.round(12 * settings.fontScale)
+                                            }
+                                            Label {
+                                                visible: modelItem.current
+                                                text: "✓"
+                                                color: theme.accent
+                                                font.pixelSize: Math.round(12 * settings.fontScale)
+                                            }
+                                        }
+                                        // 单次调用进 C++ 完成切换+保存：若在此逐条改 settings，
+                                        // settingsChanged 会重建模型列表、销毁正在执行的
+                                        // onClicked 的宿主，引发级联错误——先关弹层，
+                                        // 再经 callLater 推迟到事件循环执行
+                                        onClicked: {
+                                            modelMenu.close()
+                                            Qt.callLater(chat.selectModel,
+                                                         providerSection.providerIndex,
+                                                         modelItem.modelData)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: theme.cardBorder
+                }
+
+                // 思考强度滑块：0..4 五档（关闭/低/中/高/最高），会话内临时生效
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: 36
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 8
+                        Label {
+                            id: thinkingTitleLabel
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("思考")
+                            color: theme.textDim
+                            font.pixelSize: Math.round(12 * settings.fontScale)
+                        }
+                        Slider {
+                            id: thinkingSlider
+                            objectName: "thinkingSlider"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - thinkingTitleLabel.width
+                                   - thinkingValueLabel.width - parent.spacing * 2
+                            // 自绘 background/handle 未带 implicit 尺寸时 Control 的
+                            // implicitHeight 会解析为 0，Row 不拉伸子项高度 → 滑块
+                            // 变成不可见的零高条目，必须显式给高
+                            implicitHeight: 24
+                            height: 24
+                            from: 0
+                            to: 4
+                            stepSize: 1
+                            snapMode: Slider.SnapAlways
+                            onMoved: chatRoot.thinkingLevel =
+                                     chatRoot.thinkingLevels[Math.round(value)]
+                            // 滑块把手视觉：accent 圆点 + 细轨道
+                            background: Rectangle {
+                                implicitWidth: 120
+                                implicitHeight: 4
+                                x: thinkingSlider.leftPadding
+                                y: thinkingSlider.topPadding
+                                     + thinkingSlider.availableHeight / 2 - height / 2
+                                width: thinkingSlider.availableWidth
+                                height: 4
+                                radius: 2
+                                color: theme.fieldBorder
+                                Rectangle {
+                                    width: thinkingSlider.visualPosition * parent.width
+                                    height: parent.height
+                                    radius: 2
+                                    color: theme.accent
+                                }
+                            }
+                            handle: Rectangle {
+                                implicitWidth: 14
+                                implicitHeight: 14
+                                x: thinkingSlider.leftPadding
+                                   + thinkingSlider.visualPosition
+                                     * (thinkingSlider.availableWidth - width)
+                                y: thinkingSlider.topPadding
+                                   + thinkingSlider.availableHeight / 2 - height / 2
+                                width: 14
+                                height: 14
+                                radius: 7
+                                color: theme.accent
+                                border.color: theme.field
+                                border.width: 2
+                            }
+                        }
+                        Label {
+                            id: thinkingValueLabel
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: chatRoot.thinkingLevelLabel(chatRoot.thinkingLevel)
+                            color: chatRoot.thinkingLevel !== "disabled"
+                                   ? theme.accent : theme.textFaint
+                            font.pixelSize: Math.round(12 * settings.fontScale)
+                            // 定宽让滑块不随档位文字宽度跳动（"最高"最宽）
+                            width: Math.round(28 * settings.fontScale)
+                        }
+                    }
+                }
             }
-            onClicked: thinkingMenu.popup(thinkingButton, 0, thinkingButton.height)
         }
-        Menu {
-            id: thinkingMenu
-            readonly property string currentLabel: {
-                if (chatRoot.thinkingLevel === "low") return qsTr("低")
-                if (chatRoot.thinkingLevel === "medium") return qsTr("中")
-                if (chatRoot.thinkingLevel === "high") return qsTr("高")
-                if (chatRoot.thinkingLevel === "max") return qsTr("最高")
-                return qsTr("关闭")
-            }
-            component ThinkingMenuItem : MenuItem {
-                property string level
-                text: level === "disabled" ? qsTr("关闭")
-                    : level === "low" ? qsTr("低")
-                    : level === "medium" ? qsTr("中")
-                    : level === "high" ? qsTr("高")
-                    : qsTr("最高")
-                checkable: true
-                checked: chatRoot.thinkingLevel === level
-                onTriggered: chatRoot.thinkingLevel = level
-            }
-            ThinkingMenuItem { level: "disabled" }
-            ThinkingMenuItem { level: "low" }
-            ThinkingMenuItem { level: "medium" }
-            ThinkingMenuItem { level: "high" }
-            ThinkingMenuItem { level: "max" }
-        }
-        // 附件选择按钮：sendButton 左侧
+        // 附件选择按钮：输入框左下角
         AbstractButton {
             id: attachButton
-            anchors.right: sendButton.left
+            anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.margins: 8
-            anchors.rightMargin: 6
             implicitWidth: 36
             implicitHeight: 36
             enabled: !chat.streaming
@@ -721,8 +846,10 @@ ColumnLayout {
             color: theme.textDim
             font.pixelSize: Math.round(11 * settings.fontScale)
             elide: Text.ElideRight
-            // 限宽避免挤压按钮条：右缘固定在 modelButton 左侧，左界到附件按钮
-            width: Math.min(implicitWidth, attachButton.x - 16)
+            // 限宽避免挤压按钮条：右缘固定在 modelButton 左侧，左界到附件按钮；
+            // 窗口过窄时可用空间为负，钳到 0
+            width: Math.max(0, Math.min(implicitWidth,
+                            modelButton.x - attachButton.x - attachButton.width - 12))
         }
 
         // 圆形发送/停止按钮：不挤占文本宽度
