@@ -999,7 +999,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Button {
+                GhostButton {
                     Layout.fillWidth: true
                     text: qsTr("＋")
                     ToolTip.visible: hovered
@@ -1022,7 +1022,7 @@ ColumnLayout {
                         settings.save()
                     }
                 }
-                Button {
+                GhostButton {
                     Layout.fillWidth: true
                     text: qsTr("－")
                     enabled: settings.providers.length > 1
@@ -1164,13 +1164,13 @@ ColumnLayout {
                             settingsRoot.loadModelFields()
                         }
                     }
-                    Button {
+                    GhostButton {
                         text: qsTr("＋")
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("新增模型")
                         onClicked: settingsRoot.addModel()
                     }
-                    Button {
+                    GhostButton {
                         text: qsTr("－")
                         enabled: settingsRoot.modelsWorking.length > 0
                         ToolTip.visible: hovered
@@ -1356,14 +1356,14 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Button {
+                GhostButton {
                     Layout.fillWidth: true
                     text: qsTr("＋")
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("新增 MCP 服务器")
                     onClicked: settingsRoot.addMcpServer()
                 }
-                Button {
+                GhostButton {
                     Layout.fillWidth: true
                     text: qsTr("－")
                     enabled: settingsRoot.mcpServersWorking.length > 0

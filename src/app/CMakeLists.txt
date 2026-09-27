@@ -24,6 +24,7 @@ qt_add_qml_module(lens
         AccentButton.qml
         ChatView.qml
         ContextInspector.qml
+        GhostButton.qml
         LensComboBox.qml
         NavButton.qml
         SettingFieldBg.qml
