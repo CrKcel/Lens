@@ -56,9 +56,17 @@ Rectangle {
             visible: chat.usageSummary.hasUsage
             text: {
                 const u = chat.usageSummary
+                // 配置了上下文窗口时附带占用比例
+                let contextLine = u.contextWindow > 0
+                    ? qsTr("当前上下文（最近一次输入）：%1 / %2 tokens（%3%）")
+                          .arg(inspector.formatTokens(u.contextTokens))
+                          .arg(inspector.formatTokens(u.contextWindow))
+                          .arg(u.contextWindow > 0
+                               ? Math.round(u.contextTokens / u.contextWindow * 100) : 0)
+                    : qsTr("当前上下文（最近一次输入）：%1 tokens")
+                          .arg(inspector.formatTokens(u.contextTokens))
                 let lines = [
-                    qsTr("当前上下文（最近一次输入）：%1 tokens")
-                        .arg(inspector.formatTokens(u.contextTokens)),
+                    contextLine,
                     qsTr("会话累计：输入 %1 / 输出 %2 / 缓存命中 %3 tokens")
                         .arg(inspector.formatTokens(u.totalPrompt))
                         .arg(inspector.formatTokens(u.totalCompletion))

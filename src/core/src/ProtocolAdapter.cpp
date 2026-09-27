@@ -30,11 +30,19 @@ public:
                                     const std::vector<ToolSpec> &tools,
                                     const RequestFeatures &features) const override
     {
+        if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
+            RequestFeatures plain = features;
+            plain.images = true; // 翻转标志，递归只进一层
+            return buildRequestBody(detail::withoutImages(history), model, systemPrompt,
+                                    stream, tools, plain);
+        }
         nlohmann::json body = chatcompletions::buildRequestBody(history, model, systemPrompt,
                                                                 stream,
                                                                 toChatCompletionsTools(tools));
         if (features.serverSideSearch)
             body["web_search_options"] = nlohmann::json::object(); // OpenAI 服务端搜索
+        if (features.maxOutputTokens > 0)
+            body["max_tokens"] = features.maxOutputTokens;
         if (const QString effort = detail::openAiReasoningEffort(features.thinking);
             !effort.isEmpty())
             body["reasoning_effort"] = effort.toStdString();

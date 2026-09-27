@@ -31,6 +31,8 @@ public:
     void setProtocol(Protocol protocol); // 缺省 chat completions，需在发起请求前设置
     void setServerSideSearch(bool enabled) { m_serverSideSearch = enabled; }
     void setThinkingLevel(ThinkingLevel level) { m_thinkingLevel = level; }
+    void setMaxOutputTokens(int tokens) { m_maxOutputTokens = tokens; }
+    void setImagesEnabled(bool enabled) { m_imagesEnabled = enabled; }
     void setSystemPrompt(const QString &systemPrompt) { m_systemPrompt = systemPrompt; }
     void setWorkdir(const QString &workdir) { m_workdir = workdir; }
     void setHistory(std::vector<Message> history) { m_history = std::move(history); }
@@ -76,6 +78,8 @@ private:
     Protocol m_protocol = Protocol::ChatCompletions;
     bool m_serverSideSearch = false;
     ThinkingLevel m_thinkingLevel = ThinkingLevel::Disabled;
+    int m_maxOutputTokens = 0;    // 模型最大输出 token，0 未配置（请求体不带上限）
+    bool m_imagesEnabled = true;  // 模型图片输入开关，关闭时请求体剥离图片附件
     QString m_systemPrompt;
     QString m_workdir;
     bool m_busy = false;

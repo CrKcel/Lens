@@ -572,7 +572,17 @@ ColumnLayout {
             implicitHeight: 36
             // 文本宽度用 TextMetrics 度量：elide 的 Label 的 implicitWidth 依赖
             // 自身 width，直接引用会成绑定环
-            readonly property string label: settings.model
+            // 模型文字用显示名（设置里可配）：在激活供应商的清单里按 id 找条目
+            readonly property string modelDisplayName: {
+                const provider = settings.providers[settings.activeProvider]
+                if (!provider)
+                    return settings.model
+                const models = provider.models.length > 0
+                    ? provider.models : [{ "id": provider.model }]
+                const entry = models.find(m => m.id === settings.model)
+                return entry ? (entry.displayName || entry.id) : settings.model
+            }
+            readonly property string label: modelDisplayName
                 + (chatRoot.thinkingLevel !== "disabled"
                    ? " · " + chatRoot.thinkingLevelLabel(chatRoot.thinkingLevel) : "")
             implicitWidth: Math.max(36, Math.min(modelMetrics.advanceWidth, 160) + 2 * padding)
@@ -666,16 +676,21 @@ ColumnLayout {
                                     elide: Text.ElideRight
                                 }
                                 Repeater {
+                                    // models 条目为 {id, displayName, ...}；清单为空时
+                                    // 回退仅含当前模型一项
                                     model: providerSection.providerData.models.length > 0
                                            ? providerSection.providerData.models
-                                           : [providerSection.providerData.model]
+                                           : [{ "id": providerSection.providerData.model }]
                                     delegate: AbstractButton {
                                         id: modelItem
-                                        required property string modelData
+                                        required property var modelData
+                                        readonly property string modelId: modelData.id
+                                        readonly property string modelTitle:
+                                            modelData.displayName || modelData.id
                                         readonly property bool current:
                                             settings.activeProvider === providerSection.providerIndex
-                                                ? settings.model === modelItem.modelData
-                                                : providerSection.providerData.model === modelItem.modelData
+                                                ? settings.model === modelItem.modelId
+                                                : providerSection.providerData.model === modelItem.modelId
                                         Layout.fillWidth: true
                                         implicitHeight: 30
                                         leftPadding: 10
@@ -691,7 +706,7 @@ ColumnLayout {
                                             spacing: 6
                                             Label {
                                                 Layout.fillWidth: true
-                                                text: modelItem.modelData
+                                                text: modelItem.modelTitle
                                                 elide: Text.ElideRight
                                                 color: modelItem.current ? theme.accent
                                                      : theme.text
@@ -712,7 +727,7 @@ ColumnLayout {
                                             modelMenu.close()
                                             Qt.callLater(chat.selectModel,
                                                          providerSection.providerIndex,
-                                                         modelItem.modelData)
+                                                         modelItem.modelId)
                                         }
                                     }
                                 }

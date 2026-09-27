@@ -8,6 +8,15 @@
 
 namespace lens {
 
+// 单个模型的元数据：id 是请求体里的模型名，其余为可选的显示与能力配置
+struct ModelConfig {
+    QString id;
+    QString displayName;     // 显示名，空则界面回退用 id
+    int contextWindow = 0;   // 上下文窗口（token），0 未配置
+    int maxOutputTokens = 0; // 最大输出 token，0 未配置（请求体不带上限参数）
+    bool images = true;      // 启用图片输入，关闭后请求体剥离所有图片附件
+};
+
 // 模型供应商配置：名称、协议、端点、密钥与模型
 struct ProviderConfig {
     QString name;
@@ -15,12 +24,24 @@ struct ProviderConfig {
     QString endpoint;
     QString apiKey;
     QString model;
-    QStringList models = {};   // 可选模型清单（端点自动获取或手动维护），model 从中选取
+    QList<ModelConfig> models = {}; // 可选模型清单（端点自动获取或手动维护），model 从中选取
     bool serverSearch = false; // 服务端联网搜索（供应商支持时）
     double inputPrice = 0.0;   // 输入单价（每百万 token），0 表示未配置不计费用
     double outputPrice = 0.0;  // 输出单价（每百万 token）
     double cachedPrice = 0.0;  // 缓存命中单价（每百万 token），0 表示缓存部分按输入单价计
 };
+
+// 清单里 id 对应的模型元数据；未收录（老配置或手动输入）时回退仅含 id 的默认配置
+inline ModelConfig modelConfigFor(const ProviderConfig &provider, const QString &id)
+{
+    for (const ModelConfig &model : provider.models) {
+        if (model.id == id)
+            return model;
+    }
+    ModelConfig fallback;
+    fallback.id = id;
+    return fallback;
+}
 
 // 一个 MCP 服务器配置
 struct McpServerConfig {

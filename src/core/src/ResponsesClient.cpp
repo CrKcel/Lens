@@ -88,10 +88,18 @@ nlohmann::json ResponsesAdapter::buildRequestBody(const std::vector<Message> &hi
                                                   const std::vector<ToolSpec> &tools,
                                                   const RequestFeatures &features) const
 {
+    if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
+        RequestFeatures plain = features;
+        plain.images = true; // 翻转标志，递归只进一层
+        return buildRequestBody(detail::withoutImages(history), model, systemPrompt, stream,
+                                tools, plain);
+    }
     nlohmann::json body = {{"model", model.toStdString()},
                            {"input", buildInputItems(history)},
                            {"stream", stream},
                            {"store", false}}; // 本地已有完整历史，不让服务端留存状态
+    if (features.maxOutputTokens > 0)
+        body["max_output_tokens"] = features.maxOutputTokens;
     if (const QString effort = detail::openAiReasoningEffort(features.thinking);
         !effort.isEmpty())
         body["reasoning"] = {{"effort", effort.toStdString()}};

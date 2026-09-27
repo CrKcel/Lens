@@ -73,6 +73,12 @@ struct RequestFeatures {
     bool serverSideSearch = false;
     // 思考模式强度，映射见 ThinkingLevel 注释；Disabled 时请求体不携带思考参数
     ThinkingLevel thinking = ThinkingLevel::Disabled;
+    // 单模型最大输出 token（供应商设置里按模型配置）：0 表示未配置，请求体
+    // 不携带上限参数（chat completions → max_tokens，responses →
+    // max_output_tokens，anthropic → max_tokens，低于思考预算时以预算为准）
+    int maxOutputTokens = 0;
+    // 图片输入：模型不支持时为 false，请求体剥离所有消息的图片附件
+    bool images = true;
 };
 
 // 协议适配器：统一内部表示（Message / ToolSpec / 系统提示词）→ 各家请求体与鉴权头，
@@ -133,6 +139,14 @@ inline QString joinEndpoint(const QString &baseUrl, const QString &path)
     while (suffix.startsWith(QLatin1Char('/')))
         suffix.remove(0, 1);
     return base + QLatin1Char('/') + suffix;
+}
+
+// 模型不支持图片输入时剥离所有消息的图片附件（值拷贝，不影响会话历史）
+inline std::vector<Message> withoutImages(std::vector<Message> history)
+{
+    for (Message &message : history)
+        message.images.clear();
+    return history;
 }
 
 // OpenAI 系模型清单端点：baseUrl 已带自家 API 路径时把该段替换为 models，

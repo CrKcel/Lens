@@ -1,5 +1,7 @@
 #include "lens/core/providers/AnthropicClient.hpp"
 
+#include <algorithm>
+
 namespace lens::anthropic {
 namespace {
 
@@ -135,15 +137,23 @@ nlohmann::json AnthropicAdapter::buildRequestBody(const std::vector<Message> &hi
                                                   const std::vector<ToolSpec> &tools,
                                                   const RequestFeatures &features) const
 {
+    if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
+        RequestFeatures plain = features;
+        plain.images = true; // 翻转标志，递归只进一层
+        return buildRequestBody(detail::withoutImages(history), model, systemPrompt, stream,
+                                tools, plain);
+    }
     nlohmann::json body = {{"model", model.toStdString()},
-                           {"max_tokens", 8192}, // Anthropic 必填字段，取保守上限
+                           // Anthropic 必填字段：按模型配置的上限，未配置取保守默认
+                           {"max_tokens",
+                            features.maxOutputTokens > 0 ? features.maxOutputTokens : 8192},
                            {"messages", buildMessages(history)},
                            {"stream", stream}};
-    // 扩展思考：max_tokens 必须大于 budget_tokens，开启时同步上调
+    // 扩展思考：max_tokens 必须大于 budget_tokens，开启时同步上调（不低于模型配置）
     if (features.thinking != ThinkingLevel::Disabled) {
         const int budget = thinkingBudgetTokens(features.thinking);
         body["thinking"] = {{"type", "enabled"}, {"budget_tokens", budget}};
-        body["max_tokens"] = budget + 8192;
+        body["max_tokens"] = std::max(features.maxOutputTokens, budget + 8192);
     }
     if (!systemPrompt.isEmpty())
         body["system"] = systemPrompt.toStdString();

@@ -97,6 +97,11 @@ private slots:
 
     void thinkingLevelRequestShape();
 
+    // —— 每模型参数（RequestFeatures::maxOutputTokens / images） ——
+
+    void maxOutputTokensRequestShape();
+    void imagesDisabledStripsAttachments();
+
     // —— 多模态：Message.images → 各协议请求体 ——
 
     void multimodalImageSerialization();
@@ -540,6 +545,85 @@ void TestProtocols::thinkingLevelRequestShape()
         history, QStringLiteral("m"), QString(), true, {}, RequestFeatures{});
     QVERIFY(!off.contains("thinking"));
     QCOMPARE(off.at("max_tokens").get<int>(), 8192);
+}
+
+void TestProtocols::maxOutputTokensRequestShape()
+{
+    const std::vector<Message> history = {userMessage(QStringLiteral("hi"))};
+    RequestFeatures features;
+    features.maxOutputTokens = 4096;
+
+    // chat completions → max_tokens；未配置（0）时缺席
+    const auto chat = makeProtocolAdapter(Protocol::ChatCompletions);
+    QCOMPARE(chat->buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("max_tokens")
+                 .get<int>(),
+             4096);
+    QVERIFY(!chat->buildRequestBody(history, QStringLiteral("m"), QString(), true, {},
+                                    RequestFeatures{})
+                 .contains("max_tokens"));
+
+    // responses → max_output_tokens
+    const responses::ResponsesAdapter responses;
+    QCOMPARE(responses
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("max_output_tokens")
+                 .get<int>(),
+             4096);
+    QVERIFY(!responses
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {},
+                                   RequestFeatures{})
+                 .contains("max_output_tokens"));
+
+    // anthropic → max_tokens 覆盖保守默认；思考开启时不低于预算 + 8192
+    const anthropic::AnthropicAdapter anthropic;
+    QCOMPARE(anthropic
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("max_tokens")
+                 .get<int>(),
+             4096);
+    features.thinking = ThinkingLevel::High; // 预算 20480
+    QCOMPARE(anthropic
+                 .buildRequestBody(history, QStringLiteral("m"), QString(), true, {}, features)
+                 .at("max_tokens")
+                 .get<int>(),
+             20480 + 8192);
+}
+
+void TestProtocols::imagesDisabledStripsAttachments()
+{
+    // 模型不支持图片输入（RequestFeatures::images = false）：三协议请求体
+    // 都不再携带图片 parts，且不就地修改传入的历史
+    std::vector<Message> history = {userMessage(QStringLiteral("看图")),
+                                    messageWithImage(Role::Tool, QStringLiteral("结果"),
+                                                     QStringLiteral("call-1"))};
+    RequestFeatures features;
+    features.images = false;
+
+    // chat completions：user 消息退回纯文本，tool 消息也不再合成带图 user 消息
+    const auto chat = makeProtocolAdapter(Protocol::ChatCompletions);
+    const nlohmann::json chatBody = chat->buildRequestBody(history, QStringLiteral("m"),
+                                                           QString(), true, {}, features);
+    QCOMPARE(chatBody.at("messages").size(), 2);
+    QCOMPARE(chatBody.at("messages")[0].at("content").get<std::string>(), "看图");
+    for (const auto &message : chatBody.at("messages"))
+        QVERIFY(message.dump().find("image_url") == std::string::npos);
+
+    // anthropic：无 image 块
+    const anthropic::AnthropicAdapter anthropic;
+    const nlohmann::json anthropicBody = anthropic.buildRequestBody(
+        history, QStringLiteral("m"), QString(), true, {}, features);
+    QVERIFY(anthropicBody.dump().find("\"base64\"") == std::string::npos);
+
+    // responses：无 input_image
+    const responses::ResponsesAdapter responses;
+    const nlohmann::json responsesBody = responses.buildRequestBody(
+        history, QStringLiteral("m"), QString(), true, {}, features);
+    QVERIFY(responsesBody.dump().find("input_image") == std::string::npos);
+
+    // 原历史保留图片：切回支持图片的模型后可恢复发送
+    QVERIFY(history[0].images.isEmpty());
+    QCOMPARE(history[1].images.size(), 1);
 }
 
 void TestProtocols::factoryAndProtocolNames()

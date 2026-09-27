@@ -130,9 +130,25 @@ void AppSettings::load()
             provider.model = readQStr(entry, "model");
             if (entry.contains("models") && entry.at("models").is_array()) {
                 for (const auto &model : entry.at("models")) {
-                    if (model.is_string())
-                        provider.models.append(
-                            QString::fromStdString(model.get<std::string>()));
+                    // 老配置是纯字符串 id，新配置是对象（可带显示名/上下文/输出上限/图片开关）
+                    ModelConfig config;
+                    if (model.is_string()) {
+                        config.id = QString::fromStdString(model.get<std::string>());
+                    } else if (model.is_object()) {
+                        config.id = readQStr(model, "id");
+                        config.displayName = readQStr(model, "displayName");
+                        if (const auto it = model.find("contextWindow");
+                            it != model.end() && it->is_number_integer())
+                            config.contextWindow = it->get<int>();
+                        if (const auto it = model.find("maxOutputTokens");
+                            it != model.end() && it->is_number_integer())
+                            config.maxOutputTokens = it->get<int>();
+                        if (const auto it = model.find("images");
+                            it != model.end() && it->is_boolean())
+                            config.images = it->get<bool>();
+                    }
+                    if (!config.id.isEmpty())
+                        provider.models.append(config);
                 }
             }
             if (entry.contains("serverSearch") && entry.at("serverSearch").is_boolean())
@@ -238,8 +254,13 @@ void AppSettings::save()
     auto providers = nlohmann::json::array();
     for (const ProviderConfig &provider : m_providers) {
         auto models = nlohmann::json::array();
-        for (const QString &model : provider.models)
-            models.push_back(readStd(model));
+        for (const ModelConfig &model : provider.models) {
+            models.push_back({{"id", readStd(model.id)},
+                              {"displayName", readStd(model.displayName)},
+                              {"contextWindow", model.contextWindow},
+                              {"maxOutputTokens", model.maxOutputTokens},
+                              {"images", model.images}});
+        }
         providers.push_back({{"name", readStd(provider.name)},
                              {"protocol", readStd(provider.protocol)},
                              {"endpoint", readStd(provider.endpoint)},
@@ -328,12 +349,20 @@ void AppSettings::setActiveProvider(int index)
 
 QVariantMap AppSettings::providerToMap(const ProviderConfig &provider) const
 {
+    QVariantList models;
+    for (const ModelConfig &model : provider.models) {
+        models.append(QVariantMap{{QStringLiteral("id"), model.id},
+                                  {QStringLiteral("displayName"), model.displayName},
+                                  {QStringLiteral("contextWindow"), model.contextWindow},
+                                  {QStringLiteral("maxOutputTokens"), model.maxOutputTokens},
+                                  {QStringLiteral("images"), model.images}});
+    }
     return {{QStringLiteral("name"), provider.name},
             {QStringLiteral("protocol"), provider.protocol},
             {QStringLiteral("endpoint"), provider.endpoint},
             {QStringLiteral("apiKey"), provider.apiKey},
             {QStringLiteral("model"), provider.model},
-            {QStringLiteral("models"), provider.models},
+            {QStringLiteral("models"), std::move(models)},
             {QStringLiteral("serverSearch"), provider.serverSearch},
             {QStringLiteral("inputPrice"), provider.inputPrice},
             {QStringLiteral("outputPrice"), provider.outputPrice},
@@ -348,7 +377,25 @@ ProviderConfig AppSettings::providerFromMap(const QVariantMap &map) const
     provider.endpoint = map.value(QStringLiteral("endpoint")).toString();
     provider.apiKey = map.value(QStringLiteral("apiKey")).toString();
     provider.model = map.value(QStringLiteral("model")).toString();
-    provider.models = map.value(QStringLiteral("models")).toStringList();
+    // 条目兼容对象（新）与纯字符串 id（QML 侧遗留用法），空 id 丢弃
+    const QVariantList models = map.value(QStringLiteral("models")).toList();
+    for (const QVariant &entry : models) {
+        if (entry.canConvert<QVariantMap>()) {
+            const QVariantMap modelMap = entry.toMap();
+            ModelConfig model;
+            model.id = modelMap.value(QStringLiteral("id")).toString();
+            model.displayName = modelMap.value(QStringLiteral("displayName")).toString();
+            model.contextWindow = modelMap.value(QStringLiteral("contextWindow")).toInt();
+            model.maxOutputTokens = modelMap.value(QStringLiteral("maxOutputTokens")).toInt();
+            model.images = modelMap.contains(QStringLiteral("images"))
+                               ? modelMap.value(QStringLiteral("images")).toBool()
+                               : true;
+            if (!model.id.isEmpty())
+                provider.models.append(model);
+        } else if (const QString id = entry.toString(); !id.isEmpty()) {
+            provider.models.append(ModelConfig{id, QString(), 0, 0, true});
+        }
+    }
     provider.serverSearch = map.value(QStringLiteral("serverSearch")).toBool();
     provider.inputPrice = map.value(QStringLiteral("inputPrice")).toDouble();
     provider.outputPrice = map.value(QStringLiteral("outputPrice")).toDouble();

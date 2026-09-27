@@ -462,6 +462,10 @@ void ChatController::send(const QString &text, const QString &workdir,
     if (const auto protocol = protocolFromString(provider.protocol))
         m_agent->setProtocol(*protocol);
     m_agent->setServerSideSearch(provider.serverSearch);
+    // 单模型元数据：输出上限进请求体，图片输入关闭时请求体剥离图片附件
+    const ModelConfig modelConfig = modelConfigFor(provider, provider.model);
+    m_agent->setMaxOutputTokens(modelConfig.maxOutputTokens);
+    m_agent->setImagesEnabled(modelConfig.images);
     // 思考强度是聊天区会话内临时状态：每次发送随消息带入，非法值回退关闭
     ThinkingLevel thinking = ThinkingLevel::Disabled;
     if (const auto parsed = thinkingLevelFromString(thinkingLevel))
@@ -614,6 +618,8 @@ QVariantMap ChatController::usageSummary() const
                 : 0.0;
     return {{QStringLiteral("hasUsage"), m_hasUsage},
             {QStringLiteral("contextTokens"), m_lastUsage.promptTokens},
+            {QStringLiteral("contextWindow"),
+             modelConfigFor(provider, provider.model).contextWindow},
             {QStringLiteral("totalPrompt"), m_totalPrompt},
             {QStringLiteral("totalCompletion"), m_totalCompletion},
             {QStringLiteral("totalCached"), m_totalCached},

@@ -16,6 +16,7 @@ private slots:
     void modelsRoundtripThroughSaveLoad();
     void updateProviderWritesModels();
     void legacyProviderJsonWithoutModels();
+    void legacyStringModelsMigration();
     void legacyFlatConfigMigration();
     void fontScaleRoundtripAndNormalization();
     void lineSpacingRoundtripAndNormalization();
@@ -40,7 +41,14 @@ void TestAppSettings::modelsRoundtripThroughSaveLoad()
 {
     const QString path = writeJson("{}");
     QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
-    const QStringList models{QStringLiteral("m-a"), QStringLiteral("m-b")};
+    // 新配置：模型条目为对象，带显示名 / 上下文窗口 / 输出上限 / 图片开关
+    const QVariantList models{
+        QVariantMap{{"id", QStringLiteral("m-a")},
+                    {"displayName", QStringLiteral("模型 A")},
+                    {"contextWindow", 128000},
+                    {"maxOutputTokens", 8192},
+                    {"images", false}},
+        QVariantMap{{"id", QStringLiteral("m-b")}}};
 
     {
         AppSettings settings(path);
@@ -55,13 +63,26 @@ void TestAppSettings::modelsRoundtripThroughSaveLoad()
     }
 
     AppSettings reloaded(path);
-    const auto providers = reloaded.providers();
-    QCOMPARE(providers.size(), 1);
-    const QVariantMap map = providers.first().toMap();
-    QCOMPARE(map.value(QStringLiteral("models")).toStringList(), models);
-    QCOMPARE(map.value(QStringLiteral("model")).toString(), QStringLiteral("m-a"));
-    QCOMPARE(reloaded.activeProviderConfig().models, models);
+    const ProviderConfig config = reloaded.activeProviderConfig();
+    QCOMPARE(config.models.size(), 2);
+    QCOMPARE(config.models[0].id, QStringLiteral("m-a"));
+    QCOMPARE(config.models[0].displayName, QStringLiteral("模型 A"));
+    QCOMPARE(config.models[0].contextWindow, 128000);
+    QCOMPARE(config.models[0].maxOutputTokens, 8192);
+    QVERIFY(!config.models[0].images);
+    // 缺省键回退默认值：无显示名、无上限、图片开启
+    QCOMPARE(config.models[1].id, QStringLiteral("m-b"));
+    QVERIFY(config.models[1].displayName.isEmpty());
+    QCOMPARE(config.models[1].contextWindow, 0);
+    QCOMPARE(config.models[1].maxOutputTokens, 0);
+    QVERIFY(config.models[1].images);
+    QCOMPARE(config.model, QStringLiteral("m-a"));
     QCOMPARE(reloaded.model(), QStringLiteral("m-a"));
+    // modelConfigFor 按 id 取元数据，未收录时回退仅含 id 的默认配置
+    const ModelConfig fallback = modelConfigFor(config, QStringLiteral("m-x"));
+    QCOMPARE(fallback.id, QStringLiteral("m-x"));
+    QCOMPARE(fallback.maxOutputTokens, 0);
+    QVERIFY(fallback.images);
 }
 
 void TestAppSettings::updateProviderWritesModels()
@@ -106,6 +127,25 @@ void TestAppSettings::legacyProviderJsonWithoutModels()
     QCOMPARE(config.inputPrice, 1.5);
 }
 
+// 老配置的 models 是纯字符串 id：迁移后仅填 id，其余字段取默认（图片开启）
+void TestAppSettings::legacyStringModelsMigration()
+{
+    const QString path = writeJson(R"({"providers":[
+        {"name":"n","protocol":"chat_completions","endpoint":"https://h/v1",
+         "apiKey":"k","model":"m-a","models":["m-a","m-b"]}],"activeProvider":0})");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    AppSettings settings(path);
+    const auto config = settings.activeProviderConfig();
+    QCOMPARE(config.models.size(), 2);
+    QCOMPARE(config.models[0].id, QStringLiteral("m-a"));
+    QVERIFY(config.models[0].displayName.isEmpty());
+    QCOMPARE(config.models[0].contextWindow, 0);
+    QCOMPARE(config.models[0].maxOutputTokens, 0);
+    QVERIFY(config.models[0].images);
+    QCOMPARE(config.models[1].id, QStringLiteral("m-b"));
+}
+
 void TestAppSettings::legacyFlatConfigMigration()
 {
     const QString path = writeJson(R"({"endpoint":"https://old/v1/chat/completions",
@@ -120,7 +160,7 @@ void TestAppSettings::legacyFlatConfigMigration()
              QStringLiteral("https://old/v1/chat/completions"));
     QCOMPARE(map.value(QStringLiteral("model")).toString(), QStringLiteral("old-model"));
     QCOMPARE(map.value(QStringLiteral("apiKey")).toString(), QStringLiteral("old-key"));
-    QVERIFY(map.value(QStringLiteral("models")).toStringList().isEmpty());
+    QVERIFY(map.value(QStringLiteral("models")).toList().isEmpty());
 }
 
 void TestAppSettings::fontScaleRoundtripAndNormalization()

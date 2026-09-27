@@ -22,9 +22,14 @@ ColumnLayout {
     // onToggled / onEditTextChanged 不当作用户改动提交
     property bool loadingFields: false
 
-    // 模型清单工作副本（当前编辑中的供应商），保存时经 updateProvider 写回 models；
+    // 模型清单工作副本（当前编辑中的供应商）：每项为
+    // {id, displayName, contextWindow, maxOutputTokens, images}，保存时经
+    // updateProvider 写回 models；modelsSelected 是编辑器当前选中的条目，
+    // currentModelWorking 是"设为当前"的目标模型 id（写回 provider.model）。
     // 拉取快照用于判定结果返回时表单是否已被改动（如切走供应商），过期则不应用
     property var modelsWorking: []
+    property int modelsSelected: 0
+    property string currentModelWorking: ""
     property var modelsFetchSnapshot: null
     property string modelsFetchStatus: ""
 
@@ -224,8 +229,6 @@ ColumnLayout {
     // loadSettingsIntoFields 填充（Main 在进入设置模式时调用）
     function commitSettings() {
         commitTimer.stop()
-        const protocol = protocolCombo.currentValue
-        const model = modelCombo.editText
         const language = languageCombo.currentValue
         const theme = themeCombo.currentValue
         const fontScale = fontScaleCombo.currentValue
@@ -233,12 +236,13 @@ ColumnLayout {
         const sendShortcut = sendShortcutCombo.currentValue
         const toolPreset = toolPresetCombo.currentValue
         const languageChanged = language !== settings.language
+        settingsRoot.flushModelFields()
         settings.updateProvider(settings.activeProvider,
             { "name": providerNameField.text,
-              "protocol": protocol,
+              "protocol": protocolCombo.currentValue,
               "endpoint": endpointField.text,
               "apiKey": apiKeyField.text,
-              "model": model,
+              "model": settingsRoot.currentModelWorking,
               "models": settingsRoot.modelsWorking,
               "serverSearch": serverSearchCheck.checked,
               "inputPrice": Number(inputPriceField.text) || 0,
@@ -310,6 +314,93 @@ ColumnLayout {
         settings.setMcpServers(settingsRoot.mcpServersWorking)
     }
 
+    // ── 模型编辑器：字段 ↔ 工作副本 ─────────────────────────────
+    function makeModel(id) {
+        return { "id": id, "displayName": "", "contextWindow": 0,
+                 "maxOutputTokens": 0, "images": true }
+    }
+
+    // 下拉框条目文本：有显示名时并列展示，便于对照请求用的模型 id
+    function modelLabel(model) {
+        return model.displayName.length > 0
+            ? model.displayName + "（" + model.id + "）" : model.id
+    }
+
+    function refreshModelSelect() {
+        settingsRoot.modelsSelected = settingsRoot.modelsWorking.length > 0
+            ? Math.min(settingsRoot.modelsSelected, settingsRoot.modelsWorking.length - 1) : 0
+        modelSelect.model = settingsRoot.modelsWorking.map(settingsRoot.modelLabel)
+        modelSelect.currentIndex = settingsRoot.modelsSelected
+    }
+
+    function loadModelFields() {
+        settingsRoot.loadingFields = true
+        const model = settingsRoot.modelsWorking.length > 0
+            ? settingsRoot.modelsWorking[settingsRoot.modelsSelected] : null
+        modelDisplayNameField.text = model ? model.displayName : ""
+        modelIdField.text = model ? model.id : ""
+        modelContextField.text = model ? String(model.contextWindow) : "0"
+        modelMaxOutputField.text = model ? String(model.maxOutputTokens) : "0"
+        modelImagesCheck.checked = model ? model.images : true
+        settingsRoot.loadingFields = false
+    }
+
+    // 把编辑字段写回工作副本当前条目；若改的是当前模型且改了 id，跟随更新
+    function flushModelFields() {
+        if (settingsRoot.modelsWorking.length === 0)
+            return
+        const i = Math.min(settingsRoot.modelsSelected, settingsRoot.modelsWorking.length - 1)
+        const model = settingsRoot.modelsWorking[i]
+        const oldId = model.id
+        model.displayName = modelDisplayNameField.text.trim()
+        model.id = modelIdField.text.trim()
+        model.contextWindow = parseInt(modelContextField.text) || 0
+        model.maxOutputTokens = parseInt(modelMaxOutputField.text) || 0
+        model.images = modelImagesCheck.checked
+        if (settingsRoot.currentModelWorking === oldId && model.id.length > 0)
+            settingsRoot.currentModelWorking = model.id
+    }
+
+    function addModel() {
+        settingsRoot.flushModelFields()
+        settingsRoot.modelsWorking.push(settingsRoot.makeModel(""))
+        settingsRoot.modelsSelected = settingsRoot.modelsWorking.length - 1
+        settingsRoot.refreshModelSelect()
+        settingsRoot.loadModelFields()
+        modelIdField.forceActiveFocus()
+        // 等用户填完模型 id 再提交（空 id 的条目不落盘）
+    }
+
+    function removeModel() {
+        if (settingsRoot.modelsWorking.length === 0)
+            return
+        settingsRoot.flushModelFields()
+        const removedId = settingsRoot.modelsWorking[settingsRoot.modelsSelected].id
+        settingsRoot.modelsWorking.splice(settingsRoot.modelsSelected, 1)
+        if (removedId.length > 0 && settingsRoot.currentModelWorking === removedId) {
+            // 删掉的是当前模型：顺延到相邻条目
+            const next = settingsRoot.modelsWorking.length > 0
+                ? settingsRoot.modelsWorking[Math.max(0, settingsRoot.modelsSelected - 1)].id
+                : ""
+            settingsRoot.currentModelWorking = next
+        }
+        settingsRoot.modelsSelected = Math.max(0, settingsRoot.modelsSelected - 1)
+        settingsRoot.refreshModelSelect()
+        settingsRoot.loadModelFields()
+        settingsRoot.commitSettings()
+    }
+
+    function setCurrentModel() {
+        settingsRoot.flushModelFields()
+        if (settingsRoot.modelsWorking.length === 0)
+            return
+        const model = settingsRoot.modelsWorking[settingsRoot.modelsSelected]
+        if (model.id.length > 0 && settingsRoot.currentModelWorking !== model.id) {
+            settingsRoot.currentModelWorking = model.id
+            settingsRoot.scheduleCommit()
+        }
+    }
+
     // ── 内置工具自定义清单：勾选 ↔ 工作副本 ─────────────────────
     function setCustomToolEnabled(name, enabled) {
         const list = settingsRoot.customToolsWorking.slice()
@@ -343,14 +434,17 @@ ColumnLayout {
         inputPriceField.text = activeProvider ? String(activeProvider.inputPrice) : "0"
         outputPriceField.text = activeProvider ? String(activeProvider.outputPrice) : "0"
         cachedPriceField.text = activeProvider ? String(activeProvider.cachedPrice) : "0"
-        // 模型下拉框：清单取当前供应商的 models（空则回退仅含当前模型一项）
-        const models = activeProvider && activeProvider.models.length > 0
-            ? activeProvider.models : (settings.model ? [settings.model] : [])
+        // 模型编辑器：清单取当前供应商的 models；当前模型不在清单（老配置手输）
+        // 时补一个条目，保证它可编辑可见
+        let models = activeProvider && activeProvider.models.length > 0
+            ? activeProvider.models.slice() : []
+        if (settings.model.length > 0 && !models.some(m => m.id === settings.model))
+            models.unshift(settingsRoot.makeModel(settings.model))
         settingsRoot.modelsWorking = models
-        const currentModel = settings.model
-        modelCombo.model = models
-        modelCombo.editText = currentModel
-        modelCombo.currentIndex = modelCombo.find(currentModel)
+        settingsRoot.currentModelWorking = settings.model
+        settingsRoot.modelsSelected = 0
+        settingsRoot.refreshModelSelect()
+        settingsRoot.loadModelFields()
         settingsRoot.modelsFetchStatus = ""
         settingsRoot.modelsFetchSnapshot = null
         webSearchEndpointField.text = settings.webSearchEndpoint
@@ -394,19 +488,21 @@ ColumnLayout {
                 settingsRoot.modelsFetchStatus = qsTr("表单已改动，结果未应用")
                 return
             }
+            settingsRoot.flushModelFields()
+            // 已拉到的清单与工作副本合并：已有条目（含其参数）不动，仅追加新 id
             const merged = settingsRoot.modelsWorking.slice()
+            let added = 0
             for (let i = 0; i < models.length; i++) {
-                if (merged.indexOf(models[i]) < 0)
-                    merged.push(models[i])
+                if (!merged.some(m => m.id === models[i])) {
+                    merged.push(settingsRoot.makeModel(models[i]))
+                    added++
+                }
             }
-            const currentModel = modelCombo.editText
-            settingsRoot.loadingFields = true // 回填触发 onEditTextChanged 不算用户改动
             settingsRoot.modelsWorking = merged
-            modelCombo.model = merged
-            modelCombo.editText = currentModel
-            modelCombo.currentIndex = modelCombo.find(currentModel)
-            settingsRoot.loadingFields = false
-            settingsRoot.modelsFetchStatus = qsTr("已获取 %1 个模型").arg(models.length)
+            settingsRoot.refreshModelSelect()
+            settingsRoot.loadModelFields()
+            settingsRoot.modelsFetchStatus =
+                qsTr("已获取 %1 个模型（新增 %2 个）").arg(models.length).arg(added)
             settingsRoot.scheduleCommit() // 合并结果即时写回供应商
         }
         function onModelsFetchFailed(error) {
@@ -672,12 +768,13 @@ ColumnLayout {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("新增供应商（复制当前配置）")
                     onClicked: {
+                        settingsRoot.flushModelFields()
                         settings.addProvider({
                             "name": qsTr("供应商%1").arg(settings.providers.length + 1),
                             "protocol": protocolCombo.currentValue,
                             "endpoint": endpointField.text,
                             "apiKey": apiKeyField.text,
-                            "model": modelCombo.editText,
+                            "model": settingsRoot.currentModelWorking,
                             "models": settingsRoot.modelsWorking,
                             "serverSearch": serverSearchCheck.checked,
                             "inputPrice": Number(inputPriceField.text) || 0,
@@ -811,31 +908,148 @@ ColumnLayout {
                     onTextEdited: settingsRoot.scheduleCommit()
                 }
             }
-            SettingsField {
+            // 模型编辑器：清单条目 + 每模型的显示与能力参数
+            SettingsSection {
                 Layout.fillWidth: true
-                label: qsTr("模型")
-                hint: qsTr("可手动输入，或从端点获取清单后选择")
-                ComboBox {
-                    id: modelCombo
+                title: qsTr("模型")
+                hint: qsTr("显示名用于界面展示，其余参数按模型单独生效")
+
+                RowLayout {
                     Layout.fillWidth: true
-                    editable: true
-                    selectTextByMouse: true
-                    // activated：从清单选中即提交；editText：手动输入走防抖
-                    onActivated: settingsRoot.commitSettings()
-                    onEditTextChanged: if (!settingsRoot.loadingFields)
-                                           settingsRoot.scheduleCommit()
+                    spacing: 8
+                    ComboBox {
+                        id: modelSelect
+                        Layout.fillWidth: true
+                        // activated：切换编辑目标（先落盘当前字段再换）
+                        onActivated: {
+                            settingsRoot.flushModelFields()
+                            settingsRoot.modelsSelected = currentIndex
+                            settingsRoot.loadModelFields()
+                        }
+                    }
+                    Button {
+                        text: qsTr("＋")
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("新增模型")
+                        onClicked: settingsRoot.addModel()
+                    }
+                    Button {
+                        text: qsTr("－")
+                        enabled: settingsRoot.modelsWorking.length > 0
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("删除当前选中的模型")
+                        onClicked: settingsRoot.removeModel()
+                    }
                 }
-                AccentButton {
-                    text: settings.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
-                    enabled: !settings.fetchingModels && endpointField.text.trim().length > 0
-                    onClicked: settingsRoot.fetchModels()
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    SettingsField {
+                        Layout.fillWidth: true
+                        label: qsTr("显示名称")
+                        hint: qsTr("留空显示模型 ID")
+                        TextField {
+                            id: modelDisplayNameField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
+                    SettingsField {
+                        Layout.fillWidth: true
+                        label: qsTr("模型 ID")
+                        hint: qsTr("请求体使用的模型名")
+                        TextField {
+                            id: modelIdField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
                 }
-            }
-            Label {
-                visible: settingsRoot.modelsFetchStatus.length > 0
-                text: settingsRoot.modelsFetchStatus
-                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-                elide: Text.ElideRight
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    SettingsField {
+                        Layout.preferredWidth: 150
+                        label: qsTr("上下文窗口")
+                        TextField {
+                            id: modelContextField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            inputMethodHints: Qt.ImhDigitsOnly
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
+                    SettingsField {
+                        Layout.preferredWidth: 150
+                        label: qsTr("最大输出 Token")
+                        TextField {
+                            id: modelMaxOutputField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            inputMethodHints: Qt.ImhDigitsOnly
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
+                    CheckBox {
+                        id: modelImagesCheck
+                        text: qsTr("启用图片输入")
+                        font.pixelSize: Math.round(12 * settings.fontScale)
+                        onToggled: if (!settingsRoot.loadingFields) settingsRoot.commitSettings()
+                        contentItem: Label {
+                            text: modelImagesCheck.text
+                            color: theme.textDim
+                            font.pixelSize: Math.round(12 * settings.fontScale)
+                            leftPadding: modelImagesCheck.indicator.width + 4
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("上下文窗口与最大输出留空或 0 表示不限制；关闭图片输入后，消息与工具返回的图片不再发给该模型")
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                    wrapMode: Text.Wrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    AccentButton {
+                        text: qsTr("设为当前模型")
+                        enabled: settingsRoot.modelsWorking.length > 0
+                        onClicked: settingsRoot.setCurrentModel()
+                    }
+                    AccentButton {
+                        text: settings.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
+                        enabled: !settings.fetchingModels && endpointField.text.trim().length > 0
+                        onClicked: settingsRoot.fetchModels()
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: settingsRoot.currentModelWorking.length > 0
+                              ? qsTr("当前模型：%1").arg(settingsRoot.currentModelWorking)
+                              : qsTr("尚未选择当前模型")
+                        color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                        elide: Text.ElideMiddle
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Label {
+                    visible: settingsRoot.modelsFetchStatus.length > 0
+                    text: settingsRoot.modelsFetchStatus
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                    elide: Text.ElideRight
+                }
             }
             RowLayout {
                 Layout.fillWidth: true
