@@ -6,8 +6,8 @@ import QtQuick.Layouts
 // 上下文检查器（设置按钮上方）、设置入口。折叠/展开按钮在 Main 的标题栏。
 // settingsMode / settingsCategory 由 Main 持有；导航点击经 categorySelected
 // 回传，设置按钮经 settingsToggleRequested 请求切换，侧栏不做业务决策。
-// 展开宽度可经右缘拖拽调节（窗口宽度的 1/5 ~ 1/3）；折叠态完全收起
-// （宽度归零）；设置模式侧栏始终展开、不可折叠。
+// 展开宽度可经右缘拖拽调节（固定下限 ~ 窗口宽度的 1/3，拖到下限以下
+// 自动折叠）；折叠态完全收起（宽度归零）；设置模式侧栏始终展开、不可折叠。
 Rectangle {
     id: sidebarRoot
 
@@ -23,7 +23,7 @@ Rectangle {
     // 顶部让出自绘标题栏的拖拽带（Main 里绑定 titleBar.height），
     // 侧栏背景直接顶到窗口上缘
     property real topInset: 0
-    readonly property real minExpandedWidth: parent.width / 5
+    readonly property real minExpandedWidth: 200
     readonly property real maxExpandedWidth: parent.width / 3
     function clampWidth(w) {
         return Math.max(minExpandedWidth, Math.min(maxExpandedWidth, w))
@@ -36,7 +36,7 @@ Rectangle {
         enabled: !resizeHandle.pressed
         NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
     }
-    color: theme.surface
+    color: theme.sidebar
     anchors.top: parent.top
     anchors.bottom: parent.bottom
     anchors.left: parent.left
@@ -54,7 +54,10 @@ Rectangle {
         color: theme.divider
     }
 
-    // 右缘拖拽手柄：调节展开宽度，范围 [窗口宽度/5, 窗口宽度/3]
+    // 右缘拖拽手柄：调节展开宽度，范围 [固定下限, 窗口宽度/3]，
+    // 拖到下限以下直接折叠。位移必须取窗口场景坐标（mapToItem(null)）：
+    // 手柄自身随侧栏移动，用其局部坐标会形成反馈回路（侧栏一动 mouse.x
+    // 就回缩）导致宽度振荡、页面抖动
     MouseArea {
         id: resizeHandle
         visible: !sidebarRoot.collapsed
@@ -65,13 +68,18 @@ Rectangle {
         width: 6
         cursorShape: Qt.SizeHorCursor
         property real pressWidth
-        property real pressX
+        property real pressSceneX
         onPressed: (mouse) => {
             pressWidth = sidebarRoot.expandedWidth
-            pressX = mouse.x
+            pressSceneX = mapToItem(null, mouse.x, mouse.y).x
         }
-        onPositionChanged: (mouse) =>
-            sidebarRoot.expandedWidth = sidebarRoot.clampWidth(pressWidth + mouse.x - pressX)
+        onPositionChanged: (mouse) => {
+            const w = pressWidth + mapToItem(null, mouse.x, mouse.y).x - pressSceneX
+            if (w < sidebarRoot.minExpandedWidth)
+                sidebarRoot.collapsed = true
+            else
+                sidebarRoot.expandedWidth = Math.min(sidebarRoot.maxExpandedWidth, w)
+        }
     }
 
     ColumnLayout {
