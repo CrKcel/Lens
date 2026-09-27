@@ -40,5 +40,5 @@ elseif(CPACK_GENERATOR STREQUAL "DEB")
     # 运行时依赖：系统 Qt 6.5+（QML 模块与 SQLite 驱动按需列出）。
     # 如需自动推导可改用 CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON（构建机需 dpkg-shlibdeps）。
     set(CPACK_DEBIAN_PACKAGE_DEPENDS
-        "libqt6core6 (>= 6.5), libqt6gui6 (>= 6.5), libqt6network6 (>= 6.5), libqt6sql6 (>= 6.5), libqt6sql6-sqlite, libqt6qml6 (>= 6.5), libqt6quick6 (>= 6.5), libqt6quickcontrols2-6 (>= 6.5), qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtqml-workerscript, libstdc++6 (>= 12), libgcc-s1 (>= 12)")
+        "libqt6core6 (>= 6.5), libqt6gui6 (>= 6.5), libqt6network6 (>= 6.5), libqt6sql6 (>= 6.5), libqt6sql6-sqlite, libqt6qml6 (>= 6.5), libqt6quick6 (>= 6.5), libqt6quickcontrols2-6 (>= 6.5), qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-effects, qml6-module-qtqml-workerscript, libstdc++6 (>= 12), libgcc-s1 (>= 12)")
 endif()

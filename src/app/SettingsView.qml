@@ -562,7 +562,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("语言")
-                    ComboBox {
+                    LensComboBox {
                         id: languageCombo
                         Layout.preferredWidth: 170
                         textRole: "text"
@@ -578,7 +578,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("主题")
-                    ComboBox {
+                    LensComboBox {
                         id: themeCombo
                         Layout.preferredWidth: 170
                         textRole: "text"
@@ -594,7 +594,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("字体大小")
-                    ComboBox {
+                    LensComboBox {
                         id: fontScaleCombo
                         Layout.preferredWidth: 170
                         textRole: "text"
@@ -612,7 +612,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("行间距")
-                    ComboBox {
+                    LensComboBox {
                         id: lineSpacingCombo
                         Layout.preferredWidth: 170
                         textRole: "text"
@@ -669,7 +669,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("预设")
-                    ComboBox {
+                    LensComboBox {
                         id: toolPresetCombo
                         Layout.preferredWidth: 220
                         textRole: "text"
@@ -855,7 +855,7 @@ ColumnLayout {
                 SettingsField {
                     Layout.preferredWidth: 220
                     label: qsTr("协议")
-                    ComboBox {
+                    LensComboBox {
                         id: protocolCombo
                         Layout.fillWidth: true
                         textRole: "text"
@@ -917,7 +917,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    ComboBox {
+                    LensComboBox {
                         id: modelSelect
                         Layout.fillWidth: true
                         // activated：切换编辑目标（先落盘当前字段再换）
@@ -1351,7 +1351,7 @@ ColumnLayout {
                 SettingsRow {
                     Layout.fillWidth: true
                     label: qsTr("发送方式")
-                    ComboBox {
+                    LensComboBox {
                         id: sendShortcutCombo
                         Layout.preferredWidth: 320
                         textRole: "text"
