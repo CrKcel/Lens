@@ -28,6 +28,13 @@ target_include_directories(test_message_list PRIVATE ../src/app)
 target_link_libraries(test_message_list PRIVATE Lens::Core Qt6::Test)
 add_test(NAME message_list COMMAND test_message_list)
 
+# ConversationListModel（app 层）：工作文件夹分组的扁平行结构
+add_executable(test_conversation_list test_conversation_list.cpp
+    ../src/app/ConversationListModel.cpp)
+target_include_directories(test_conversation_list PRIVATE ../src/app)
+target_link_libraries(test_conversation_list PRIVATE Lens::Core Qt6::Test)
+add_test(NAME conversation_list COMMAND test_conversation_list)
+
 add_executable(test_context test_context.cpp)
 target_link_libraries(test_context PRIVATE Lens::Core Qt6::Test)
 add_test(NAME context COMMAND test_context)

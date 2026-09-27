@@ -224,46 +224,95 @@ Rectangle {
             model: chat.conversations
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: SlimScrollBar {}
+            // 会话行相对组头卡片的左缩进
+            readonly property int groupIndent: 14
 
-            delegate: ItemDelegate {
+            // 按工作文件夹分组：模型输出 组头行 + 组内会话行 的扁平结构，
+            // 组头是圆角卡片、可折叠，会话行相对组头缩进。
+            // 模型角色经 required property 注入 delegate 根对象，两种条目
+            // 放在同一个 delegate 里按 isHeader 互斥显示
+            delegate: Item {
+                id: delegateRoot
                 width: conversationList.width
-                highlighted: chat.currentConversationId === conversationId
-                onClicked: chat.openConversation(conversationId)
+                height: isHeader ? groupHeader.height : conversationRow.height
+                required property bool isHeader
+                required property string workdir
+                required property int groupCount
+                required property string title
+                required property int conversationId
 
-                background: Rectangle {
-                    radius: theme.radiusS
-                    color: parent.highlighted ? theme.accentSoft
-                         : parent.hovered ? theme.highlight
-                         : "transparent"
-                }
+                ItemDelegate {
+                    id: groupHeader
+                    visible: delegateRoot.isHeader
+                    width: parent.width
+                    implicitHeight: 30
+                    hoverEnabled: true
+                    onClicked: chat.conversations.toggleGroup(delegateRoot.workdir)
 
-                contentItem: RowLayout {
-                    spacing: 4
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
+                    background: Rectangle {
+                        radius: theme.radiusM
+                        color: groupHeader.hovered ? theme.highlight : theme.card
+                        border.color: theme.cardBorder
+                    }
+
+                    contentItem: RowLayout {
+                        spacing: 6
                         Label {
-                            Layout.fillWidth: true
-                            text: title
-                            color: highlighted ? theme.accent : theme.text
-                            elide: Text.ElideRight
-                            font.pixelSize: Math.round(13 * settings.fontScale)
+                            // 搜索期间条目强制展开（模型保证），箭头保持展开态
+                            text: searchField.text.length === 0
+                                  && chat.conversations.isGroupCollapsed(delegateRoot.workdir)
+                                  ? "▸" : "▾"
+                            color: theme.textDim
+                            font.pixelSize: Math.round(10 * settings.fontScale)
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: workdir
-                            color: theme.textFaint
+                            text: delegateRoot.workdir
+                            color: theme.textSoft
                             elide: Text.ElideMiddle
+                            font.pixelSize: Math.round(11 * settings.fontScale)
+                            font.bold: true
+                        }
+                        Label {
+                            text: delegateRoot.groupCount
+                            color: theme.textFaint
                             font.pixelSize: Math.round(10 * settings.fontScale)
                         }
                     }
-                    ToolButton {
-                        text: qsTr("×")
-                        flat: true
-                        display: AbstractButton.TextOnly
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("删除会话")
-                        onClicked: chat.deleteConversation(conversationId)
+                }
+
+                ItemDelegate {
+                    id: conversationRow
+                    visible: !delegateRoot.isHeader
+                    x: conversationList.groupIndent
+                    width: parent.width - conversationList.groupIndent
+                    highlighted: chat.currentConversationId === delegateRoot.conversationId
+                    onClicked: chat.openConversation(delegateRoot.conversationId)
+
+                    background: Rectangle {
+                        radius: theme.radiusS
+                        color: conversationRow.highlighted ? theme.accentSoft
+                             : conversationRow.hovered ? theme.highlight
+                             : "transparent"
+                    }
+
+                    contentItem: RowLayout {
+                        spacing: 4
+                        Label {
+                            Layout.fillWidth: true
+                            text: delegateRoot.title
+                            color: conversationRow.highlighted ? theme.accent : theme.text
+                            elide: Text.ElideRight
+                            font.pixelSize: Math.round(13 * settings.fontScale)
+                        }
+                        ToolButton {
+                            text: qsTr("×")
+                            flat: true
+                            display: AbstractButton.TextOnly
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("删除会话")
+                            onClicked: chat.deleteConversation(delegateRoot.conversationId)
+                        }
                     }
                 }
             }

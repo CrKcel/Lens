@@ -213,10 +213,11 @@ void ChatController::searchConversations(const QString &query)
 
 qint64 ChatController::createAndOpenConversation(const QString &workdir)
 {
-    const qint64 id = m_store->createConversation(
-        QStringLiteral("新会话"),
-        workdir.trimmed().isEmpty() ? QDir::homePath() : workdir.trimmed());
+    // 与 store 的归一规则一致，折叠组展开键须对上组名
+    const QString dir = workdir.trimmed().isEmpty() ? QDir::homePath() : workdir.trimmed();
+    const qint64 id = m_store->createConversation(QStringLiteral("新会话"), dir);
     m_conversationModel->setFilter(QString()); // 新会话要在列表可见：清掉搜索过滤
+    m_conversationModel->expandGroup(dir);     // 落在折叠分组里也要立即可见
     m_conversationModel->reload();
     openConversation(id);
     return id;
