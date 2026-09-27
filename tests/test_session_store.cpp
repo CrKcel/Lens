@@ -20,6 +20,7 @@ private slots:
     void filesRoundtrip();
     void usageRoundtripAndLegacyMigration();
     void renameAndDeleteConversation();
+    void searchConversationsFiltersByTitleAndContent();
 };
 
 void TestSessionStore::roundtripPersistsAcrossReopen()
@@ -284,6 +285,42 @@ void TestSessionStore::renameAndDeleteConversation()
     store.deleteConversation(id);
     QVERIFY(store.conversations().isEmpty());
     QVERIFY(store.messages(id).isEmpty()); // 外键级联删除
+}
+
+void TestSessionStore::searchConversationsFiltersByTitleAndContent()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    SessionStore store(dir.filePath(QStringLiteral("sessions.db")));
+    QVERIFY(store.open());
+
+    const qint64 byTitle = store.createConversation(QStringLiteral("Kotlin 笔记"), QStringLiteral("/w1"));
+    QVERIFY(byTitle > 0);
+    const qint64 byContent = store.createConversation(QStringLiteral("随记"), QStringLiteral("/w2"));
+    QVERIFY(byContent > 0);
+    const qint64 noMatch = store.createConversation(QStringLiteral("other"), QStringLiteral("/w3"));
+    QVERIFY(noMatch > 0);
+
+    Message m; m.role = Role::User; m.content = QStringLiteral("聊聊 rust 的生命周期");
+    QVERIFY(store.appendMessage(byContent, m));
+    Message filler; filler.role = Role::User; filler.content = QStringLiteral("hello");
+    QVERIFY(store.appendMessage(noMatch, filler));
+
+    // 空关键词返回全部
+    QCOMPARE(store.searchConversations(QString()).size(), 3);
+    QCOMPARE(store.searchConversations(QStringLiteral("  ")).size(), 3);
+
+    // 标题命中
+    QCOMPARE(store.searchConversations(QStringLiteral("kotlin")).size(), 1);
+    QCOMPARE(store.searchConversations(QStringLiteral("kotlin")).first().id, byTitle);
+    // 消息内容命中
+    QCOMPARE(store.searchConversations(QStringLiteral("生命周期")).size(), 1);
+    QCOMPARE(store.searchConversations(QStringLiteral("生命周期")).first().id, byContent);
+    // LIKE 通配符按字面匹配，不当通配符用
+    QVERIFY(store.searchConversations(QStringLiteral("%")).isEmpty());
+    QVERIFY(store.searchConversations(QStringLiteral("_")).isEmpty());
+    // 无命中返回空
+    QVERIFY(store.searchConversations(QStringLiteral("python")).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestSessionStore)

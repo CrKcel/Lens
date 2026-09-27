@@ -242,11 +242,17 @@ void ChatController::newConversation(const QString &workdir)
     createAndOpenConversation(workdir);
 }
 
+void ChatController::searchConversations(const QString &query)
+{
+    m_conversationModel->setFilter(query);
+}
+
 qint64 ChatController::createAndOpenConversation(const QString &workdir)
 {
     const qint64 id = m_store->createConversation(
         QStringLiteral("新会话"),
         workdir.trimmed().isEmpty() ? QDir::homePath() : workdir.trimmed());
+    m_conversationModel->setFilter(QString()); // 新会话要在列表可见：清掉搜索过滤
     m_conversationModel->reload();
     openConversation(id);
     return id;

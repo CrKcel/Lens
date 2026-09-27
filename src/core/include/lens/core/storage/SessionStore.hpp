@@ -26,6 +26,9 @@ public:
     void deleteConversation(qint64 conversationId);
     bool appendMessage(qint64 conversationId, const Message &message);
     QList<Conversation> conversations() const;
+    // 按关键词过滤会话：标题或任一消息内容命中（不区分大小写，SQL LIKE 语义）。
+    // 空关键词返回全部会话
+    QList<Conversation> searchConversations(const QString &query) const;
     QList<Message> messages(qint64 conversationId) const;
 
 private:

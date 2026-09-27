@@ -27,10 +27,19 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    // 搜索关键词：非空时只显示标题或消息内容命中的会话
+    Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+    QString filter() const { return m_filter; }
+    void setFilter(const QString &filter);
+
     void reload();
+
+signals:
+    void filterChanged();
 
 private:
     SessionStore *m_store;
+    QString m_filter;
     QList<Conversation> m_items;
 };
 

@@ -322,6 +322,45 @@ QList<Conversation> SessionStore::conversations() const
     return result;
 }
 
+QList<Conversation> SessionStore::searchConversations(const QString &query) const
+{
+    QList<Conversation> result;
+    if (query.trimmed().isEmpty())
+        return conversations();
+
+    // LIKE 模式：转义通配符后前后加 %；LIKE 本身 ASCII 不区分大小写
+    QString pattern = query;
+    pattern.replace('\\', QStringLiteral("\\\\"))
+        .replace('%', QStringLiteral("\\%"))
+        .replace('_', QStringLiteral("\\_"));
+    pattern = QStringLiteral("%") + pattern + QStringLiteral("%");
+
+    QSqlQuery stmt(m_db);
+    stmt.prepare(QStringLiteral(
+        "SELECT DISTINCT c.id, c.title, c.workdir, c.created_at, c.updated_at "
+        "FROM conversations c "
+        "WHERE c.title LIKE ? ESCAPE '\\' "
+        "   OR EXISTS (SELECT 1 FROM messages m "
+        "              WHERE m.conversation_id = c.id AND m.content LIKE ? ESCAPE '\\') "
+        "ORDER BY c.updated_at DESC"));
+    stmt.addBindValue(pattern);
+    stmt.addBindValue(pattern);
+    if (!stmt.exec())
+        return result;
+    while (stmt.next()) {
+        Conversation conversation;
+        conversation.id = stmt.value(0).toLongLong();
+        conversation.title = stmt.value(1).toString();
+        conversation.workdir = stmt.value(2).toString();
+        conversation.createdAt =
+            QDateTime::fromString(stmt.value(3).toString(), Qt::ISODateWithMs);
+        conversation.updatedAt =
+            QDateTime::fromString(stmt.value(4).toString(), Qt::ISODateWithMs);
+        result.append(conversation);
+    }
+    return result;
+}
+
 QList<Message> SessionStore::messages(qint64 conversationId) const
 {
     QList<Message> result;

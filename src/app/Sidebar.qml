@@ -132,6 +132,45 @@ Rectangle {
             onClicked: chat.newConversation(sidebarRoot.workdirText)
         }
 
+        // 会话搜索：按标题或消息内容过滤会话列表（即时生效）
+        TextField {
+            id: searchField
+            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            Layout.fillWidth: true
+            placeholderText: qsTr("搜索会话")
+            color: theme.textSoft
+            selectByMouse: true
+            font.pixelSize: Math.round(12 * settings.fontScale)
+            leftPadding: 10
+            rightPadding: clearButton.visible ? clearButton.width : 10
+            topPadding: 6
+            bottomPadding: 6
+            background: Rectangle {
+                color: theme.field
+                border.color: searchField.activeFocus ? theme.accent : theme.fieldBorder
+                radius: theme.radiusS
+            }
+            onTextEdited: chat.searchConversations(text)
+            onActiveFocusChanged: if (activeFocus) selectAll()
+            ToolButton {
+                id: clearButton
+                visible: searchField.text.length > 0
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: height
+                height: searchField.height - 8
+                flat: true
+                text: qsTr("×")
+                font.pixelSize: Math.round(13 * settings.fontScale)
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("清除搜索")
+                onClicked: {
+                    searchField.text = ""
+                    chat.searchConversations("")
+                }
+            }
+        }
+
         // 设置模式：分类导航
         ColumnLayout {
             visible: !sidebarRoot.collapsed && sidebarRoot.settingsMode
@@ -243,8 +282,9 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 visible: conversationList.count === 0
-                text: qsTr("暂无会话")
+                text: searchField.text.length > 0 ? qsTr("无匹配会话") : qsTr("暂无会话")
                 color: theme.textFaint
+                font.pixelSize: Math.round(12 * settings.fontScale)
             }
         }
 

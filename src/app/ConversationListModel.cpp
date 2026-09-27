@@ -36,10 +36,20 @@ QHash<int, QByteArray> ConversationListModel::roleNames() const
             {WorkdirRole, "workdir"}};
 }
 
+void ConversationListModel::setFilter(const QString &filter)
+{
+    if (m_filter == filter)
+        return;
+    m_filter = filter;
+    emit filterChanged();
+    reload();
+}
+
 void ConversationListModel::reload()
 {
     beginResetModel();
-    m_items = m_store->conversations();
+    m_items = m_filter.trimmed().isEmpty() ? m_store->conversations()
+                                           : m_store->searchConversations(m_filter);
     endResetModel();
 }
 
