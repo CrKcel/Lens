@@ -2,15 +2,8 @@
 
 #include <QEventLoop>
 #include <QFile>
-#include <QFileInfo>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QTimer>
 #include <QDir>
+#include <QTimer>
 
 #include <lens/core/agent/AgentSession.hpp>
 #include <lens/core/providers/QNetworkTransport.hpp>
@@ -18,29 +11,11 @@
 #include <lens/core/tools/builtins/ReadTool.hpp>
 #include <lens/core/tools/builtins/WriteTool.hpp>
 
+#include "TestServerEnv.hpp"
+
 using namespace lens;
 
-namespace {
-QString stripEndpointPath(const QString &endpoint)
-{
-    // LENS_REAL_SERVER 允许给完整 chat/completions 路径或 base：
-    // 多协议测试统一退回 base，再由各协议适配器补全自家路径
-    QString base = endpoint.trimmed();
-    while (base.endsWith(QLatin1Char('/')))
-        base.chop(1);
-    if (base.endsWith(QLatin1String("/chat/completions")))
-        base.chop(QStringView(u"/chat/completions").size());
-    return base;
-}
-
-QByteArray readFileBytes(const QString &path)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
-        return {};
-    return file.readAll();
-}
-} // namespace
+// 真实服务器端到端：三协议工具调用链路与多模态视觉。
 
 class TestRealServer : public QObject
 {
@@ -56,64 +31,27 @@ private slots:
     void multimodalVisionAnthropic();
 
 private:
-    QString pickModel();
     void runToolCallLoop(Protocol protocol, const QString &fileName);
-    QString findIconImage() const;
     void runVisionTurn(Protocol protocol, const QByteArray &imageData);
 
-    QString m_baseEndpoint;
-    QString m_anthropicEndpoint; // Anthropic 兼容端点与 OpenAI 系不同前缀的供应商（如 DeepSeek）可覆盖
-    QString m_apiKey;
-    QString m_model;
+    test::TestServer m_server;
     QString m_workdir;
 };
 
 void TestRealServer::initTestCase()
 {
-    const QString endpoint = qEnvironmentVariable("LENS_REAL_SERVER");
-    if (endpoint.isEmpty())
-        QSKIP("未设置 LENS_REAL_SERVER，跳过真实服务测试");
-    m_baseEndpoint = stripEndpointPath(endpoint);
-    m_workdir = qEnvironmentVariable("LENS_WORKDIR");
-    if (m_workdir.isEmpty())
-        m_workdir = QDir::temp().filePath(QStringLiteral("lens-real-test"));
-    QDir().mkpath(m_workdir);
-    m_anthropicEndpoint = [&] {
-        const QString overrideEndpoint = qEnvironmentVariable("LENS_REAL_ANTHROPIC_ENDPOINT");
-        return overrideEndpoint.isEmpty() ? m_baseEndpoint : overrideEndpoint;
-    }();
-    m_apiKey = qEnvironmentVariable("LENS_REAL_API_KEY");
-    if (m_apiKey.isEmpty())
-        m_apiKey = QStringLiteral("no-key-needed");
-    m_model = pickModel();
-    qInfo() << "base endpoint:" << m_baseEndpoint << "model:" << m_model << "workdir:" << m_workdir;
-}
-
-QString TestRealServer::pickModel()
-{
-    const QString fromEnv = qEnvironmentVariable("LENS_REAL_MODEL");
-    if (!fromEnv.isEmpty())
-        return fromEnv;
-
-    QNetworkAccessManager nam;
-    QUrl modelsUrl = QUrl(m_baseEndpoint);
-    modelsUrl.setPath(QStringLiteral("/v1/models"));
-    QNetworkReply *reply = nam.get(QNetworkRequest(modelsUrl));
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    QTimer::singleShot(5000, &loop, &QEventLoop::quit);
-    loop.exec();
-    const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-    reply->deleteLater();
-    const QJsonArray data = doc.object().value("data").toArray();
-    if (!data.isEmpty())
-        return data.at(0).toObject().value("id").toString();
-    return QStringLiteral("default");
+    LENS_REQUIRE_SERVER(m_server)
+    m_workdir = test::testWorkdir();
+    qInfo() << "base endpoint:" << m_server.endpoint << "anthropic endpoint:"
+            << m_server.anthropicEndpoint << "model:" << m_server.model
+            << "workdir:" << m_workdir;
 }
 
 // 三协议共用：让模型调用 write 写入目标文件并复述，校验工具执行与最终回复
 void TestRealServer::runToolCallLoop(Protocol protocol, const QString &fileName)
 {
+    LENS_REQUIRE_PROTOCOL(m_server, protocol, protocolToString(protocol).toUtf8().constData())
+
     QFile stale(QDir(m_workdir).filePath(fileName));
     if (stale.exists())
         stale.remove();
@@ -123,10 +61,10 @@ void TestRealServer::runToolCallLoop(Protocol protocol, const QString &fileName)
     registry.registerTool(std::make_shared<ReadTool>());
 
     AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
-    // Anthropic 兼容端点与 OpenAI 系同源但前缀不同时，此处按协议分别传端点
-    const QString endpoint = protocol == Protocol::Anthropic ? m_anthropicEndpoint
-                                                             : m_baseEndpoint;
-    session.setRequestConfig(endpoint, m_apiKey, m_model);
+    // Anthropic 兼容端点与 OpenAI 系同源但前缀不同时，按协议分别传端点
+    const QString endpoint = protocol == Protocol::Anthropic ? m_server.anthropicEndpoint
+                                                             : m_server.endpoint;
+    session.setRequestConfig(endpoint, m_server.apiKey, m_server.model);
     session.setProtocol(protocol);
     session.setSystemPrompt(QStringLiteral(
         "你是 Lens 编程 Agent。需要读写文件时必须调用提供的工具。"));
@@ -199,37 +137,20 @@ void TestRealServer::anthropicToolLoop()
     runToolCallLoop(Protocol::Anthropic, QStringLiteral("note-anthropic.txt"));
 }
 
-// 项目图标：LENS_REAL_IMAGE 覆盖，否则从当前目录向上找 packaging/icons/lens-256.png
-QString TestRealServer::findIconImage() const
-{
-    const QString fromEnv = qEnvironmentVariable("LENS_REAL_IMAGE");
-    if (!fromEnv.isEmpty())
-        return fromEnv;
-    QDir dir(QDir::currentPath());
-    for (int i = 0; i < 4; ++i) {
-        const QString candidate =
-            dir.filePath(QStringLiteral("packaging/icons/lens-256.png"));
-        if (QFileInfo::exists(candidate))
-            return candidate;
-        if (!dir.cdUp())
-            break;
-    }
-    return {};
-}
-
 // 三协议共用：把图片发给多模态模型并要求描述，校验有正文回复且描述合理。
 // 模型描述对不对是主观判断，逐字断言会脆：硬断言只保证「图片被接受且模型作答」，
 // 关键词命中与否打日志供人工判断。
 void TestRealServer::runVisionTurn(Protocol protocol, const QByteArray &imageData)
 {
+    LENS_REQUIRE_PROTOCOL(m_server, protocol, protocolToString(protocol).toUtf8().constData())
     QVERIFY2(!imageData.isEmpty(),
-             "找不到测试图片（LENS_REAL_IMAGE 或 packaging/icons/lens-256.png）");
+             "找不到测试图片（LENS_TEST_IMAGE 或 packaging/icons/lens-256.png）");
 
     ToolRegistry registry; // 不带工具：纯视觉问答
     AgentSession session(std::make_unique<QNetworkTransport>(), &registry);
-    const QString endpoint = protocol == Protocol::Anthropic ? m_anthropicEndpoint
-                                                             : m_baseEndpoint;
-    session.setRequestConfig(endpoint, m_apiKey, m_model);
+    const QString endpoint = protocol == Protocol::Anthropic ? m_server.anthropicEndpoint
+                                                             : m_server.endpoint;
+    session.setRequestConfig(endpoint, m_server.apiKey, m_server.model);
     session.setProtocol(protocol);
     session.setSystemPrompt(QStringLiteral("回答使用中文，简明扼要。"));
 
@@ -272,17 +193,23 @@ void TestRealServer::runVisionTurn(Protocol protocol, const QByteArray &imageDat
 
 void TestRealServer::multimodalVision()
 {
-    runVisionTurn(Protocol::ChatCompletions, readFileBytes(findIconImage()));
+    QFile icon(test::findTestImage());
+    QVERIFY2(icon.open(QIODevice::ReadOnly), "打不开测试图片");
+    runVisionTurn(Protocol::ChatCompletions, icon.readAll());
 }
 
 void TestRealServer::multimodalVisionResponses()
 {
-    runVisionTurn(Protocol::Responses, readFileBytes(findIconImage()));
+    QFile icon(test::findTestImage());
+    QVERIFY2(icon.open(QIODevice::ReadOnly), "打不开测试图片");
+    runVisionTurn(Protocol::Responses, icon.readAll());
 }
 
 void TestRealServer::multimodalVisionAnthropic()
 {
-    runVisionTurn(Protocol::Anthropic, readFileBytes(findIconImage()));
+    QFile icon(test::findTestImage());
+    QVERIFY2(icon.open(QIODevice::ReadOnly), "打不开测试图片");
+    runVisionTurn(Protocol::Anthropic, icon.readAll());
 }
 
 QTEST_GUILESS_MAIN(TestRealServer)

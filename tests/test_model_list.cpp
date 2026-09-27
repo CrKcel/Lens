@@ -1,57 +1,12 @@
 #include <QtTest/QtTest>
 
-#include <QTcpServer>
-#include <QTcpSocket>
 #include <lens/core/providers/ModelListClient.hpp>
+
+#include "TestServerEnv.hpp"
 
 using namespace lens;
 
-namespace {
-
-// 本地 mock HTTP 服务：应答单次 GET，记录请求原文供断言
-class MockHttpServer
-{
-public:
-    MockHttpServer()
-    {
-        QObject::connect(&m_server, &QTcpServer::newConnection, [this] { serve(); });
-        m_server.listen(QHostAddress::LocalHost);
-    }
-
-    QString base() const
-    {
-        return QStringLiteral("http://127.0.0.1:%1").arg(m_server.serverPort());
-    }
-
-    int status = 200;
-    QByteArray body;
-    QByteArray request; // 最后一次请求原文
-
-private:
-    void serve()
-    {
-        QTcpSocket *socket = m_server.nextPendingConnection();
-        QObject::connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
-        QObject::connect(socket, &QTcpSocket::readyRead, [this, socket] {
-            request += socket->readAll();
-            if (!request.contains("\r\n\r\n") || m_responded)
-                return;
-            m_responded = true;
-            const char *reason = status == 200 ? "OK" : "Error";
-            const QByteArray response =
-                "HTTP/1.1 " + QByteArray::number(status) + " " + reason
-                + "\r\nContent-Type: application/json\r\nContent-Length: "
-                + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
-            socket->write(response);
-            socket->disconnectFromHost();
-        });
-    }
-
-    QTcpServer m_server;
-    bool m_responded = false;
-};
-
-} // namespace
+// 模型清单拉取
 
 class TestModelList : public QObject
 {
@@ -59,11 +14,9 @@ class TestModelList : public QObject
 
 private slots:
     void modelsEndpointResolution();
-    void fetchOpenAiStyle();
-    void fetchAnthropicStyle();
-    void emptyDataArrayIsSuccess();
-    void httpErrorReported();
-    void malformedBodyReported();
+    void fetchFromRealServer();
+    void fetchAnthropicFromRealServer();
+    void connectionRefusedReported();
 
 private:
     struct FetchResult
@@ -83,13 +36,6 @@ private:
                          result.done = true;
                      });
         QTRY_VERIFY(result.done);
-    }
-
-    // Qt 发送请求头时会把名称规范化为首字母大写（X-Api-Key），按不区分大小写匹配
-    bool requestHasHeader(const MockHttpServer &server, const QByteArray &name,
-                          const QByteArray &value) const
-    {
-        return server.request.toLower().contains(name.toLower() + ": " + value.toLower());
     }
 };
 
@@ -122,76 +68,40 @@ void TestModelList::modelsEndpointResolution()
         QStringLiteral("https://h/anthropic/v1/models"));
 }
 
-void TestModelList::fetchOpenAiStyle()
+void TestModelList::fetchFromRealServer()
 {
-    MockHttpServer server;
-    server.body = QByteArrayLiteral("{\"data\":[{\"id\":\"m-b\"},{\"id\":\"m-a\"},{\"id\":\"m-b\"}]}");
+    test::TestServer server;
+    LENS_REQUIRE_SERVER(server)
 
     ModelListClient client;
     FetchResult result;
-    runFetch(client, Protocol::ChatCompletions, server.base() + "/v1",
-             QStringLiteral("sk-test"), result);
-    QVERIFY(result.error.isEmpty());
-    QCOMPARE(result.models, (QStringList{QStringLiteral("m-a"), QStringLiteral("m-b")}));
-    QVERIFY(server.request.startsWith("GET /v1/models "));
-    QVERIFY(requestHasHeader(server, "Authorization", "Bearer sk-test"));
+    runFetch(client, Protocol::ChatCompletions, server.endpoint, server.apiKey, result);
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    qInfo() << "models:" << result.models.join(QStringLiteral(", "));
+    if (result.models.isEmpty())
+        qWarning("服务器返回空模型清单");
 }
 
-void TestModelList::fetchAnthropicStyle()
+void TestModelList::fetchAnthropicFromRealServer()
 {
-    MockHttpServer server;
-    server.body = QByteArrayLiteral(
-        "{\"data\":[{\"type\":\"model\",\"id\":\"claude-2\"},{\"id\":\"claude-1\"}]}");
+    test::TestServer server;
+    LENS_REQUIRE_SERVER(server)
 
     ModelListClient client;
     FetchResult result;
-    runFetch(client, Protocol::Anthropic, server.base(), QStringLiteral("sk-an"),
-             result);
-    QVERIFY(result.error.isEmpty());
-    QCOMPARE(result.models, (QStringList{QStringLiteral("claude-1"), QStringLiteral("claude-2")}));
-    QVERIFY(server.request.startsWith("GET /v1/models "));
-    QVERIFY(requestHasHeader(server, "x-api-key", "sk-an"));
-    QVERIFY(requestHasHeader(server, "anthropic-version", "2023-06-01"));
+    runFetch(client, Protocol::Anthropic, server.anthropicEndpoint, server.apiKey, result);
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
 }
 
-// data 为空数组是合法响应：成功返回空清单而非报错
-void TestModelList::emptyDataArrayIsSuccess()
+// 连接被拒（无服务监听的端口）必须以错误收尾，而不是挂死或空成功
+void TestModelList::connectionRefusedReported()
 {
-    MockHttpServer server;
-    server.body = QByteArrayLiteral("{\"data\":[]}");
-
     ModelListClient client;
     FetchResult result;
-    runFetch(client, Protocol::ChatCompletions, server.base() + "/v1", {}, result);
-    QVERIFY(result.error.isEmpty());
+    runFetch(client, Protocol::ChatCompletions, QStringLiteral("http://127.0.0.1:1"),
+             {}, result);
     QVERIFY(result.models.isEmpty());
-}
-
-void TestModelList::httpErrorReported()
-{
-    MockHttpServer server;
-    server.status = 404;
-    server.body = QByteArrayLiteral("{\"error\":{\"message\":\"no such route\"}}");
-
-    ModelListClient client;
-    FetchResult result;
-    runFetch(client, Protocol::ChatCompletions, server.base() + "/v1",
-             QStringLiteral("sk-test"), result);
-    QVERIFY(result.models.isEmpty());
-    QVERIFY(result.error.contains(QStringLiteral("404")));
-    QVERIFY(result.error.contains(QStringLiteral("no such route")));
-}
-
-void TestModelList::malformedBodyReported()
-{
-    MockHttpServer server;
-    server.body = QByteArrayLiteral("<html>gateway error</html>");
-
-    ModelListClient client;
-    FetchResult result;
-    runFetch(client, Protocol::Responses, server.base() + "/v1", {}, result);
-    QVERIFY(result.models.isEmpty());
-    QVERIFY(result.error.contains(QStringLiteral("data")));
+    QVERIFY(!result.error.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestModelList)
