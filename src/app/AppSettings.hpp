@@ -95,6 +95,7 @@ public:
     QVariantList providers() const;
     int activeProvider() const { return m_activeProvider; }
     void setActiveProvider(int index);
+    void selectActiveModel(int providerIndex, const QString &modelId);
 
     Q_INVOKABLE void addProvider(const QVariantMap &provider);
     Q_INVOKABLE void updateProvider(int index, const QVariantMap &provider);

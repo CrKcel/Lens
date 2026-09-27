@@ -63,11 +63,7 @@ ScrollView {
                         width: providerNameLabel.implicitWidth + 24
                         height: ListView.view ? ListView.view.height : 36
                         highlighted: index === settings.activeProvider
-                        onClicked: {
-                            providersPage.view.commitSettings() // 表单值写回当前激活供应商后再切换
-                            settings.activeProvider = index
-                            providersPage.view.loadSettingsIntoFields()
-                        }
+                        onClicked: providersPage.view.switchProvider(index)
                         background: Rectangle {
                             radius: theme.radiusS
                             color: parent.highlighted ? theme.accentSoft
@@ -88,34 +84,15 @@ ScrollView {
                     text: qsTr("＋")
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("新增供应商（复制当前配置）")
-                    onClicked: {
-                        providersPage.view.flushModelFields()
-                        settings.addProvider({
-                            "name": qsTr("供应商%1").arg(settings.providers.length + 1),
-                            "protocol": protocolCombo.currentValue,
-                            "endpoint": endpointField.text,
-                            "apiKey": apiKeyField.text,
-                            "model": providersPage.view.currentModelWorking,
-                            "models": providersPage.view.modelsWorking,
-                            "serverSearch": serverSearchCheck.checked,
-                            "inputPrice": Number(inputPriceField.text) || 0,
-                            "outputPrice": Number(outputPriceField.text) || 0,
-                            "cachedPrice": Number(cachedPriceField.text) || 0
-                        })
-                        providersPage.view.loadSettingsIntoFields()
-                        settings.save()
-                    }
+                    onClicked: providersPage.view.addProviderFromFields(
+                                   qsTr("供应商%1").arg(settings.providers.length + 1))
                 }
                 GhostButton {
                     text: qsTr("－")
                     enabled: settings.providers.length > 1
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("删除当前供应商")
-                    onClicked: {
-                        settings.removeProvider(settings.activeProvider)
-                        providersPage.view.loadSettingsIntoFields()
-                        settings.save()
-                    }
+                    onClicked: providersPage.view.removeActiveProvider()
                 }
             }
         }

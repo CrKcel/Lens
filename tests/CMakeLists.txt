@@ -14,6 +14,11 @@ add_executable(test_agent_session test_agent_session.cpp)
 target_link_libraries(test_agent_session PRIVATE Lens::Core Qt6::Test)
 add_test(NAME agent_session COMMAND test_agent_session)
 
+# AgentSession 事件契约
+add_executable(test_agent_session_events test_agent_session_events.cpp)
+target_link_libraries(test_agent_session_events PRIVATE Lens::Core Qt6::Test)
+add_test(NAME agent_session_events COMMAND test_agent_session_events)
+
 add_executable(test_real_server test_real_server.cpp)
 target_link_libraries(test_real_server PRIVATE Lens::Core Qt6::Test)
 add_test(NAME real_server COMMAND test_real_server)
@@ -35,6 +40,13 @@ add_executable(test_mcp test_mcp.cpp)
 target_link_libraries(test_mcp PRIVATE Lens::Core Qt6::Test)
 add_test(NAME mcp COMMAND test_mcp)
 
+# McpManager（app 层）：异步连接管线，需 AppSettings 一起编译
+add_executable(test_mcp_manager test_mcp_manager.cpp
+    ../src/app/McpManager.cpp ../src/app/AppSettings.cpp)
+target_include_directories(test_mcp_manager PRIVATE ../src/app)
+target_link_libraries(test_mcp_manager PRIVATE Lens::Core Qt6::Gui Qt6::Test)
+add_test(NAME mcp_manager COMMAND test_mcp_manager)
+
 add_executable(test_web_search test_web_search.cpp)
 target_link_libraries(test_web_search PRIVATE Lens::Core Qt6::Test)
 add_test(NAME web_search COMMAND test_web_search)
@@ -45,5 +57,7 @@ add_test(NAME model_list COMMAND test_model_list)
 
 add_executable(test_app_settings test_app_settings.cpp ../src/app/AppSettings.cpp)
 target_include_directories(test_app_settings PRIVATE ../src/app)
+# 调色板 token 一致性用例要读源码里的 Theme.qml / SettingsAppearancePage.qml
+target_compile_definitions(test_app_settings PRIVATE LENS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(test_app_settings PRIVATE Lens::Core Qt6::Gui Qt6::Test)
 add_test(NAME app_settings COMMAND test_app_settings)

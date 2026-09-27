@@ -26,6 +26,7 @@ add_library(lens_core STATIC
     include/lens/core/tools/builtins/WriteTool.hpp
     include/lens/core/tools/builtins/WebSearchTool.hpp
     src/AgentSession.cpp
+    src/BashTool.cpp
     src/QNetworkTransport.cpp
     src/ChatCompletionsClient.cpp
     src/ProtocolAdapter.cpp

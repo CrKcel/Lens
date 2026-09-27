@@ -129,9 +129,9 @@ void AgentSession::startTurn()
                             emit failed(error);
                             emit idle();
                         },
-                        [this] { // 用户取消
+                        [this] { // 取消：由发起方（cancel / 协议错误路径）自行 emit idle，
+                                 // 传输层回调不再发第二次（否则订阅方收到重复的 idle）
                             m_busy = false;
-                            emit idle();
                         }});
 }
 

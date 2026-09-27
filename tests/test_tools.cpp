@@ -2,6 +2,7 @@
 
 #include <QTemporaryDir>
 
+#include <lens/core/providers/ProtocolAdapter.hpp>
 #include <lens/core/tools/ToolArgs.hpp>
 #include <lens/core/tools/ToolRegistry.hpp>
 #include <lens/core/tools/builtins/BashTool.hpp>
@@ -546,7 +547,7 @@ void TestTools::disabledToolHiddenAndRejected()
     QCOMPARE(registry.isEnabled(QStringLiteral("read")), true);
     QCOMPARE(registry.specs().size(), 1u);
     QCOMPARE(registry.specs().front().name, QStringLiteral("read"));
-    QCOMPARE(registry.toChatCompletionsTools().size(), 1u);
+    QCOMPARE(detail::toChatCompletionsTools(registry.specs()).size(), 1u);
 
     const auto rejected = registry.execute(
         QStringLiteral("write"), nlohmann::json{{"path", "a.txt"}, {"content", "x"}},

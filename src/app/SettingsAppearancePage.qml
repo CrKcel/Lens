@@ -92,10 +92,7 @@ ScrollView {
         property string token
 
         title: qsTr("选择颜色")
-        onAccepted: {
-            settings.setColorOverride(mode, token, String(color))
-            settings.save()
-        }
+        onAccepted: appearancePage.view.commitColorOverride(mode, token, String(color))
     }
 
     // 调色板色块：弹出颜色选择器修改对应 token（mode = dark | light）
@@ -226,10 +223,7 @@ ScrollView {
                 AccentButton {
                     enabled: appearancePage.hasColorOverrides
                     text: qsTr("恢复默认调色板")
-                    onClicked: {
-                        settings.clearColorOverrides()
-                        settings.save()
-                    }
+                    onClicked: appearancePage.view.resetColorOverrides()
                 }
             }
         }

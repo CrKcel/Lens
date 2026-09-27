@@ -397,6 +397,17 @@ void AppSettings::setActiveProvider(int index)
     emit settingsChanged();
 }
 
+void AppSettings::selectActiveModel(int providerIndex, const QString &modelId)
+{
+    const bool indexChanged = m_activeProvider != providerIndex;
+    setActiveProvider(providerIndex); // 越界索引由 setActiveProvider 收敛
+    const bool modelChanged = !modelId.isEmpty() && model() != modelId;
+    if (modelChanged)
+        setModel(modelId);
+    if (indexChanged || modelChanged)
+        save();
+}
+
 QVariantMap AppSettings::providerToMap(const ProviderConfig &provider) const
 {
     QVariantList models;

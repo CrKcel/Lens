@@ -130,17 +130,21 @@ void TestMcp::bridgedToolSatisfiesRegistry()
     for (const auto &info : tools)
         registry.registerTool(std::make_shared<mcp::McpTool>(config->name, info, client));
 
-    // spec 进入注册表，数量与 listTools 一致
+    // spec 进入注册表，数量与 listTools 一致；对外名字带服务器前缀，
+    // 远程原始名不直接占位（多服务器同名工具不会互相遮蔽）
     const auto specs = registry.specs();
     QCOMPARE(specs.size(), tools.size());
+    QCOMPARE(specs.front().name, mcp::McpTool::exposedName(config->name, tools.front().name));
+    QVERIFY(specs.front().name != tools.front().name);
 
-    // 配置了实测工具时，execute 走 IBuiltinTool 通道
+    // 配置了实测工具时，execute 走 IBuiltinTool 通道（按对外名字调用）
     const QString toolName = qEnvironmentVariable("LENS_MCP_TOOL").trimmed();
     if (toolName.isEmpty()) {
         qWarning("未设置 LENS_MCP_TOOL，跳过注册表 execute 断言");
         return;
     }
-    const ToolResult result = registry.execute(toolName, configuredToolArgs(), QString());
+    const ToolResult result = registry.execute(mcp::McpTool::exposedName(config->name, toolName),
+                                               configuredToolArgs(), QString());
     QVERIFY2(result.ok, qPrintable(result.output));
 }
 

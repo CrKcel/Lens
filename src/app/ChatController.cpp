@@ -9,14 +9,15 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QBuffer>
+#include <QMetaObject>
 #include <QSet>
 #include <QStringDecoder>
+#include <QThreadPool>
 #include <QTimer>
 #include <lens/core/context/AgentDocs.hpp>
 #include <lens/core/context/EnvironmentPrompt.hpp>
 #include <lens/core/context/PromptAssembler.hpp>
 #include <lens/core/context/Skills.hpp>
-#include <lens/core/mcp/McpTool.hpp>
 #include <lens/core/providers/QNetworkTransport.hpp>
 #include <lens/core/storage/SessionStore.hpp>
 #include <lens/core/tools/builtins/BashTool.hpp>
@@ -32,37 +33,39 @@ inline const QString kBasePrompt = QStringLiteral(
     "read/write/edit 工具的相对路径以它为基准；结束后简要说明做了什么、结果如何。"
     "回答使用与用户一致的语言。");
 
-// MCP 配置指纹：服务器清单（名称/命令/参数）的稳定序列化，用于检测配置变化
-QString mcpConfigKey(const QList<McpServerConfig> &servers)
-{
-    QStringList parts;
-    for (const McpServerConfig &server : servers)
-        parts.append(server.name + QLatin1Char('\x1f') + server.command
-                     + QLatin1Char('\x1f') + server.args.join(QLatin1Char('\x1e')));
-    return parts.join(QLatin1Char('\x1d'));
-}
-
 ChatController::ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
                                QObject *parent)
     : QObject(parent)
     , m_store(store)
     , m_settings(settings)
     , m_dataDir(dataDir)
+    , m_mcp(std::make_unique<McpManager>(&m_registry))
+    , m_usage(std::make_unique<UsageTracker>(settings))
     , m_messageModel(new MessageListModel(this))
     , m_conversationModel(new ConversationListModel(store, this))
+    , m_envPool(std::make_unique<QThreadPool>())
 {
+    m_envPool->setMaxThreadCount(1);
     registerBuiltinTools();
     applyToolSettings();
-    // 单价属于激活供应商配置，改动后费用展示需重算
-    connect(m_settings, &AppSettings::settingsChanged, this, &ChatController::usageChanged);
+    // 用量/费用变化（含单价改动触发的重算）透传给 QML 的 usageSummary
+    connect(m_usage.get(), &UsageTracker::changed, this, &ChatController::usageChanged);
+    // MCP 连接在后台线程完成，结果到位后重建工具清单（内部会发 contextChanged）
+    connect(m_mcp.get(), &McpManager::changed, this, [this] { rebuildToolList(); });
     QTimer::singleShot(0, this, [this] {
-        loadMcpTools();
+        // 事件循环启动后才连 MCP：窗口先出来，连接过程也不阻塞主线程
+        m_mcp->requestReload(m_settings->mcpServerConfigs(), m_streaming);
         rebuildToolList();
     });
 
     m_agent = std::make_unique<AgentSession>(std::make_unique<QNetworkTransport>(),
                                              &m_registry, this);
     connectAgent();
+}
+
+ChatController::~ChatController()
+{
+    m_envPool->waitForDone(); // 等 git 子进程收尾，避免任务触到已析构的 this
 }
 
 void ChatController::registerBuiltinTools()
@@ -111,51 +114,12 @@ void ChatController::applyToolSettings()
     m_registry.setDisabledTools(disabled);
 }
 
-void ChatController::loadMcpTools()
-{
-    for (const McpServerConfig &config : m_settings->mcpServerConfigs()) {
-        auto client = std::make_shared<mcp::McpClient>(mcp::ServerConfig{
-            config.name, config.command, config.args});
-        QString error;
-        QVariantMap status{{QStringLiteral("name"), config.name},
-                           {QStringLiteral("command"), config.command}};
-        if (client->start(&error)) {
-            const auto tools = client->listTools(&error);
-            if (error.isEmpty()) {
-                QStringList toolNames;
-                for (const auto &info : tools) {
-                    const QString prefixed =
-                        QStringLiteral("mcp_%1_%2").arg(config.name, info.name);
-                    m_registry.registerTool(
-                        std::make_shared<mcp::McpTool>(config.name, info, client));
-                    m_mcpToolOrigins.append(
-                        {prefixed, QStringLiteral("MCP:%1").arg(config.name)});
-                    toolNames.append(prefixed);
-                }
-                status.insert(QStringLiteral("connected"), true);
-                status.insert(QStringLiteral("toolNames"), toolNames);
-                status.insert(QStringLiteral("status"),
-                              QStringLiteral("已连接，%1 个工具").arg(toolNames.size()));
-                m_mcpClients.append(client);
-            } else {
-                status.insert(QStringLiteral("connected"), false);
-                status.insert(QStringLiteral("status"), error);
-            }
-        } else {
-            status.insert(QStringLiteral("connected"), false);
-            status.insert(QStringLiteral("status"), error);
-        }
-        m_mcpStatus.append(status);
-    }
-    m_loadedMcpKey = mcpConfigKey(m_settings->mcpServerConfigs());
-}
-
 void ChatController::rebuildToolList()
 {
     m_toolList.clear();
     for (const ToolSpec &spec : m_registry.specs()) {
         QString origin = QStringLiteral("内置");
-        for (const auto &[toolName, toolOrigin] : m_mcpToolOrigins) {
+        for (const auto &[toolName, toolOrigin] : m_mcp->toolOrigins()) {
             if (toolName == spec.name) {
                 origin = toolOrigin;
                 break;
@@ -204,7 +168,7 @@ void ChatController::connectAgent()
                     m_messageModel->appendItem(item);
                 }
                 m_store->appendMessage(m_conversationId, message);
-                recordUsage(message.usage);
+                m_usage->record(message.usage);
             });
     connect(m_agent.get(), &AgentSession::toolCallStarted, this,
             [this](const QString &id, const QString &name, const QString &args) {
@@ -232,8 +196,8 @@ void ChatController::connectAgent()
             m_streaming = false;
             emit streamingChanged();
         }
-        if (m_mcpReloadPending) // 流式期间有 MCP 配置变更，现在补上热重载
-            maybeReloadMcp();
+        m_mcp->applyPending(m_settings->mcpServerConfigs()); // 流式期间挂起的 MCP 重载
+        refreshGitLine(); // 回合结束工作区可能变了，刷新环境段的 Git 行
     });
 }
 
@@ -272,11 +236,8 @@ void ChatController::openConversation(qint64 conversationId)
         m_messageModel->resetFromMessages(history);
         m_agent->setHistory(std::vector<Message>(history.cbegin(), history.cend()));
         m_agent->setWorkdir(m_workdir);
-        resetUsage();
-        for (const Message &message : history)
-            recordUsage(message.usage);
-        // 全部无效时 recordUsage 不会发信号，仍需通知 UI 清掉上一会话的残留显示
-        emit usageChanged();
+        m_usage->loadFrom(history); // 会话累计与费用从持久化消息重算
+        refreshGitLine();           // 环境段 Git 行随工作文件夹重取（后台）
         m_lastSections = collectSections();
         emit currentConversationChanged();
         emit contextChanged();
@@ -294,8 +255,7 @@ void ChatController::deleteConversation(qint64 conversationId)
         m_conversationId = 0;
         m_title.clear();
         m_messageModel->resetFromMessages({});
-        resetUsage();
-        emit usageChanged();
+        m_usage->reset();
         emit currentConversationChanged();
     }
 }
@@ -303,38 +263,10 @@ void ChatController::deleteConversation(qint64 conversationId)
 void ChatController::refreshContext()
 {
     applyToolSettings();
-    maybeReloadMcp();
+    m_mcp->requestReload(m_settings->mcpServerConfigs(), m_streaming);
     m_lastSections = collectSections();
     rebuildToolList();
     emit contextChanged();
-}
-
-// MCP 配置变化后经 refreshContext 热重载：断开旧服务器进程、从注册表移除
-// 其工具，再按当前配置重连。流式回合中工具执行线程会遍历注册表，因此挂起
-// 到 idle 后再换
-void ChatController::maybeReloadMcp()
-{
-    if (mcpConfigKey(m_settings->mcpServerConfigs()) == m_loadedMcpKey)
-        return;
-    if (m_streaming) {
-        m_mcpReloadPending = true;
-        return;
-    }
-    m_mcpReloadPending = false;
-    reloadMcpTools();
-}
-
-void ChatController::reloadMcpTools()
-{
-    for (const auto &client : m_mcpClients)
-        client->stop();
-    m_mcpClients.clear();
-    for (const auto &entry : m_mcpToolOrigins)
-        m_registry.removeTool(entry.first);
-    m_mcpToolOrigins.clear();
-    m_mcpStatus.clear();
-    loadMcpTools();
-    rebuildToolList();
 }
 
 void ChatController::send(const QString &text, const QString &workdir)
@@ -508,15 +440,11 @@ QString ChatController::clipboardImageDataUrl() const
     return imageDataUrl(attachment);
 }
 
+// 模型选择的持久化下沉到 AppSettings（settings.json 的字段归它管），
+// 这里只保留 QML 的调用入口
 void ChatController::selectModel(int providerIndex, const QString &model)
 {
-    const bool indexChanged = m_settings->activeProvider() != providerIndex;
-    m_settings->setActiveProvider(providerIndex);
-    const bool modelChanged = !model.isEmpty() && m_settings->model() != model;
-    if (modelChanged)
-        m_settings->setModel(model);
-    if (indexChanged || modelChanged)
-        m_settings->save();
+    m_settings->selectActiveModel(providerIndex, model);
 }
 
 // 参数取设置页当前表单值（未保存的修改也可拉取）；同一时间仅允许一次拉取，
@@ -557,8 +485,10 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
     add(QStringLiteral("identity"), customPrompt.isEmpty() ? QStringLiteral("内置")
                                                            : QStringLiteral("用户设置"),
         customPrompt.isEmpty() ? kBasePrompt : customPrompt);
+    // 环境段：Git 行来自后台缓存（未就绪则省略该行，不阻塞主线程）
     add(QStringLiteral("environment"), QStringLiteral("自动生成"),
-        envprompt::build(m_workdir));
+        envprompt::build(m_workdir,
+                         m_gitLineWorkdir == m_workdir ? m_gitLine : QString()));
 
     for (const agentdocs::AgentDoc &doc :
          agentdocs::discover(m_workdir, m_dataDir)) {
@@ -587,50 +517,28 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
     return sections;
 }
 
-void ChatController::resetUsage()
+// 环境段的 Git 行异步取得：git 子进程最长数秒，主线程只读缓存，取到后刷新
+// 上下文清单（检查器随之更新，下一次发送的提示词也带上该行）
+void ChatController::refreshGitLine()
 {
-    m_lastUsage = TokenUsage();
-    m_totalPrompt = 0;
-    m_totalCompletion = 0;
-    m_totalCached = 0;
-    m_hasUsage = false;
-}
-
-void ChatController::recordUsage(const TokenUsage &usage)
-{
-    if (!usage.valid)
+    const QString workdir = m_workdir.trimmed();
+    if (workdir.isEmpty())
         return;
-    m_lastUsage = usage;
-    m_totalPrompt += usage.promptTokens;
-    m_totalCompletion += usage.completionTokens;
-    m_totalCached += usage.cachedTokens;
-    m_hasUsage = true;
-    emit usageChanged();
-}
-
-QVariantMap ChatController::usageSummary() const
-{
-    // 费用（每百万 token）：非缓存输入×输入单价 + 输出×输出单价 + 缓存命中×缓存单价，
-    // 缓存单价未配置（0）时缓存部分按输入单价计。缓存命中是输入的子集，需先扣除
-    const ProviderConfig provider = m_settings->activeProviderConfig();
-    const bool hasCost =
-        provider.inputPrice > 0.0 || provider.outputPrice > 0.0 || provider.cachedPrice > 0.0;
-    const double cachedPrice =
-        provider.cachedPrice > 0.0 ? provider.cachedPrice : provider.inputPrice;
-    const double cost =
-        hasCost ? qMax<qint64>(0, m_totalPrompt - m_totalCached) / 1e6 * provider.inputPrice
-                      + m_totalCompletion / 1e6 * provider.outputPrice
-                      + m_totalCached / 1e6 * cachedPrice
-                : 0.0;
-    return {{QStringLiteral("hasUsage"), m_hasUsage},
-            {QStringLiteral("contextTokens"), m_lastUsage.promptTokens},
-            {QStringLiteral("contextWindow"),
-             modelConfigFor(provider, provider.model).contextWindow},
-            {QStringLiteral("totalPrompt"), m_totalPrompt},
-            {QStringLiteral("totalCompletion"), m_totalCompletion},
-            {QStringLiteral("totalCached"), m_totalCached},
-            {QStringLiteral("hasCost"), hasCost},
-            {QStringLiteral("cost"), cost}};
+    const quint64 generation = ++m_gitGeneration;
+    m_envPool->start([this, workdir, generation] {
+        const QString line = envprompt::gitSummary(workdir);
+        QMetaObject::invokeMethod(
+            this,
+            [this, workdir, generation, line] {
+                if (generation != m_gitGeneration) // 期间又换了工作文件夹，丢弃
+                    return;
+                m_gitLine = line;
+                m_gitLineWorkdir = workdir;
+                m_lastSections = collectSections();
+                emit contextChanged();
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 QVariantList ChatController::contextSections() const

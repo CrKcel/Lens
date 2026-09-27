@@ -106,16 +106,7 @@ ColumnLayout {
                 && settingsRoot.loadedProviderIndex < settings.providers.length) {
             settingsRoot.flushModelFields()
             settings.updateProvider(settingsRoot.loadedProviderIndex,
-                { "name": providersPage.providerNameField.text,
-                  "protocol": providersPage.protocolCombo.currentValue,
-                  "endpoint": providersPage.endpointField.text,
-                  "apiKey": providersPage.apiKeyField.text,
-                  "model": settingsRoot.currentModelWorking,
-                  "models": settingsRoot.modelsWorking,
-                  "serverSearch": providersPage.serverSearchCheck.checked,
-                  "inputPrice": Number(providersPage.inputPriceField.text) || 0,
-                  "outputPrice": Number(providersPage.outputPriceField.text) || 0,
-                  "cachedPrice": Number(providersPage.cachedPriceField.text) || 0 })
+                                    settingsRoot.providerMapFromFields())
         }
         settings.systemPrompt = generalPage.systemPromptField.text
         settings.webSearchEndpoint = generalPage.webSearchEndpointField.text
@@ -132,6 +123,60 @@ ColumnLayout {
         chat.refreshContext()
         if (languageChanged)
             settingsRoot.loadSettingsIntoFields() // retranslate 重置了下拉框，重新回填
+    }
+
+    // 表单字段 → 供应商配置 map。commitSettings（更新当前编辑项）与
+    // addProviderFromFields（复制为新项）共用，新增供应商字段只改这里，
+    // 避免两处拼装漂移
+    function providerMapFromFields() {
+        return { "name": providersPage.providerNameField.text,
+                 "protocol": providersPage.protocolCombo.currentValue,
+                 "endpoint": providersPage.endpointField.text,
+                 "apiKey": providersPage.apiKeyField.text,
+                 "model": settingsRoot.currentModelWorking,
+                 "models": settingsRoot.modelsWorking,
+                 "serverSearch": providersPage.serverSearchCheck.checked,
+                 "inputPrice": Number(providersPage.inputPriceField.text) || 0,
+                 "outputPrice": Number(providersPage.outputPriceField.text) || 0,
+                 "cachedPrice": Number(providersPage.cachedPriceField.text) || 0 }
+    }
+
+    // ── 结构性变更（切换/新增/删除供应商、改调色板覆盖）：AppSettings 的
+    // setter 只改内存，持久化时机统一由本文件掌控，分类页不得直接调 settings.save()
+    // 切换激活供应商：表单值先写回切换前的供应商，切完立即落盘（activeProvider
+    // 本身是持久化字段，漏掉这一步会让切换在重启后丢失）
+    function switchProvider(index) {
+        if (index < 0 || index >= settings.providers.length || index === settings.activeProvider)
+            return
+        settingsRoot.commitSettings()
+        settings.activeProvider = index
+        settings.save()
+        settingsRoot.loadSettingsIntoFields()
+    }
+
+    function addProviderFromFields(name) {
+        settingsRoot.flushModelFields()
+        const provider = settingsRoot.providerMapFromFields()
+        provider.name = name
+        settings.addProvider(provider) // 新增项即成为激活供应商
+        settingsRoot.loadSettingsIntoFields()
+        settings.save()
+    }
+
+    function removeActiveProvider() {
+        settings.removeProvider(settings.activeProvider)
+        settingsRoot.loadSettingsIntoFields()
+        settings.save()
+    }
+
+    function commitColorOverride(mode, token, color) {
+        settings.setColorOverride(mode, token, color)
+        settings.save()
+    }
+
+    function resetColorOverrides() {
+        settings.clearColorOverrides()
+        settings.save()
     }
 
     // ── MCP 编辑器：字段 ↔ 工作副本 ─────────────────────────────

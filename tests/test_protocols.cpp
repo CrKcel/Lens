@@ -75,6 +75,7 @@ private slots:
     void anthropicEventStream();
     void anthropicUsageExtraction();
     void anthropicServerToolUseIsNotLocalToolCall();
+    void anthropicAdapterIsStatelessAcrossTurns();
     void anthropicErrorEvent();
 
     // —— Responses ——
@@ -293,14 +294,51 @@ void TestProtocols::anthropicServerToolUseIsNotLocalToolCall()
     QCOMPARE(stream.reasoning(), QStringLiteral("搜一下"));
     QVERIFY(stream.isDone());
 
-    // 新回合 message_start 清空状态：真正的 tool_use 依然正常累积
-    feed(R"({"type":"message_start","message":{"id":"m2","role":"assistant"}})");
-    feed(R"({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"write"}})");
-    feed(R"({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":\"a\"}"}})");
-    const auto calls = stream.toolCalls();
+    // 适配器无状态：换一个回合（累积器按回合重建）真正的 tool_use 依然正常累积
+    chatcompletions::ChatCompletionStream next;
+    const auto feedNext = [&](const char *payload, chatcompletions::ChatCompletionStream &target) {
+        const auto json = nlohmann::json::parse(payload, payload + strlen(payload), nullptr, false);
+        adapter.applyEvent(json, target);
+    };
+    feedNext(R"({"type":"message_start","message":{"id":"m2","role":"assistant"}})", next);
+    feedNext(R"({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"write"}})", next);
+    feedNext(R"({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":\"a\"}"}})", next);
+    const auto calls = next.toolCalls();
     QCOMPARE(calls.size(), 1);
     QCOMPARE(calls.first().id, QStringLiteral("tu_1"));
     QCOMPARE(calls.first().arguments, QStringLiteral("{\"path\":\"a\"}"));
+}
+
+// 适配器不持有回合内状态：同一实例连续两个回合（各自新建累积器）互不影响——
+// 上一回合登记的块类型 / 暂存的输入用量都不得泄漏到下一回合
+void TestProtocols::anthropicAdapterIsStatelessAcrossTurns()
+{
+    anthropic::AnthropicAdapter adapter;
+    const auto feed = [&](chatcompletions::ChatCompletionStream &target, const char *payload) {
+        const auto json = nlohmann::json::parse(payload, payload + strlen(payload), nullptr, false);
+        adapter.applyEvent(json, target);
+    };
+
+    chatcompletions::ChatCompletionStream first;
+    feed(first, R"({"type":"message_start","message":{"id":"m1","role":"assistant","usage":{"input_tokens":120,"cache_read_input_tokens":80}}})");
+    feed(first, R"({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"write"}})");
+    feed(first, R"({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":\"a\"}"}})");
+    feed(first, R"({"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":42}})");
+    QCOMPARE(first.usage().promptTokens, 120);
+    QCOMPARE(first.usage().completionTokens, 42);
+    QCOMPARE(first.toolCalls().size(), 1);
+
+    // 第二回合：同一下标上的 server_tool_use 不受上一回合 tool_use 影响
+    chatcompletions::ChatCompletionStream second;
+    feed(second, R"({"type":"message_start","message":{"id":"m2","role":"assistant","usage":{"input_tokens":9}}})");
+    QCOMPARE(second.usage().promptTokens, 9); // 不带上第一回合的输入量
+    QCOMPARE(second.usage().cachedTokens, 0);
+    feed(second, R"({"type":"content_block_start","index":0,"content_block":{"type":"server_tool_use","id":"srv_1","name":"web_search","input":{}}})");
+    feed(second, R"({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"query\":\"x\"}"}})");
+    QVERIFY(second.toolCalls().isEmpty()); // 服务端块不得被当成本地工具调用
+    feed(second, R"({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":3}})");
+    QCOMPARE(second.usage().promptTokens, 9);
+    QCOMPARE(second.usage().completionTokens, 3);
 }
 
 void TestProtocols::anthropicErrorEvent()
@@ -367,13 +405,19 @@ void TestProtocols::anthropicUsageExtraction()
     QCOMPARE(stream.usage().completionTokens, 42);
     QCOMPARE(stream.usage().cachedTokens, 80);
 
-    // 新回合 message_start 重置暂存，不会把上一回合的输入量带入
-    feed(R"({"type":"message_start","message":{"id":"m2","role":"assistant",)"
-         R"("usage":{"input_tokens":9}}})");
-    feed(R"({"type":"message_delta","delta":{},"usage":{"output_tokens":3}})");
-    QCOMPARE(stream.usage().promptTokens, 9);
-    QCOMPARE(stream.usage().completionTokens, 3);
-    QCOMPARE(stream.usage().cachedTokens, 0);
+    // 新回合（累积器重建）不把上一回合的输入量带入
+    chatcompletions::ChatCompletionStream next;
+    const auto jsonStart = nlohmann::json::parse(
+        R"({"type":"message_start","message":{"id":"m2","role":"assistant","usage":{"input_tokens":9}}})",
+        nullptr, false);
+    adapter.applyEvent(jsonStart, next);
+    const auto jsonDelta =
+        nlohmann::json::parse(R"({"type":"message_delta","delta":{},"usage":{"output_tokens":3}})",
+                              nullptr, false);
+    adapter.applyEvent(jsonDelta, next);
+    QCOMPARE(next.usage().promptTokens, 9);
+    QCOMPARE(next.usage().completionTokens, 3);
+    QCOMPARE(next.usage().cachedTokens, 0);
 }
 
 void TestProtocols::responsesEventStream()

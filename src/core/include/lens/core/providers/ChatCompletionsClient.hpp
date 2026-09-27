@@ -12,16 +12,14 @@ namespace lens::chatcompletions {
 
 // 构造 chat/completions 请求体。systemPrompt 为空时不插入 system 段；
 // history 中的 System 消息被忽略——系统提示词统一由 PromptAssembler 编排。
-// tools 为 function-calling 格式的工具数组（ToolRegistry::toChatCompletionsTools），
-// 传空数组或 discarded 时不携带 tools 字段。
+// tools 为 function-calling 格式的工具数组（由适配器转换，
+// 见 ProtocolAdapter 的 detail::toChatCompletionsTools），传空数组或 discarded
+// 时不携带 tools 字段。
 nlohmann::json buildRequestBody(const std::vector<Message> &history,
                                 const QString &model,
                                 const QString &systemPrompt,
                                 bool stream,
                                 const nlohmann::json &tools = nlohmann::json());
-
-// 从单个 SSE “data: {...}” 负载中提取 assistant 增量文本；结构缺失或负载非法时返回空串。
-QString extractDeltaText(const nlohmann::json &payload);
 
 // 一次 apply 产生的增量：正文与思考过程分开交付
 struct StreamDelta {
@@ -50,6 +48,11 @@ public:
                        const QString &argumentsDelta);
     void setFinishReason(const QString &reason) { m_finishReason = reason; }
     void setUsage(const TokenUsage &usage) { m_usage = usage; }
+
+    // 该 delta index 上是否已登记本地工具调用。协议适配器据此区分本地工具与
+    // 服务端工具（如 anthropic 的 server_tool_use 块同样流式下发输入，但不是
+    // 本地调用）——状态属于本回合的累积器，适配器自身保持无状态
+    bool hasToolCall(int index) const { return m_toolCalls.contains(index); }
 
     QString content() const { return m_content; }
     QString reasoning() const { return m_reasoning; }

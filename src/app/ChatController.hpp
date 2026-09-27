@@ -1,9 +1,10 @@
 #pragma once
 
 #include "ConversationListModel.hpp"
+#include "McpManager.hpp"
 #include "MessageListModel.hpp"
+#include "UsageTracker.hpp"
 #include "lens/core/agent/AgentSession.hpp"
-#include "lens/core/mcp/McpClient.hpp"
 #include "lens/core/providers/ModelListClient.hpp"
 #include "lens/core/tools/ToolRegistry.hpp"
 
@@ -11,6 +12,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <memory>
+
+class QThreadPool;
 
 namespace lens {
 
@@ -45,6 +48,7 @@ class ChatController : public QObject
 public:
     explicit ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
                             QObject *parent = nullptr);
+    ~ChatController() override;
 
     bool streaming() const { return m_streaming; }
     qint64 currentConversationId() const { return m_conversationId; }
@@ -54,8 +58,8 @@ public:
     QAbstractListModel *messages() const { return m_messageModel; }
     QVariantList contextSections() const;
     QVariantList contextTools() const { return m_toolList; }
-    QVariantList mcpStatus() const { return m_mcpStatus; }
-    QVariantMap usageSummary() const;
+    QVariantList mcpStatus() const { return m_mcp->status(); }
+    QVariantMap usageSummary() const { return m_usage->summary(); }
 
     Q_INVOKABLE void newConversation(const QString &workdir);
     Q_INVOKABLE void openConversation(qint64 conversationId);
@@ -105,12 +109,10 @@ private:
     void setErrorRow(const QString &text);
     void registerBuiltinTools();
     void applyToolSettings(); // 按设置（预设/自定义清单）计算禁用集合并写入注册表
-    void loadMcpTools(); // 连接 MCP 服务器并把远程工具桥接进注册表
-    void reloadMcpTools(); // 断开旧 MCP 服务器并按当前配置重连（仅在非流式期间调用）
-    void maybeReloadMcp(); // MCP 配置有变时重载；流式进行中则挂起到回合结束
     void rebuildToolList();
-    void resetUsage();                       // 会话切换/清空时归零并重算
-    void recordUsage(const TokenUsage &usage); // 累加一次回合用量
+    // 环境段的 Git 行异步取得（git 子进程最长数秒）：只走后台，主线程拼装时
+    // 用缓存，未就绪就省略该行，取到后经 contextChanged 补上
+    void refreshGitLine();
 
     SessionStore *m_store;
     AppSettings *m_settings;
@@ -118,24 +120,20 @@ private:
     ToolRegistry m_registry;
     QStringList m_builtinToolNames; // 注册时的内置工具名（bash 工具名随 shell 变化）
     std::shared_ptr<WebSearchTool> m_webSearchTool; // 保留指针：设置变更后重设端点/密钥
-    QList<std::shared_ptr<mcp::McpClient>> m_mcpClients;
-    QVector<QPair<QString, QString>> m_mcpToolOrigins; // 工具名 → "MCP:服务器"
-    QString m_loadedMcpKey;          // 已加载的 MCP 配置指纹（配置不变则不重连）
-    bool m_mcpReloadPending = false; // 流式期间配置有变，回合结束后补一次重载
+    std::unique_ptr<McpManager> m_mcp;
+    std::unique_ptr<UsageTracker> m_usage;
     MessageListModel *m_messageModel;
     ConversationListModel *m_conversationModel;
     std::unique_ptr<AgentSession> m_agent;
 
     QVector<ContextSectionInfo> m_lastSections;
     QVariantList m_toolList;
-    QVariantList m_mcpStatus;
 
-    // 会话用量统计：最近一次输入（= 上下文长度）+ 累计输入/输出/缓存命中
-    TokenUsage m_lastUsage;
-    qint64 m_totalPrompt = 0;
-    qint64 m_totalCompletion = 0;
-    qint64 m_totalCached = 0;
-    bool m_hasUsage = false;
+    // 单线程池：环境段 git 子进程不占用工具执行用的全局池
+    std::unique_ptr<QThreadPool> m_envPool;
+    QString m_gitLine;        // 环境段 Git 行缓存
+    QString m_gitLineWorkdir; // 缓存对应的 workdir（不等则视为未就绪）
+    quint64 m_gitGeneration = 0;
 
     qint64 m_conversationId = 0;
     QString m_workdir;

@@ -81,8 +81,44 @@ struct RequestFeatures {
     bool images = true;
 };
 
+namespace detail {
+
+inline QString trimTrailingSlashes(QString base)
+{
+    while (base.endsWith(QLatin1Char('/')))
+        base.chop(1);
+    return base;
+}
+
+// 模型不支持图片输入时剥离所有消息的图片附件（值拷贝，不影响会话历史）
+inline std::vector<Message> withoutImages(std::vector<Message> history)
+{
+    for (Message &message : history)
+        message.images.clear();
+    return history;
+}
+
+// OpenAI 系 function-calling 工具数组。通用 ToolSpec → 各家格式的转换属适配层
+// 职责，注册表本身保持协议无关
+inline nlohmann::json toChatCompletionsTools(const std::vector<ToolSpec> &tools)
+{
+    auto array = nlohmann::json::array();
+    for (const ToolSpec &spec : tools) {
+        array.push_back({{"type", "function"},
+                         {"function",
+                          {{"name", spec.name.toStdString()},
+                           {"description", spec.description.toStdString()},
+                           {"parameters", spec.parameters}}}});
+    }
+    return array;
+}
+
+} // namespace detail
+
 // 协议适配器：统一内部表示（Message / ToolSpec / 系统提示词）→ 各家请求体与鉴权头，
-// 各家 SSE 事件 → 统一的 ChatCompletionStream 累积。无状态，可跨会话复用。
+// 各家 SSE 事件 → 统一的 ChatCompletionStream 累积。实现保持无状态：回合内的
+// 中间数据（如已登记的块类型、分段下发的 usage）一律挂在传入的 ChatCompletionStream
+// 上，因此同一个适配器可跨会话复用。
 class ProtocolAdapter
 {
 public:
@@ -98,12 +134,21 @@ public:
     // Content-Type 之外的请求头（鉴权、协议版本等）
     virtual QList<QPair<QByteArray, QByteArray>> extraHeaders(const QString &apiKey) const = 0;
 
-    // 请求体。tools 为通用 ToolSpec，由适配器转换为各家格式；为空则不携带 tools。
-    virtual nlohmann::json buildRequestBody(const std::vector<Message> &history,
-                                            const QString &model,
-                                            const QString &systemPrompt, bool stream,
-                                            const std::vector<ToolSpec> &tools,
-                                            const RequestFeatures &features = {}) const = 0;
+    // 请求体。非虚入口：统一处理“模型不支持图片 → 剥离图片附件”（值拷贝，不动
+    // 会话历史），再交给各适配器的 doBuildRequestBody
+    nlohmann::json buildRequestBody(const std::vector<Message> &history, const QString &model,
+                                    const QString &systemPrompt, bool stream,
+                                    const std::vector<ToolSpec> &tools,
+                                    const RequestFeatures &features = {}) const
+    {
+        if (!features.images) {
+            RequestFeatures plain = features;
+            plain.images = true; // 翻转标志，递归只进一层（实现里不再剥离）
+            return doBuildRequestBody(detail::withoutImages(history), model, systemPrompt,
+                                      stream, tools, plain);
+        }
+        return doBuildRequestBody(history, model, systemPrompt, stream, tools, features);
+    }
 
     // 该 SSE data 负载是否表示流结束（如 chat completions 的 [DONE] 哨兵）
     virtual bool isDoneEvent(const QByteArray &event) const = 0;
@@ -115,19 +160,21 @@ public:
 
     // 若该负载是协议级错误事件，返回错误描述；否则返回空
     virtual QString errorFromEvent(const nlohmann::json &payload) const = 0;
+
+protected:
+    // 各家请求体构造。tools 为通用 ToolSpec（为空则不携带 tools 字段）；
+    // features.images 已由 buildRequestBody 保证为 true
+    virtual nlohmann::json doBuildRequestBody(const std::vector<Message> &history,
+                                             const QString &model,
+                                             const QString &systemPrompt, bool stream,
+                                             const std::vector<ToolSpec> &tools,
+                                             const RequestFeatures &features) const = 0;
 };
 
 // 按协议构造适配器
 std::unique_ptr<ProtocolAdapter> makeProtocolAdapter(Protocol protocol);
 
 namespace detail {
-
-inline QString trimTrailingSlashes(QString base)
-{
-    while (base.endsWith(QLatin1Char('/')))
-        base.chop(1);
-    return base;
-}
 
 // baseUrl 已含 path 时原样返回，否则拼接（用于兼容“完整端点”与“根路径”两种配置形态）
 inline QString joinEndpoint(const QString &baseUrl, const QString &path)
@@ -139,14 +186,6 @@ inline QString joinEndpoint(const QString &baseUrl, const QString &path)
     while (suffix.startsWith(QLatin1Char('/')))
         suffix.remove(0, 1);
     return base + QLatin1Char('/') + suffix;
-}
-
-// 模型不支持图片输入时剥离所有消息的图片附件（值拷贝，不影响会话历史）
-inline std::vector<Message> withoutImages(std::vector<Message> history)
-{
-    for (Message &message : history)
-        message.images.clear();
-    return history;
 }
 
 // OpenAI 系模型清单端点：baseUrl 已带自家 API 路径时把该段替换为 models，

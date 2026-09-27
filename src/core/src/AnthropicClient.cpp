@@ -131,18 +131,12 @@ QList<QPair<QByteArray, QByteArray>> AnthropicAdapter::extraHeaders(const QStrin
             {QByteArrayLiteral("anthropic-version"), QByteArrayLiteral("2023-06-01")}};
 }
 
-nlohmann::json AnthropicAdapter::buildRequestBody(const std::vector<Message> &history,
-                                                  const QString &model,
-                                                  const QString &systemPrompt, bool stream,
-                                                  const std::vector<ToolSpec> &tools,
-                                                  const RequestFeatures &features) const
+nlohmann::json AnthropicAdapter::doBuildRequestBody(const std::vector<Message> &history,
+                                                   const QString &model,
+                                                   const QString &systemPrompt, bool stream,
+                                                   const std::vector<ToolSpec> &tools,
+                                                   const RequestFeatures &features) const
 {
-    if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
-        RequestFeatures plain = features;
-        plain.images = true; // 翻转标志，递归只进一层
-        return buildRequestBody(detail::withoutImages(history), model, systemPrompt, stream,
-                                tools, plain);
-    }
     nlohmann::json body = {{"model", model.toStdString()},
                            // Anthropic 必填字段：按模型配置的上限，未配置取保守默认
                            {"max_tokens",
@@ -189,20 +183,21 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
     const std::string type = payload.value("type", std::string());
 
     if (type == "message_start") {
-        m_blockTypes.clear(); // 新回合：清空上一条的块类型记录
-        m_pendingPromptTokens = 0;
-        m_pendingCachedTokens = 0;
-        // 输入侧用量随 message_start 下发，先暂存等 message_delta 的输出侧合并
+        // 输入侧用量随 message_start 下发、输出侧随 message_delta，先记进累积器
+        // （空累积器每回合重建，这里就是本回合的起点），message_delta 到达时补齐
         const auto messageIt = payload.find("message");
         if (messageIt != payload.end() && messageIt->is_object()) {
             const auto usageIt = messageIt->find("usage");
             if (usageIt != messageIt->end() && usageIt->is_object()) {
+                TokenUsage usage;
+                usage.valid = true;
                 if (auto it = usageIt->find("input_tokens");
                     it != usageIt->end() && it->is_number())
-                    m_pendingPromptTokens = it->get<qint64>();
+                    usage.promptTokens = it->get<qint64>();
                 if (auto it = usageIt->find("cache_read_input_tokens");
                     it != usageIt->end() && it->is_number())
-                    m_pendingCachedTokens = it->get<qint64>();
+                    usage.cachedTokens = it->get<qint64>();
+                stream.setUsage(usage);
             }
         }
     }
@@ -213,8 +208,8 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
             const int index = payload.value("index", 0);
             const QString blockType =
                 QString::fromStdString(blockIt->value("type", std::string()));
-            m_blockTypes[index] = blockType;
             if (blockType == QStringLiteral("tool_use")) {
+                // 登记进累积器后，input_json_delta 依据它区分本地工具与服务端块
                 stream.mergeToolCall(index,
                                      QString::fromStdString(blockIt->value("id", std::string())),
                                      QString::fromStdString(blockIt->value("name", std::string())),
@@ -236,7 +231,7 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
         } else if (deltaType == "input_json_delta") {
             // 只有本地工具调用（tool_use 块）的参数增量才累积；
             // server_tool_use 等服务端块的输入由服务端自行消费
-            if (m_blockTypes.value(index) == QLatin1String("tool_use"))
+            if (stream.hasToolCall(index))
                 stream.mergeToolCall(index, QString(), QString(),
                                      QString::fromStdString(
                                          deltaIt->value("partial_json", std::string())));
@@ -253,13 +248,11 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
                                            : stopReason);
             }
         }
-        // 输出侧用量与 message_start 暂存的输入侧合并
+        // 输出侧用量与 message_start 记下的输入侧合并成完整 TokenUsage
         const auto usageIt = payload.find("usage");
         if (usageIt != payload.end() && usageIt->is_object()) {
-            TokenUsage usage;
+            TokenUsage usage = stream.usage(); // 保留 message_start 的输入侧
             usage.valid = true;
-            usage.promptTokens = m_pendingPromptTokens;
-            usage.cachedTokens = m_pendingCachedTokens;
             if (auto it = usageIt->find("output_tokens");
                 it != usageIt->end() && it->is_number())
                 usage.completionTokens = it->get<qint64>();

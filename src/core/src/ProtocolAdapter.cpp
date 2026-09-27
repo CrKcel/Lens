@@ -25,20 +25,13 @@ public:
         return {{QByteArrayLiteral("Authorization"), "Bearer " + apiKey.toUtf8()}};
     }
 
-    nlohmann::json buildRequestBody(const std::vector<Message> &history, const QString &model,
-                                    const QString &systemPrompt, bool stream,
-                                    const std::vector<ToolSpec> &tools,
-                                    const RequestFeatures &features) const override
+    nlohmann::json doBuildRequestBody(const std::vector<Message> &history, const QString &model,
+                                     const QString &systemPrompt, bool stream,
+                                     const std::vector<ToolSpec> &tools,
+                                     const RequestFeatures &features) const override
     {
-        if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
-            RequestFeatures plain = features;
-            plain.images = true; // 翻转标志，递归只进一层
-            return buildRequestBody(detail::withoutImages(history), model, systemPrompt,
-                                    stream, tools, plain);
-        }
-        nlohmann::json body = chatcompletions::buildRequestBody(history, model, systemPrompt,
-                                                                stream,
-                                                                toChatCompletionsTools(tools));
+        nlohmann::json body = chatcompletions::buildRequestBody(
+            history, model, systemPrompt, stream, detail::toChatCompletionsTools(tools));
         if (features.serverSideSearch)
             body["web_search_options"] = nlohmann::json::object(); // OpenAI 服务端搜索
         if (features.maxOutputTokens > 0)
@@ -69,20 +62,6 @@ public:
         if (it == payload.end() || !it->is_object())
             return {};
         return QString::fromStdString(it->value("message", std::string("chat completions 协议错误")));
-    }
-
-private:
-    static nlohmann::json toChatCompletionsTools(const std::vector<ToolSpec> &tools)
-    {
-        auto array = nlohmann::json::array();
-        for (const ToolSpec &spec : tools) {
-            array.push_back({{"type", "function"},
-                             {"function",
-                              {{"name", spec.name.toStdString()},
-                               {"description", spec.description.toStdString()},
-                               {"parameters", spec.parameters}}}});
-        }
-        return array;
     }
 };
 

@@ -2,6 +2,7 @@
 
 #include <lens/core/context/PromptAssembler.hpp>
 #include <lens/core/providers/ChatCompletionsClient.hpp>
+#include <lens/core/providers/ProtocolAdapter.hpp>
 #include <lens/core/providers/SseParser.hpp>
 #include <lens/core/tools/ToolRegistry.hpp>
 #include <lens/core/tools/builtins/BashTool.hpp>
@@ -89,8 +90,9 @@ void TestChatCompletions::carriesToolsInRequest()
 {
     ToolRegistry registry;
     registry.registerTool(std::make_shared<ReadTool>());
-    const auto body = chatcompletions::buildRequestBody({}, QStringLiteral("m"), {}, true,
-                                                        registry.toChatCompletionsTools());
+    const auto body = chatcompletions::buildRequestBody(
+        {}, QStringLiteral("m"), {}, true,
+        detail::toChatCompletionsTools(registry.specs()));
     QVERIFY(body["tools"][0]["function"]["name"].get<std::string>() == "read");
 
     // 空工具集不携带 tools 字段
@@ -101,20 +103,25 @@ void TestChatCompletions::carriesToolsInRequest()
 
 void TestChatCompletions::extractsDeltaText()
 {
+    chatcompletions::ChatCompletionStream stream;
     const auto withContent = nlohmann::json::parse(R"({"choices":[{"delta":{"content":"he"}}]})");
     const auto withoutContent = nlohmann::json::parse(R"({"choices":[{"delta":{}}]})");
     const auto nullContent = nlohmann::json::parse(R"({"choices":[{"delta":{"content":null}}]})");
-    QCOMPARE(chatcompletions::extractDeltaText(withContent), QStringLiteral("he"));
-    // content 缺失 / null（如 tool_call 增量帧）返回空串
-    QCOMPARE(chatcompletions::extractDeltaText(withoutContent), QString());
-    QCOMPARE(chatcompletions::extractDeltaText(nullContent), QString());
+    QCOMPARE(stream.apply(withContent).content, QStringLiteral("he"));
+    // content 缺失 / null（如 tool_call 增量帧）不产生正文增量，也不累积
+    QCOMPARE(stream.apply(withoutContent).content, QString());
+    QCOMPARE(stream.apply(nullContent).content, QString());
+    QCOMPARE(stream.content(), QStringLiteral("he"));
 }
 
 void TestChatCompletions::toleratesMalformedPayload()
 {
+    chatcompletions::ChatCompletionStream stream;
     const auto discarded = nlohmann::json::parse("{not json", nullptr, false);
-    QCOMPARE(chatcompletions::extractDeltaText(discarded), QString());
-    QCOMPARE(chatcompletions::extractDeltaText(nlohmann::json::object()), QString());
+    QCOMPARE(stream.apply(discarded).content, QString());
+    QCOMPARE(stream.apply(nlohmann::json::object()).content, QString());
+    QCOMPARE(stream.content(), QString());
+    QVERIFY(!stream.isDone());
 }
 
 void TestChatCompletions::streamAccumulatesContentAndToolCalls()
@@ -243,7 +250,7 @@ void TestChatCompletions::toolRegistryEmitsFunctionFormat()
     registry.registerTool(std::make_shared<ReadTool>());
     registry.registerTool(std::make_shared<BashTool>());
 
-    const auto tools = registry.toChatCompletionsTools();
+    const auto tools = detail::toChatCompletionsTools(registry.specs());
     QCOMPARE(tools.size(), 2);
     QVERIFY(tools[0]["type"].get<std::string>() == "function");
     QVERIFY(tools[0]["function"]["name"].get<std::string>() == "read");

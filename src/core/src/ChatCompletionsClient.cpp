@@ -79,27 +79,6 @@ nlohmann::json buildRequestBody(const std::vector<Message> &history,
     return body;
 }
 
-QString extractDeltaText(const nlohmann::json &payload)
-{
-    if (payload.is_discarded() || !payload.contains("choices"))
-        return {};
-    const auto &choices = payload.at("choices");
-    if (!choices.is_array() || choices.empty())
-        return {};
-    const auto &first = choices.front();
-    if (!first.is_object() || !first.contains("delta"))
-        return {};
-    const auto &delta = first.at("delta");
-    if (!delta.is_object() || !delta.contains("content"))
-        return {};
-    const auto &content = delta.at("content");
-    if (content.is_string())
-        return QString::fromStdString(content.get<std::string>());
-    if (content.is_null())
-        return {};
-    return QString::fromStdString(content.dump());
-}
-
 // 解析 chat completions 形态的 usage 对象（prompt/completion_tokens + cached 明细）。
 // llama.cpp 末帧把 usage 放在 chunk 顶层，OpenAI 的 include_usage 末帧无 choices。
 // 仅本翻译单元使用，保持内部链接避免污染命名空间

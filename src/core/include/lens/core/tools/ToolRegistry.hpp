@@ -57,25 +57,6 @@ public:
         return {false, QStringLiteral("未知工具：%1").arg(name)};
     }
 
-    // OpenAI function-calling 格式的 tools 数组；其它协议格式由 Provider 适配层转换
-    nlohmann::json toChatCompletionsTools() const
-    {
-        auto array = nlohmann::json::array();
-        for (const auto &tool : m_tools) {
-            if (m_disabled.contains(tool->name()))
-                continue;
-            const ToolSpec spec = tool->spec();
-            array.push_back({
-                {"type", "function"},
-                {"function",
-                 {{"name", spec.name.toStdString()},
-                  {"description", spec.description.toStdString()},
-                  {"parameters", spec.parameters}}},
-            });
-        }
-        return array;
-    }
-
 private:
     std::vector<std::shared_ptr<IBuiltinTool>> m_tools;
     QSet<QString> m_disabled;

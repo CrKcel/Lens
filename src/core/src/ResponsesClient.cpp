@@ -82,18 +82,12 @@ QList<QPair<QByteArray, QByteArray>> ResponsesAdapter::extraHeaders(const QStrin
     return {{QByteArrayLiteral("Authorization"), "Bearer " + apiKey.toUtf8()}};
 }
 
-nlohmann::json ResponsesAdapter::buildRequestBody(const std::vector<Message> &history,
-                                                  const QString &model,
-                                                  const QString &systemPrompt, bool stream,
-                                                  const std::vector<ToolSpec> &tools,
-                                                  const RequestFeatures &features) const
+nlohmann::json ResponsesAdapter::doBuildRequestBody(const std::vector<Message> &history,
+                                                   const QString &model,
+                                                   const QString &systemPrompt, bool stream,
+                                                   const std::vector<ToolSpec> &tools,
+                                                   const RequestFeatures &features) const
 {
-    if (!features.images) { // 模型不支持图片：剥离所有消息的图片附件
-        RequestFeatures plain = features;
-        plain.images = true; // 翻转标志，递归只进一层
-        return buildRequestBody(detail::withoutImages(history), model, systemPrompt, stream,
-                                tools, plain);
-    }
     nlohmann::json body = {{"model", model.toStdString()},
                            {"input", buildInputItems(history)},
                            {"stream", stream},

@@ -13,15 +13,17 @@ public:
     QUrl resolveEndpoint(const QString &baseUrl) const override;
     QUrl resolveModelsEndpoint(const QString &baseUrl) const override;
     QList<QPair<QByteArray, QByteArray>> extraHeaders(const QString &apiKey) const override;
-    nlohmann::json buildRequestBody(const std::vector<Message> &history, const QString &model,
-                                    const QString &systemPrompt, bool stream,
-                                    const std::vector<ToolSpec> &tools,
-                                    const RequestFeatures &features = {}) const override;
     bool isDoneEvent(const QByteArray &) const override;
     chatcompletions::StreamDelta
     applyEvent(const nlohmann::json &payload,
                chatcompletions::ChatCompletionStream &stream) const override;
     QString errorFromEvent(const nlohmann::json &payload) const override;
+
+protected:
+    nlohmann::json doBuildRequestBody(const std::vector<Message> &history, const QString &model,
+                                     const QString &systemPrompt, bool stream,
+                                     const std::vector<ToolSpec> &tools,
+                                     const RequestFeatures &features) const override;
 };
 
 } // namespace lens::responses

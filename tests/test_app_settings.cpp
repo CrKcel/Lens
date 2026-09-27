@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include "AppSettings.hpp"
 
@@ -21,9 +22,11 @@ private slots:
     void fontScaleRoundtripAndNormalization();
     void lineSpacingRoundtripAndNormalization();
     void colorOverridesRoundtripAndValidation();
+    void paletteTokensMatchQml();
 
 private:
     QString writeJson(const QByteArray &json);
+    QStringList readTokens(const QString &relativePath, const QRegularExpression &pattern) const;
     QTemporaryDir m_dir;
 };
 
@@ -262,6 +265,56 @@ void TestAppSettings::colorOverridesRoundtripAndValidation()
 
     reloaded.clearColorOverrides();
     QVERIFY(reloaded.colorOverrides().isEmpty());
+}
+
+// 调色板 token 清单在三处重复（AppSettings 白名单 / Theme.qml 的属性与 tokens 映射
+// / SettingsAppearancePage.paletteTokens），本文锁定三者一致：外观页色块列出的 token
+// 必须存得下，Theme.qml 暴露的 token 必须都有色块
+void TestAppSettings::paletteTokensMatchQml()
+{
+    const QRegularExpression propertyPattern(
+        QStringLiteral(R"RE(readonly property color \w+:\s*ov\("([A-Za-z0-9_]+)")RE"));
+    const QStringList themeTokens = readTokens(QStringLiteral("src/app/Theme.qml"),
+                                              propertyPattern);
+    QVERIFY2(themeTokens.size() >= 24,
+             qPrintable(QStringLiteral("Theme.qml 只解析到 %1 个 token").arg(themeTokens.size())));
+
+    // tokens 映射（外观页色块的数据源）必须覆盖全部颜色属性，顺序也应一致
+    const QRegularExpression mapPattern(QStringLiteral(
+        R"RE("([A-Za-z0-9_]+)":\s*(?:background|surface|sidebar|field|fieldBorder|card|cardBorder|highlight|textSoft|textDim|textFaint|text|accentHover|accentPressed|accentSoft|accentBorder|accent|success|errorSoft|error|bubbleUserText|bubbleUser2|bubbleUser|divider)\b)RE"));
+    QCOMPARE(readTokens(QStringLiteral("src/app/Theme.qml"), mapPattern), themeTokens);
+
+    const QRegularExpression keyPattern(
+        QStringLiteral(R"RE(\{\s*key:\s*"([A-Za-z0-9_]+)")RE"));
+    QCOMPARE(readTokens(QStringLiteral("src/app/SettingsAppearancePage.qml"), keyPattern),
+             themeTokens);
+
+    // 白名单一致性用行为验证：Theme.qml 里的每个 token 都要能被写入覆盖
+    AppSettings settings(writeJson("{}"));
+    for (const QString &token : themeTokens)
+        settings.setColorOverride(QStringLiteral("dark"), token, QStringLiteral("#123456"));
+    const QVariantMap overrides = settings.colorOverrides().value(QStringLiteral("dark")).toMap();
+    QCOMPARE(overrides.size(), themeTokens.size());
+    for (const QString &token : themeTokens)
+        QVERIFY2(overrides.contains(token), qPrintable(token));
+    settings.setColorOverride(QStringLiteral("dark"), QStringLiteral("not-a-token"),
+                              QStringLiteral("#123456"));
+    QCOMPARE(settings.colorOverrides().value(QStringLiteral("dark")).toMap().size(),
+             themeTokens.size());
+}
+
+QStringList TestAppSettings::readTokens(const QString &relativePath,
+                                       const QRegularExpression &pattern) const
+{
+    QFile file(QStringLiteral(LENS_SOURCE_DIR "/") + relativePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    const QString text = QString::fromUtf8(file.readAll());
+    QStringList tokens;
+    auto it = pattern.globalMatch(text);
+    while (it.hasNext())
+        tokens.append(it.next().captured(1));
+    return tokens;
 }
 
 int main(int argc, char **argv)

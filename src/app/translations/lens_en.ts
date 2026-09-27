@@ -749,13 +749,13 @@ The first message creates a conversation automatically.</translation>
     </message>
     <message>
         <location filename="../SettingsAppearancePage.qml" line="83"/>
-        <location filename="../SettingsAppearancePage.qml" line="129"/>
+        <location filename="../SettingsAppearancePage.qml" line="126"/>
         <source>深色</source>
         <translation>Dark</translation>
     </message>
     <message>
         <location filename="../SettingsAppearancePage.qml" line="83"/>
-        <location filename="../SettingsAppearancePage.qml" line="130"/>
+        <location filename="../SettingsAppearancePage.qml" line="127"/>
         <source>浅色</source>
         <translation>Light</translation>
     </message>
@@ -765,17 +765,17 @@ The first message creates a conversation automatically.</translation>
         <translation>Choose a color</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="116"/>
+        <location filename="../SettingsAppearancePage.qml" line="113"/>
         <source>主题与配色</source>
         <translation>Theme and accent color</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="120"/>
+        <location filename="../SettingsAppearancePage.qml" line="117"/>
         <source>主题</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="128"/>
+        <location filename="../SettingsAppearancePage.qml" line="125"/>
         <source>跟随系统</source>
         <translation>Follow system</translation>
     </message>
@@ -812,77 +812,77 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">The accent color is used for buttons, links, user bubbles and selection</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="138"/>
+        <location filename="../SettingsAppearancePage.qml" line="135"/>
         <source>阅读体验</source>
         <translation>Reading experience</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="142"/>
+        <location filename="../SettingsAppearancePage.qml" line="139"/>
         <source>字体大小</source>
         <translation>Font size</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="150"/>
+        <location filename="../SettingsAppearancePage.qml" line="147"/>
         <source>小（85%）</source>
         <translation>Small (85%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="151"/>
+        <location filename="../SettingsAppearancePage.qml" line="148"/>
         <source>标准（100%）</source>
         <translation>Standard (100%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="152"/>
+        <location filename="../SettingsAppearancePage.qml" line="149"/>
         <source>大（115%）</source>
         <translation>Large (115%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="153"/>
+        <location filename="../SettingsAppearancePage.qml" line="150"/>
         <source>特大（130%）</source>
         <translation>Extra large (130%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="154"/>
+        <location filename="../SettingsAppearancePage.qml" line="151"/>
         <source>最大（150%）</source>
         <translation>Largest (150%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="160"/>
+        <location filename="../SettingsAppearancePage.qml" line="157"/>
         <source>行间距</source>
         <translation>Line spacing</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="168"/>
+        <location filename="../SettingsAppearancePage.qml" line="165"/>
         <source>紧凑（100%）</source>
         <translation>Tight (100%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="169"/>
+        <location filename="../SettingsAppearancePage.qml" line="166"/>
         <source>标准（115%）</source>
         <translation>Standard (115%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="170"/>
+        <location filename="../SettingsAppearancePage.qml" line="167"/>
         <source>宽松（130%）</source>
         <translation>Relaxed (130%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="171"/>
+        <location filename="../SettingsAppearancePage.qml" line="168"/>
         <source>特宽（150%）</source>
         <translation>Extra loose (150%)</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="179"/>
+        <location filename="../SettingsAppearancePage.qml" line="176"/>
         <source>调色板</source>
         <translation>Palette</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="180"/>
+        <location filename="../SettingsAppearancePage.qml" line="177"/>
         <source>点击色块按深/浅主题修改内置颜色，改动即时生效</source>
         <translation>Click a swatch to change a built-in color for the dark or light theme; changes apply immediately</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="228"/>
+        <location filename="../SettingsAppearancePage.qml" line="225"/>
         <source>恢复默认调色板</source>
         <translation>Reset palette</translation>
     </message>
@@ -1053,194 +1053,194 @@ The first message creates a conversation automatically.</translation>
         <translation>Providers</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="88"/>
-        <location filename="../SettingsProvidersPage.qml" line="225"/>
+        <location filename="../SettingsProvidersPage.qml" line="84"/>
+        <location filename="../SettingsProvidersPage.qml" line="202"/>
         <source>＋</source>
         <translation>＋</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="90"/>
+        <location filename="../SettingsProvidersPage.qml" line="86"/>
         <source>新增供应商（复制当前配置）</source>
         <translation>Add provider (copies current settings)</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="94"/>
+        <location filename="../SettingsProvidersPage.qml" line="88"/>
         <source>供应商%1</source>
         <translation>Provider %1</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="110"/>
-        <location filename="../SettingsProvidersPage.qml" line="231"/>
+        <location filename="../SettingsProvidersPage.qml" line="91"/>
+        <location filename="../SettingsProvidersPage.qml" line="208"/>
         <source>－</source>
         <translation>－</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="113"/>
+        <location filename="../SettingsProvidersPage.qml" line="94"/>
         <source>删除当前供应商</source>
         <translation>Remove current provider</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="125"/>
+        <location filename="../SettingsProvidersPage.qml" line="102"/>
         <source>基本信息</source>
         <translation>Basics</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="132"/>
+        <location filename="../SettingsProvidersPage.qml" line="109"/>
         <source>名称</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="144"/>
+        <location filename="../SettingsProvidersPage.qml" line="121"/>
         <source>协议</source>
         <translation>Protocol</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="152"/>
+        <location filename="../SettingsProvidersPage.qml" line="129"/>
         <source>chat completions</source>
         <translation>chat completions</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="153"/>
+        <location filename="../SettingsProvidersPage.qml" line="130"/>
         <source>responses</source>
         <translation>responses</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="154"/>
+        <location filename="../SettingsProvidersPage.qml" line="131"/>
         <source>anthropic</source>
         <translation>anthropic</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="161"/>
+        <location filename="../SettingsProvidersPage.qml" line="138"/>
         <source>服务端联网搜索（供应商支持时启用）</source>
         <translation>Server-side web search (when supported by the provider)</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="176"/>
+        <location filename="../SettingsProvidersPage.qml" line="153"/>
         <source>API 接入</source>
         <translation>API access</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="180"/>
+        <location filename="../SettingsProvidersPage.qml" line="157"/>
         <source>API 地址</source>
         <translation>API endpoint</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="181"/>
+        <location filename="../SettingsProvidersPage.qml" line="158"/>
         <source>含协议路径，或仅主机/根路径自动补全</source>
         <translation>Full API path, or host/root path with automatic completion</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="193"/>
+        <location filename="../SettingsProvidersPage.qml" line="170"/>
         <source>API Key</source>
         <translation>API Key</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="208"/>
+        <location filename="../SettingsProvidersPage.qml" line="185"/>
         <source>模型</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="209"/>
+        <location filename="../SettingsProvidersPage.qml" line="186"/>
         <source>显示名用于界面展示，其余参数按模型单独生效</source>
         <translation>Display names are for the UI only; other parameters apply per model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="227"/>
+        <location filename="../SettingsProvidersPage.qml" line="204"/>
         <source>新增模型</source>
         <translation>Add model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="234"/>
+        <location filename="../SettingsProvidersPage.qml" line="211"/>
         <source>删除当前选中的模型</source>
         <translation>Remove the selected model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="243"/>
+        <location filename="../SettingsProvidersPage.qml" line="220"/>
         <source>显示名称</source>
         <translation>Display name</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="244"/>
+        <location filename="../SettingsProvidersPage.qml" line="221"/>
         <source>留空显示模型 ID</source>
         <translation>Leave empty to show the model ID</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="256"/>
+        <location filename="../SettingsProvidersPage.qml" line="233"/>
         <source>模型 ID</source>
         <translation>Model ID</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="257"/>
+        <location filename="../SettingsProvidersPage.qml" line="234"/>
         <source>请求体使用的模型名</source>
         <translation>The model name used in request bodies</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="273"/>
+        <location filename="../SettingsProvidersPage.qml" line="250"/>
         <source>上下文窗口</source>
         <translation>Context window</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="286"/>
+        <location filename="../SettingsProvidersPage.qml" line="263"/>
         <source>最大输出 Token</source>
         <translation>Max output tokens</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="299"/>
+        <location filename="../SettingsProvidersPage.qml" line="276"/>
         <source>启用图片输入</source>
         <translation>Image input</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="314"/>
+        <location filename="../SettingsProvidersPage.qml" line="291"/>
         <source>上下文窗口与最大输出留空或 0 表示不限制；关闭图片输入后，消息与工具返回的图片不再发给该模型</source>
         <translation>Leave context window and max output empty or 0 for no limit; with image input off, images from messages and tools are not sent to this model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="322"/>
+        <location filename="../SettingsProvidersPage.qml" line="299"/>
         <source>设为当前模型</source>
         <translation>Set as current</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="327"/>
+        <location filename="../SettingsProvidersPage.qml" line="304"/>
         <source>获取中…</source>
         <translation>Fetching…</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="327"/>
+        <location filename="../SettingsProvidersPage.qml" line="304"/>
         <source>获取模型列表</source>
         <translation>Fetch model list</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="334"/>
+        <location filename="../SettingsProvidersPage.qml" line="311"/>
         <source>当前模型：%1</source>
         <translation>Current model: %1</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="335"/>
+        <location filename="../SettingsProvidersPage.qml" line="312"/>
         <source>尚未选择当前模型</source>
         <translation>No model selected yet</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="350"/>
+        <location filename="../SettingsProvidersPage.qml" line="327"/>
         <source>计费</source>
         <translation>Pricing</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="358"/>
+        <location filename="../SettingsProvidersPage.qml" line="335"/>
         <source>输入单价</source>
         <translation>Input price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="371"/>
+        <location filename="../SettingsProvidersPage.qml" line="348"/>
         <source>输出单价</source>
         <translation>Output price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="384"/>
+        <location filename="../SettingsProvidersPage.qml" line="361"/>
         <source>缓存单价</source>
         <translation>Cache price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="397"/>
+        <location filename="../SettingsProvidersPage.qml" line="374"/>
         <source>每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计</source>
         <translation>Price per million tokens; empty or 0 means free. When the cached price is empty or 0, cached tokens are billed at the input price</translation>
     </message>
@@ -1319,12 +1319,12 @@ The first message creates a conversation automatically.</translation>
 <context>
     <name>SettingsView</name>
     <message>
-        <location filename="../SettingsView.qml" line="165"/>
+        <location filename="../SettingsView.qml" line="210"/>
         <source>新服务器</source>
         <translation>New server</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="368"/>
+        <location filename="../SettingsView.qml" line="413"/>
         <source>表单已改动，结果未应用</source>
         <translation>Form changed; result not applied</translation>
     </message>
@@ -1333,47 +1333,47 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Fetched %1 models</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="391"/>
+        <location filename="../SettingsView.qml" line="436"/>
         <source>获取失败：%1</source>
         <translation>Fetch failed: %1</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="406"/>
+        <location filename="../SettingsView.qml" line="451"/>
         <source>模型提供商</source>
         <translation>Model Providers</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="407"/>
+        <location filename="../SettingsView.qml" line="452"/>
         <source>MCP</source>
         <translation>MCP</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="408"/>
+        <location filename="../SettingsView.qml" line="453"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="409"/>
+        <location filename="../SettingsView.qml" line="454"/>
         <source>快捷键</source>
         <translation>Shortcuts</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="411"/>
+        <location filename="../SettingsView.qml" line="456"/>
         <source>常规</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="412"/>
+        <location filename="../SettingsView.qml" line="457"/>
         <source>管理模型供应商与接入参数</source>
         <translation>Manage model providers and connection settings</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="413"/>
+        <location filename="../SettingsView.qml" line="458"/>
         <source>经 stdio 连接 Model Context Protocol 服务器</source>
         <translation>Connect Model Context Protocol servers over stdio</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="415"/>
+        <location filename="../SettingsView.qml" line="460"/>
         <source>配置消息的发送方式</source>
         <translation>Configure how messages are sent</translation>
     </message>
@@ -1382,7 +1382,7 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Language, theme and reading experience</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="410"/>
+        <location filename="../SettingsView.qml" line="455"/>
         <source>外观</source>
         <translation>Appearance</translation>
     </message>
@@ -1563,12 +1563,12 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Divider</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="416"/>
+        <location filename="../SettingsView.qml" line="461"/>
         <source>主题、配色与阅读体验</source>
         <translation>Theme, accent color and reading experience</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="417"/>
+        <location filename="../SettingsView.qml" line="462"/>
         <source>语言、联网搜索与系统提示词</source>
         <translation>Language, web search and system prompt</translation>
     </message>
@@ -1869,12 +1869,12 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">&#x3000;[%1]</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="414"/>
+        <location filename="../SettingsView.qml" line="459"/>
         <source>技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取</source>
         <translation>Skills come from SKILL.md files and are discovered automatically; agents read the content on demand</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="385"/>
+        <location filename="../SettingsView.qml" line="430"/>
         <source>已获取 %1 个模型（新增 %2 个）</source>
         <translation>Fetched %1 models (%2 new)</translation>
     </message>

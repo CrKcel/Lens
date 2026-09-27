@@ -10,6 +10,10 @@ qt_add_executable(lens
     E2eDriver.cpp
     ConversationListModel.hpp
     ConversationListModel.cpp
+    McpManager.hpp
+    McpManager.cpp
+    UsageTracker.hpp
+    UsageTracker.cpp
     MessageListModel.hpp
     MessageListModel.cpp
     TitleBarLayout.hpp
