@@ -29,6 +29,16 @@ qt_add_qml_module(lens
         NavButton.qml
         SettingFieldBg.qml
         SettingsView.qml
+        SettingsPageHeader.qml
+        SettingsSection.qml
+        SettingsRow.qml
+        SettingsField.qml
+        SettingsGeneralPage.qml
+        SettingsAppearancePage.qml
+        SettingsProvidersPage.qml
+        SettingsMcpPage.qml
+        SettingsSkillsPage.qml
+        SettingsShortcutsPage.qml
         Sidebar.qml
         SlimScrollBar.qml
         Theme.qml
