@@ -34,6 +34,28 @@ ColumnLayout {
     property var modelsFetchSnapshot: null
     property string modelsFetchStatus: ""
 
+    // 工作副本对应的供应商下标：字段只在进入设置模式时加载一次，若期间
+    // 激活供应商被外部改变（聊天弹层 selectModel），提交时写回的是加载时
+    // 的供应商，否则会把 A 供应商的配置（含模型清单）写进 B
+    property int loadedProviderIndex: -1
+
+    // 激活供应商在设置页之外被切换（弹层 selectModel 连发两次 settingsChanged：
+    // 先切供应商再设模型）：重载排队到事件循环，等写方完整结束后同步工作副本，
+    // 避免读到半更新状态
+    Connections {
+        target: settings
+        function onSettingsChanged() {
+            if (settings.activeProvider !== settingsRoot.loadedProviderIndex
+                    && !settingsRoot.loadingFields)
+                Qt.callLater(settingsRoot.reloadFieldsIfDrifted)
+        }
+    }
+
+    function reloadFieldsIfDrifted() {
+        if (settings.activeProvider !== settingsRoot.loadedProviderIndex)
+            settingsRoot.loadSettingsIntoFields()
+    }
+
     anchors.margins: 20
     spacing: 12
 
@@ -295,18 +317,25 @@ ColumnLayout {
         const sendShortcut = sendShortcutCombo.currentValue
         const toolPreset = toolPresetCombo.currentValue
         const languageChanged = language !== settings.language
-        settingsRoot.flushModelFields()
-        settings.updateProvider(settings.activeProvider,
-            { "name": providerNameField.text,
-              "protocol": protocolCombo.currentValue,
-              "endpoint": endpointField.text,
-              "apiKey": apiKeyField.text,
-              "model": settingsRoot.currentModelWorking,
-              "models": settingsRoot.modelsWorking,
-              "serverSearch": serverSearchCheck.checked,
-              "inputPrice": Number(inputPriceField.text) || 0,
-              "outputPrice": Number(outputPriceField.text) || 0,
-              "cachedPrice": Number(cachedPriceField.text) || 0 })
+        // 写回工作副本所属的供应商而非当前激活的：激活供应商可能在字段加载后
+        // 被聊天弹层 selectModel 改变，按当前值写会把 A 的配置写进 B。
+        // 字段从未加载时（loadedProviderIndex = -1）跳过写回：此时 modelsWorking
+        // 为空，写回会清空该供应商的模型清单
+        if (settingsRoot.loadedProviderIndex >= 0
+                && settingsRoot.loadedProviderIndex < settings.providers.length) {
+            settingsRoot.flushModelFields()
+            settings.updateProvider(settingsRoot.loadedProviderIndex,
+                { "name": providerNameField.text,
+                  "protocol": protocolCombo.currentValue,
+                  "endpoint": endpointField.text,
+                  "apiKey": apiKeyField.text,
+                  "model": settingsRoot.currentModelWorking,
+                  "models": settingsRoot.modelsWorking,
+                  "serverSearch": serverSearchCheck.checked,
+                  "inputPrice": Number(inputPriceField.text) || 0,
+                  "outputPrice": Number(outputPriceField.text) || 0,
+                  "cachedPrice": Number(cachedPriceField.text) || 0 })
+        }
         settings.systemPrompt = systemPromptField.text
         settings.webSearchEndpoint = webSearchEndpointField.text
         settings.webSearchApiKey = webSearchApiKeyField.text
@@ -484,6 +513,7 @@ ColumnLayout {
     // 不当作用户改动提交。
     function loadSettingsIntoFields() {
         settingsRoot.loadingFields = true
+        settingsRoot.loadedProviderIndex = settings.activeProvider
         endpointField.text = settings.endpoint
         apiKeyField.text = settings.apiKey
         protocolCombo.currentIndex = protocolCombo.indexOfValue(settings.protocol)
@@ -985,103 +1015,163 @@ ColumnLayout {
         }
     }
 
-    // ── 模型提供商：左侧列表，右侧编辑表单 ───────────────────
-    RowLayout {
+    // ── 模型提供商：上下布局，圆角卡片分节 ───────────────────
+    ScrollView {
+        id: providersScroll
         visible: settingsRoot.settingsCategory === "providers"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 20
+        contentWidth: availableWidth
+        contentHeight: providersContent.implicitHeight
+        ScrollBar.vertical: SlimScrollBar {}
 
         ColumnLayout {
-            Layout.preferredWidth: 200
-            Layout.fillHeight: true
-            spacing: 6
-            RowLayout {
+            id: providersContent
+            width: providersScroll.availableWidth
+            spacing: 12
+
+            // 供应商选择：横向条目 + 新增/删除
+            SettingsSection {
                 Layout.fillWidth: true
-                spacing: 6
-                GhostButton {
+                title: qsTr("供应商")
+
+                RowLayout {
                     Layout.fillWidth: true
-                    text: qsTr("＋")
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("新增供应商（复制当前配置）")
-                    onClicked: {
-                        settingsRoot.flushModelFields()
-                        settings.addProvider({
-                            "name": qsTr("供应商%1").arg(settings.providers.length + 1),
-                            "protocol": protocolCombo.currentValue,
-                            "endpoint": endpointField.text,
-                            "apiKey": apiKeyField.text,
-                            "model": settingsRoot.currentModelWorking,
-                            "models": settingsRoot.modelsWorking,
-                            "serverSearch": serverSearchCheck.checked,
-                            "inputPrice": Number(inputPriceField.text) || 0,
-                            "outputPrice": Number(outputPriceField.text) || 0,
-                            "cachedPrice": Number(cachedPriceField.text) || 0
-                        })
-                        settingsRoot.loadSettingsIntoFields()
-                        settings.save()
+                    spacing: 8
+
+                    ListView {
+                        id: providerList
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 36
+                        orientation: ListView.Horizontal
+                        clip: true
+                        spacing: 4
+                        model: settings.providers
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.horizontal: SlimScrollBar {}
+
+                        delegate: ItemDelegate {
+                            width: providerNameLabel.implicitWidth + 24
+                            height: ListView.view ? ListView.view.height : 36
+                            highlighted: index === settings.activeProvider
+                            onClicked: {
+                                settingsRoot.commitSettings() // 表单值写回当前激活供应商后再切换
+                                settings.activeProvider = index
+                                settingsRoot.loadSettingsIntoFields()
+                            }
+                            background: Rectangle {
+                                radius: theme.radiusS
+                                color: parent.highlighted ? theme.accentSoft
+                                     : parent.hovered ? theme.highlight
+                                     : "transparent"
+                            }
+                            contentItem: Label {
+                                id: providerNameLabel
+                                text: modelData.name
+                                color: highlighted ? theme.accent : theme.text
+                                elide: Text.ElideRight
+                                font.pixelSize: Math.round(13 * settings.fontScale)
+                            }
+                        }
                     }
-                }
-                GhostButton {
-                    Layout.fillWidth: true
-                    text: qsTr("－")
-                    enabled: settings.providers.length > 1
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("删除当前供应商")
-                    onClicked: {
-                        settings.removeProvider(settings.activeProvider)
-                        settingsRoot.loadSettingsIntoFields()
-                        settings.save()
+
+                    GhostButton {
+                        text: qsTr("＋")
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("新增供应商（复制当前配置）")
+                        onClicked: {
+                            settingsRoot.flushModelFields()
+                            settings.addProvider({
+                                "name": qsTr("供应商%1").arg(settings.providers.length + 1),
+                                "protocol": protocolCombo.currentValue,
+                                "endpoint": endpointField.text,
+                                "apiKey": apiKeyField.text,
+                                "model": settingsRoot.currentModelWorking,
+                                "models": settingsRoot.modelsWorking,
+                                "serverSearch": serverSearchCheck.checked,
+                                "inputPrice": Number(inputPriceField.text) || 0,
+                                "outputPrice": Number(outputPriceField.text) || 0,
+                                "cachedPrice": Number(cachedPriceField.text) || 0
+                            })
+                            settingsRoot.loadSettingsIntoFields()
+                            settings.save()
+                        }
+                    }
+                    GhostButton {
+                        text: qsTr("－")
+                        enabled: settings.providers.length > 1
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("删除当前供应商")
+                        onClicked: {
+                            settings.removeProvider(settings.activeProvider)
+                            settingsRoot.loadSettingsIntoFields()
+                            settings.save()
+                        }
                     }
                 }
             }
-            ListView {
-                id: providerList
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                spacing: 4
-                model: settings.providers
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: SlimScrollBar {}
 
-                delegate: ItemDelegate {
-                    width: providerList.width
-                    highlighted: index === settings.activeProvider
-                    onClicked: {
-                        settingsRoot.commitSettings() // 表单值写回当前激活供应商后再切换
-                        settings.activeProvider = index
-                        settingsRoot.loadSettingsIntoFields()
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("基本信息")
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    SettingsField {
+                        Layout.fillWidth: true
+                        label: qsTr("名称")
+                        TextField {
+                            id: providerNameField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
                     }
-                    background: Rectangle {
-                        radius: theme.radiusS
-                        color: parent.highlighted ? theme.accentSoft
-                             : parent.hovered ? theme.highlight
-                             : "transparent"
+                    SettingsField {
+                        Layout.preferredWidth: 220
+                        label: qsTr("协议")
+                        LensComboBox {
+                            id: protocolCombo
+                            Layout.fillWidth: true
+                            textRole: "text"
+                            valueRole: "value"
+                            onActivated: settingsRoot.commitSettings()
+                            model: [
+                                { text: qsTr("chat completions"), value: "chat_completions" },
+                                { text: qsTr("responses"), value: "responses" },
+                                { text: qsTr("anthropic"), value: "anthropic" }
+                            ]
+                        }
                     }
+                }
+                CheckBox {
+                    id: serverSearchCheck
+                    text: qsTr("服务端联网搜索（供应商支持时启用）")
+                    font.pixelSize: Math.round(12 * settings.fontScale)
+                    onToggled: if (!settingsRoot.loadingFields) settingsRoot.commitSettings()
                     contentItem: Label {
-                        text: modelData.name
-                        color: highlighted ? theme.accent : theme.text
-                        elide: Text.ElideRight
-                        font.pixelSize: Math.round(13 * settings.fontScale)
+                        text: serverSearchCheck.text
+                        color: theme.textDim
+                        font.pixelSize: Math.round(12 * settings.fontScale)
+                        leftPadding: serverSearchCheck.indicator.width + 4
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
             }
-        }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: 14
-
-            RowLayout {
+            SettingsSection {
                 Layout.fillWidth: true
-                spacing: 12
+                title: qsTr("API 接入")
+
                 SettingsField {
                     Layout.fillWidth: true
-                    label: qsTr("名称")
+                    label: qsTr("API 地址")
+                    hint: qsTr("含协议路径，或仅主机/根路径自动补全")
                     TextField {
-                        id: providerNameField
+                        id: endpointField
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
@@ -1090,59 +1180,17 @@ ColumnLayout {
                     }
                 }
                 SettingsField {
-                    Layout.preferredWidth: 220
-                    label: qsTr("协议")
-                    LensComboBox {
-                        id: protocolCombo
+                    Layout.fillWidth: true
+                    label: qsTr("API Key")
+                    TextField {
+                        id: apiKeyField
                         Layout.fillWidth: true
-                        textRole: "text"
-                        valueRole: "value"
-                        onActivated: settingsRoot.commitSettings()
-                        model: [
-                            { text: qsTr("chat completions"), value: "chat_completions" },
-                            { text: qsTr("responses"), value: "responses" },
-                            { text: qsTr("anthropic"), value: "anthropic" }
-                        ]
+                        echoMode: TextInput.Password
+                        color: theme.text
+                        selectByMouse: true
+                        background: SettingFieldBg
+                        onTextEdited: settingsRoot.scheduleCommit()
                     }
-                }
-            }
-            CheckBox {
-                id: serverSearchCheck
-                text: qsTr("服务端联网搜索（供应商支持时启用）")
-                font.pixelSize: Math.round(12 * settings.fontScale)
-                onToggled: if (!settingsRoot.loadingFields) settingsRoot.commitSettings()
-                contentItem: Label {
-                    text: serverSearchCheck.text
-                    color: theme.textDim
-                    font.pixelSize: Math.round(12 * settings.fontScale)
-                    leftPadding: serverSearchCheck.indicator.width + 4
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
-            SettingsField {
-                Layout.fillWidth: true
-                label: qsTr("API 地址")
-                hint: qsTr("含协议路径，或仅主机/根路径自动补全")
-                TextField {
-                    id: endpointField
-                    Layout.fillWidth: true
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
-                }
-            }
-            SettingsField {
-                Layout.fillWidth: true
-                label: qsTr("API Key")
-                TextField {
-                    id: apiKeyField
-                    Layout.fillWidth: true
-                    echoMode: TextInput.Password
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg
-                    onTextEdited: settingsRoot.scheduleCommit()
                 }
             }
             // 模型编辑器：清单条目 + 每模型的显示与能力参数
@@ -1288,57 +1336,61 @@ ColumnLayout {
                     elide: Text.ElideRight
                 }
             }
-            RowLayout {
+            SettingsSection {
                 Layout.fillWidth: true
-                spacing: 12
-                SettingsField {
+                title: qsTr("计费")
+
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 140
-                    label: qsTr("输入单价")
-                    TextField {
-                        id: inputPriceField
+                    spacing: 12
+                    SettingsField {
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg
-                        onTextEdited: settingsRoot.scheduleCommit()
+                        Layout.maximumWidth: 140
+                        label: qsTr("输入单价")
+                        TextField {
+                            id: inputPriceField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
                     }
+                    SettingsField {
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: 140
+                        label: qsTr("输出单价")
+                        TextField {
+                            id: outputPriceField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
+                    SettingsField {
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: 140
+                        label: qsTr("缓存单价")
+                        TextField {
+                            id: cachedPriceField
+                            Layout.fillWidth: true
+                            color: theme.text
+                            selectByMouse: true
+                            background: SettingFieldBg
+                            onTextEdited: settingsRoot.scheduleCommit()
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
                 }
-                SettingsField {
+                Label {
+                    text: qsTr("每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计")
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                    wrapMode: Text.Wrap
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 140
-                    label: qsTr("输出单价")
-                    TextField {
-                        id: outputPriceField
-                        Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg
-                        onTextEdited: settingsRoot.scheduleCommit()
-                    }
                 }
-                SettingsField {
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 140
-                    label: qsTr("缓存单价")
-                    TextField {
-                        id: cachedPriceField
-                        Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg
-                        onTextEdited: settingsRoot.scheduleCommit()
-                    }
-                }
-                Item { Layout.fillWidth: true }
             }
-            Label {
-                text: qsTr("每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计")
-                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-                wrapMode: Text.Wrap
-                Layout.fillWidth: true
-            }
-            Item { Layout.fillHeight: true }
         }
     }
 

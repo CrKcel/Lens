@@ -395,6 +395,7 @@ ApplicationWindow {
 
     SettingsView {
         id: settingsView
+        objectName: "settingsView"
         visible: root.settingsMode
         anchors.top: titleBar.bottom
         anchors.bottom: parent.bottom

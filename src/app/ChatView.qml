@@ -618,6 +618,7 @@ ColumnLayout {
         // 在动态子菜单场景下不可靠，Popup 内布局完全自控）
         Popup {
             id: modelMenu
+            objectName: "modelMenu"
             parent: modelButton
             // 右缘对齐按钮右缘、向左展开，向上弹出（输入框贴窗口底部）；
             // 显式 x/y 不走 Qt 的自动收边，须自行保证在窗口内
@@ -653,6 +654,7 @@ ColumnLayout {
 
                     ColumnLayout {
                         id: modelsColumn
+                        objectName: "modelMenuColumn"
                         width: modelsScroll.availableWidth
                         spacing: 0
 
