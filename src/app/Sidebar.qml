@@ -75,7 +75,7 @@ Rectangle {
         }
         onPositionChanged: (mouse) => {
             const w = pressWidth + mapToItem(null, mouse.x, mouse.y).x - pressSceneX
-            if (w < sidebarRoot.minExpandedWidth)
+            if (w < sidebarRoot.minExpandedWidth && !sidebarRoot.settingsMode)
                 sidebarRoot.collapsed = true
             else
                 sidebarRoot.expandedWidth = Math.min(sidebarRoot.maxExpandedWidth, w)
