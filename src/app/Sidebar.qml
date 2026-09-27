@@ -235,17 +235,6 @@ Rectangle {
                     color: parent.highlighted ? theme.accentSoft
                          : parent.hovered ? theme.highlight
                          : "transparent"
-
-                    Rectangle {
-                        visible: parent.parent.highlighted
-                        width: 3
-                        radius: 1.5
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        anchors.margins: 6
-                        color: theme.accent
-                    }
                 }
 
                 contentItem: RowLayout {
