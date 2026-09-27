@@ -131,57 +131,6 @@ ScrollView {
                     ]
                 }
             }
-            SettingsRow {
-                Layout.fillWidth: true
-                label: qsTr("配色")
-                Row {
-                    spacing: 8
-
-                    Repeater {
-                        model: [
-                            { key: "blue", text: qsTr("蓝色") },
-                            { key: "teal", text: qsTr("青色") },
-                            { key: "green", text: qsTr("绿色") },
-                            { key: "purple", text: qsTr("紫色") },
-                            { key: "orange", text: qsTr("橙色") },
-                            { key: "rose", text: qsTr("玫红") }
-                        ]
-
-                        delegate: Rectangle {
-                            id: swatch
-                            required property var modelData
-                            readonly property bool selected:
-                                appearancePage.view.accentSchemeWorking === modelData.key
-                            // 色板预览色：方案色相 + 明暗两套通用的中间饱和度/亮度
-                            readonly property real hue:
-                                settings.accentHues()[modelData.key] ?? 0.582
-
-                            width: 26
-                            height: 26
-                            radius: 13
-                            color: Qt.hsla(hue, 0.62, 0.55, 1)
-                            border.color: selected ? theme.text
-                                         : swatchHover.hovered ? theme.textDim
-                                         : theme.fieldBorder
-                            border.width: selected ? 2 : 1
-                            ToolTip.visible: swatchHover.hovered
-                            ToolTip.text: modelData.text
-                            ToolTip.delay: 400
-
-                            HoverHandler { id: swatchHover }
-                            TapHandler {
-                                onTapped:
-                                    appearancePage.view.selectAccentScheme(swatch.modelData.key)
-                            }
-                        }
-                    }
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("强调色用于按钮、链接、用户气泡与选中状态")
-                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-            }
         }
 
         SettingsSection {

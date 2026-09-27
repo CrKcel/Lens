@@ -36,8 +36,6 @@ ColumnLayout {
 
     // preset=custom 时勾选的内置工具名，保存时写回
     property var customToolsWorking: []
-    // 外观页色板选中的配色方案，保存时写回
-    property string accentSchemeWorking: "blue"
 
     // 工作副本对应的供应商下标：字段只在进入设置模式时加载一次，若期间
     // 激活供应商被外部改变（聊天弹层 selectModel），提交时写回的是加载时
@@ -86,14 +84,6 @@ ColumnLayout {
             settingsRoot.commitSettings()
     }
 
-    // 外观页色板：选中配色方案并即时提交（accent 系列色随 settingsChanged 全局刷新）
-    function selectAccentScheme(key) {
-        if (settingsRoot.accentSchemeWorking === key)
-            return
-        settingsRoot.accentSchemeWorking = key
-        settingsRoot.commitSettings()
-    }
-
     // 把全部字段写回 AppSettings、持久化并刷新上下文。各下拉框的当前值先取
     // 快照：写 language 会触发 engine.retranslate()，重置各 ComboBox 的
     // model 绑定，之后再读 currentValue 已不是用户所选。
@@ -105,7 +95,6 @@ ColumnLayout {
         const theme = appearancePage.themeCombo.currentValue
         const fontScale = appearancePage.fontScaleCombo.currentValue
         const lineSpacing = appearancePage.lineSpacingCombo.currentValue
-        const accentScheme = settingsRoot.accentSchemeWorking
         const sendShortcut = shortcutsPage.sendShortcutCombo.currentValue
         const toolPreset = generalPage.toolPresetCombo.currentValue
         const languageChanged = language !== settings.language
@@ -135,7 +124,6 @@ ColumnLayout {
         settings.theme = theme
         settings.fontScale = fontScale
         settings.lineSpacing = lineSpacing
-        settings.accentScheme = accentScheme
         settings.sendShortcut = sendShortcut
         settings.toolPreset = toolPreset
         settings.customTools = settingsRoot.customToolsWorking
@@ -340,7 +328,6 @@ ColumnLayout {
             generalPage.languageCombo.indexOfValue(settings.language)
         appearancePage.themeCombo.currentIndex =
             appearancePage.themeCombo.indexOfValue(settings.theme)
-        settingsRoot.accentSchemeWorking = settings.accentScheme
         appearancePage.fontScaleCombo.currentIndex =
             appearancePage.fontScaleCombo.indexOfValue(settings.fontScale)
         appearancePage.lineSpacingCombo.currentIndex =

@@ -35,30 +35,20 @@ QtObject {
     readonly property color textSoft: ov("textSoft", dark ? "#d5d6dc" : "#3a3b42")
     readonly property color textDim: ov("textDim", dark ? "#8d8e99" : "#6b6c76")
     readonly property color textFaint: ov("textFaint", dark ? "#5c5d67" : "#9a9ba4")
-    // 强调色系列：色相来自外观页的配色方案（settings.accentHue，来源
-    // AppSettings 的色相表），深浅两套各用一组固定的饱和度/亮度参数生成，
-    // 保证各方案观感一致；main.cpp 的 QPalette Highlight/Link 经
-    // AppSettings::accentColor 用同一参数同步，改参数时两处一起改。
-    // 每个颜色同样可被调色板覆盖（ov 第一参数）
-    readonly property real accentHue: settings.accentHue
-    readonly property color accent: ov("accent", dark ? Qt.hsla(accentHue, 0.62, 0.60, 1)
-                                                      : Qt.hsla(accentHue, 0.74, 0.53, 1))
-    readonly property color accentHover: ov("accentHover", dark ? Qt.hsla(accentHue, 0.65, 0.655, 1)
-                                                                : Qt.hsla(accentHue, 0.76, 0.60, 1))
-    readonly property color accentPressed: ov("accentPressed", dark ? Qt.hsla(accentHue, 0.54, 0.54, 1)
-                                                                    : Qt.hsla(accentHue, 0.68, 0.47, 1))
-    readonly property color accentSoft: ov("accentSoft", dark ? Qt.hsla(accentHue, 0.40, 0.21, 1)
-                                                              : Qt.hsla(accentHue, 0.75, 0.937, 1))
-    readonly property color accentBorder: ov("accentBorder", dark ? Qt.hsla(accentHue, 0.36, 0.37, 1)
-                                                                  : Qt.hsla(accentHue, 0.58, 0.78, 1))
+    // 强调色系列：黑白灰设计，深色主题取近白、浅色主题取近黑（实底按钮文字
+    // 用 theme.background 形成反差）；main.cpp 的 QPalette Highlight/Link
+    // 用同一灰阶同步。每个颜色同样可被调色板覆盖（ov 第一参数）
+    readonly property color accent: ov("accent", dark ? "#e4e5ea" : "#26272d")
+    readonly property color accentHover: ov("accentHover", dark ? "#f0f1f4" : "#3a3b42")
+    readonly property color accentPressed: ov("accentPressed", dark ? "#c9cbd3" : "#101116")
+    readonly property color accentSoft: ov("accentSoft", dark ? "#2a2b32" : "#eceef1")
+    readonly property color accentBorder: ov("accentBorder", dark ? "#4a4b55" : "#c4c6cd")
     readonly property color success: ov("success", dark ? "#8fd18f" : "#2e8b47")
     readonly property color error: ov("error", dark ? "#e58585" : "#c0392b")
     readonly property color errorSoft: ov("errorSoft", dark ? "#39262a" : "#fbe9e7")
-    readonly property color bubbleUser: ov("bubbleUser", dark ? Qt.hsla(accentHue, 0.47, 0.33, 1)
-                                                              : accent)
-    readonly property color bubbleUser2: ov("bubbleUser2", dark ? Qt.hsla(accentHue, 0.50, 0.29, 1)
-                                                                : accentPressed)
-    readonly property color bubbleUserText: ov("bubbleUserText", "#eef4f6")
+    readonly property color bubbleUser: ov("bubbleUser", dark ? "#33343c" : accent)
+    readonly property color bubbleUser2: ov("bubbleUser2", dark ? "#2b2c33" : accentPressed)
+    readonly property color bubbleUserText: ov("bubbleUserText", "#eff0f2")
     readonly property color divider: ov("divider", dark ? "#24252c" : "#e8e9ee")
 
     // token 名 → 当前生效颜色（外观页调色板色块的展示数据源）

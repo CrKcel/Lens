@@ -20,7 +20,6 @@ private slots:
     void legacyFlatConfigMigration();
     void fontScaleRoundtripAndNormalization();
     void lineSpacingRoundtripAndNormalization();
-    void accentSchemeRoundtripAndNormalization();
     void colorOverridesRoundtripAndValidation();
 
 private:
@@ -219,31 +218,6 @@ void TestAppSettings::lineSpacingRoundtripAndNormalization()
     QCOMPARE(invalid.lineSpacing(), 1.3);
 }
 
-void TestAppSettings::accentSchemeRoundtripAndNormalization()
-{
-    const QString path = writeJson("{}");
-    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
-
-    {
-        AppSettings settings(path);
-        QCOMPARE(settings.accentScheme(), QStringLiteral("blue"));
-        settings.setAccentScheme(QStringLiteral("purple"));
-        settings.save();
-    }
-    AppSettings reloaded(path);
-    QCOMPARE(reloaded.accentScheme(), QStringLiteral("purple"));
-    // 色相跟随方案，供 Theme.qml / QPalette 生成强调色
-    QVERIFY(reloaded.accentHue() > 0.7 && reloaded.accentHue() < 0.8);
-
-    // 非法值归一到默认 blue
-    reloaded.setAccentScheme(QStringLiteral("rainbow"));
-    QCOMPARE(reloaded.accentScheme(), QStringLiteral("blue"));
-
-    const QString invalidPath = writeJson(R"({"accentScheme":42})");
-    AppSettings invalid(invalidPath);
-    QCOMPARE(invalid.accentScheme(), QStringLiteral("blue"));
-}
-
 void TestAppSettings::colorOverridesRoundtripAndValidation()
 {
     const QString path = writeJson("{}");
@@ -275,11 +249,6 @@ void TestAppSettings::colorOverridesRoundtripAndValidation()
     QCOMPARE(overrides.value(QStringLiteral("light")).toMap()
                  .value(QStringLiteral("accent")).toString(),
              QStringLiteral("#abcdef"));
-    // accentColor 优先用覆盖值
-    reloaded.setColorOverride(QStringLiteral("dark"), QStringLiteral("accent"),
-                              QStringLiteral("#ff0000"));
-    QCOMPARE(reloaded.accentColor(), QColor(Qt::red));
-
     // 老配置无 colorOverrides 键：空覆盖，且颜色字段非法时丢弃
     const QString invalidPath = writeJson(
         R"({"colorOverrides":{"dark":{"background":42,"card":"#010203"}}})");

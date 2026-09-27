@@ -1,7 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
-// 主操作按钮：accent 实底、白字、圆角，悬停/按下有明暗层次
+// 主操作按钮：accent 实底、圆角，悬停/按下有明暗层次。
+// 黑白灰设计下 accent 深浅主题互为反色，文字取背景色保持对比
 Button {
     id: control
     implicitHeight: 34
@@ -21,7 +22,7 @@ Button {
     contentItem: Label {
         text: control.text
         font: control.font
-        color: control.enabled ? "#ffffff" : theme.textFaint
+        color: control.enabled ? theme.background : theme.textFaint
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }

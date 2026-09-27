@@ -893,7 +893,8 @@ ColumnLayout {
             }
             contentItem: Label {
                 text: chat.streaming ? "⏹" : "➤"
-                color: sendButton.enabled ? "#ffffff" : theme.textFaint
+                // 黑白灰设计：accent/error 实底上的文字取背景色保持对比
+                color: sendButton.enabled ? theme.background : theme.textFaint
                 font.pixelSize: Math.round(14 * settings.fontScale)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

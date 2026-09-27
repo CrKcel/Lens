@@ -245,7 +245,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 width: 10
                 height: 1
-                color: parent.hovered ? "#ffffff" : theme.text
+                color: theme.text
             }
         }
 
@@ -267,7 +267,7 @@ ApplicationWindow {
                 height: 9
                 color: "transparent"
                 border.width: 1
-                border.color: parent.hovered ? "#ffffff" : theme.text
+                border.color: theme.text
             }
             Rectangle {
                 visible: root.maximized
@@ -278,7 +278,7 @@ ApplicationWindow {
                 height: 8
                 color: titleBar.color
                 border.width: 1
-                border.color: parent.hovered ? "#ffffff" : theme.text
+                border.color: theme.text
             }
             Rectangle {
                 visible: root.maximized
@@ -289,7 +289,7 @@ ApplicationWindow {
                 height: 8
                 color: "transparent"
                 border.width: 1
-                border.color: parent.hovered ? "#ffffff" : theme.text
+                border.color: theme.text
             }
         }
     }
