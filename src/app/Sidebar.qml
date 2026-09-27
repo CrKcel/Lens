@@ -70,7 +70,7 @@ Rectangle {
         property real pressWidth
         property real pressSceneX
         onPressed: (mouse) => {
-            pressWidth = sidebarRoot.expandedWidth
+            pressWidth = clampWidth(sidebarRoot.expandedWidth)
             pressSceneX = mapToItem(null, mouse.x, mouse.y).x
         }
         onPositionChanged: (mouse) => {
@@ -78,7 +78,7 @@ Rectangle {
             if (w < sidebarRoot.minExpandedWidth && !sidebarRoot.settingsMode)
                 sidebarRoot.collapsed = true
             else
-                sidebarRoot.expandedWidth = Math.min(sidebarRoot.maxExpandedWidth, w)
+                sidebarRoot.expandedWidth = clampWidth(w)
         }
     }
 
