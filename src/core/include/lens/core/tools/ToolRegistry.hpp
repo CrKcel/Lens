@@ -19,6 +19,14 @@ public:
         m_tools.push_back(std::move(tool));
     }
 
+    // 移除指定名称的工具（MCP 服务器热重载用），未知名称忽略。
+    // 只允许在无工具执行进行中时调用（工具执行在 QThreadPool 线程上遍历 m_tools）
+    void removeTool(const QString &name)
+    {
+        std::erase_if(m_tools,
+                      [&name](const auto &tool) { return tool->name() == name; });
+    }
+
     // 禁用的工具名集合；传空集合恢复全部启用
     void setDisabledTools(const QSet<QString> &names) { m_disabled = names; }
 

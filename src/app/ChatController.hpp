@@ -104,6 +104,8 @@ private:
     void registerBuiltinTools();
     void applyToolSettings(); // 按设置（预设/自定义清单）计算禁用集合并写入注册表
     void loadMcpTools(); // 连接 MCP 服务器并把远程工具桥接进注册表
+    void reloadMcpTools(); // 断开旧 MCP 服务器并按当前配置重连（仅在非流式期间调用）
+    void maybeReloadMcp(); // MCP 配置有变时重载；流式进行中则挂起到回合结束
     void rebuildToolList();
     void resetUsage();                       // 会话切换/清空时归零并重算
     void recordUsage(const TokenUsage &usage); // 累加一次回合用量
@@ -116,6 +118,8 @@ private:
     std::shared_ptr<WebSearchTool> m_webSearchTool; // 保留指针：设置变更后重设端点/密钥
     QList<std::shared_ptr<mcp::McpClient>> m_mcpClients;
     QVector<QPair<QString, QString>> m_mcpToolOrigins; // 工具名 → "MCP:服务器"
+    QString m_loadedMcpKey;          // 已加载的 MCP 配置指纹（配置不变则不重连）
+    bool m_mcpReloadPending = false; // 流式期间配置有变，回合结束后补一次重载
     MessageListModel *m_messageModel;
     ConversationListModel *m_conversationModel;
     std::unique_ptr<AgentSession> m_agent;

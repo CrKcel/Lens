@@ -32,6 +32,16 @@ inline const QString kBasePrompt = QStringLiteral(
     "read/write/edit 工具的相对路径以它为基准；结束后简要说明做了什么、结果如何。"
     "回答使用与用户一致的语言。");
 
+// MCP 配置指纹：服务器清单（名称/命令/参数）的稳定序列化，用于检测配置变化
+QString mcpConfigKey(const QList<McpServerConfig> &servers)
+{
+    QStringList parts;
+    for (const McpServerConfig &server : servers)
+        parts.append(server.name + QLatin1Char('\x1f') + server.command
+                     + QLatin1Char('\x1f') + server.args.join(QLatin1Char('\x1e')));
+    return parts.join(QLatin1Char('\x1d'));
+}
+
 ChatController::ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
                                QObject *parent)
     : QObject(parent)
@@ -137,6 +147,7 @@ void ChatController::loadMcpTools()
         }
         m_mcpStatus.append(status);
     }
+    m_loadedMcpKey = mcpConfigKey(m_settings->mcpServerConfigs());
 }
 
 void ChatController::rebuildToolList()
@@ -221,6 +232,8 @@ void ChatController::connectAgent()
             m_streaming = false;
             emit streamingChanged();
         }
+        if (m_mcpReloadPending) // 流式期间有 MCP 配置变更，现在补上热重载
+            maybeReloadMcp();
     });
 }
 
@@ -284,9 +297,38 @@ void ChatController::deleteConversation(qint64 conversationId)
 void ChatController::refreshContext()
 {
     applyToolSettings();
+    maybeReloadMcp();
     m_lastSections = collectSections();
     rebuildToolList();
     emit contextChanged();
+}
+
+// MCP 配置变化后经 refreshContext 热重载：断开旧服务器进程、从注册表移除
+// 其工具，再按当前配置重连。流式回合中工具执行线程会遍历注册表，因此挂起
+// 到 idle 后再换
+void ChatController::maybeReloadMcp()
+{
+    if (mcpConfigKey(m_settings->mcpServerConfigs()) == m_loadedMcpKey)
+        return;
+    if (m_streaming) {
+        m_mcpReloadPending = true;
+        return;
+    }
+    m_mcpReloadPending = false;
+    reloadMcpTools();
+}
+
+void ChatController::reloadMcpTools()
+{
+    for (const auto &client : m_mcpClients)
+        client->stop();
+    m_mcpClients.clear();
+    for (const auto &entry : m_mcpToolOrigins)
+        m_registry.removeTool(entry.first);
+    m_mcpToolOrigins.clear();
+    m_mcpStatus.clear();
+    loadMcpTools();
+    rebuildToolList();
 }
 
 void ChatController::send(const QString &text, const QString &workdir)

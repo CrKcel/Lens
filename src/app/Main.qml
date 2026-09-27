@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 // 窗口骨架：自绘标题栏 + 视图切换（聊天 / 设置）与跨视图动作（发送、设置打开）。
 // 契约：sendAction 必须保留在根对象（E2eDriver 经 invokeMethod 调用），
-// --qml-check 走 settingsView.runQmlCheck()（设置保存链路冒烟）。
+// --qml-check 走 settingsView.runQmlCheck()（设置加载/提交链路冒烟）。
 ApplicationWindow {
     id: root
     width: 1120
@@ -16,6 +16,8 @@ ApplicationWindow {
     // 自绘标题栏：去掉系统边框，拖拽/缩放/贴靠经 startSystemMove/startSystemResize
     // 走窗口系统的原生实现，保留系统级贴靠分屏
     flags: Qt.Window | Qt.FramelessWindowHint
+    // 关窗时冲刷设置页未落地的防抖提交（改动即时生效的兜底）
+    onClosing: settingsView.commitPending()
 
     readonly property bool maximized: visibility === Window.Maximized
     // 窗口按钮在左上（macOS / Linux 桌面环境设定）时顺序为 关闭、最小化、最大化
@@ -370,6 +372,7 @@ ApplicationWindow {
         settingsCategory: root.settingsCategory
         onSettingsToggleRequested: {
             if (root.settingsMode) {
+                settingsView.commitPending() // 冲刷未落地的防抖提交
                 root.settingsMode = false
             } else {
                 settingsView.loadSettingsIntoFields()

@@ -3,14 +3,19 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 // 设置视图：常规 / 模型提供商 / MCP / Skills / 快捷键五个分类页。
-// 设置保存链路的字段 id 与函数集中在本文件：AppSettings 的 setter 每次都发
-// settingsChanged，保存时先写的属性会把还没读到的字段绑定刷回旧值，因此
-// loadSettingsIntoFields 采用一次性填充而非活绑定（详见 loadMcpFields 注释）。
+// 设置提交链路的字段 id 与函数集中在本文件。改动即时生效、无保存按钮：
+// 下拉/勾选等离散控件改动立即提交，文本字段经 textEdited 触发防抖提交，
+// 退出设置页/关窗时经 commitPending 冲刷未落地的防抖提交。AppSettings 的
+// setter 每次都发 settingsChanged，若字段挂活绑定，写入时会把还没读到的
+// 字段刷回旧值，因此 loadSettingsIntoFields 采用一次性填充而非活绑定。
 // settingsCategory 由 Main 持有并注入；--qml-check 冒烟钩子入口为 runQmlCheck()。
 ColumnLayout {
     id: settingsRoot
 
     property string settingsCategory: "general"
+    // loadSettingsIntoFields / 拉取结果回填期间为 true：程序性赋值触发的
+    // onToggled / onEditTextChanged 不当作用户改动提交
+    property bool loadingFields: false
 
     // 模型清单工作副本（当前编辑中的供应商），保存时经 updateProvider 写回 models；
     // 拉取快照用于判定结果返回时表单是否已被改动（如切走供应商），过期则不应用
@@ -26,40 +31,65 @@ ColumnLayout {
         dark: settings.dark
     }
 
-    function applySettings() {
-        settings.endpoint = endpointField.text
-        settings.apiKey = apiKeyField.text
-        settings.model = modelCombo.editText
-        settings.protocol = protocolCombo.currentValue
-        settings.serverSearch = serverSearchCheck.checked
-        settings.systemPrompt = systemPromptField.text
-        settings.webSearchEndpoint = webSearchEndpointField.text
-        settings.webSearchApiKey = webSearchApiKeyField.text
-        settings.language = languageCombo.currentValue
-        settings.theme = themeCombo.currentValue
-        settings.fontScale = fontScaleCombo.currentValue
-        settings.lineSpacing = lineSpacingCombo.currentValue
-        settings.sendShortcut = sendShortcutCombo.currentValue
-        settings.toolPreset = toolPresetCombo.currentValue
-        settings.customTools = settingsRoot.customToolsWorking
-        settingsRoot.applyMcpServers()
-        settings.save()
-        chat.refreshContext()
+    // 防抖提交：文本字段每次编辑重启，停止输入 600ms 后提交
+    Timer {
+        id: commitTimer
+        interval: 600
+        onTriggered: settingsRoot.commitSettings()
     }
 
-    function saveSettings() {
+    function scheduleCommit() {
+        commitTimer.restart()
+    }
+
+    // 退出设置页 / 关窗时调用：有未落地的防抖提交则立即提交
+    function commitPending() {
+        if (commitTimer.running)
+            settingsRoot.commitSettings()
+    }
+
+    // 把全部字段写回 AppSettings、持久化并刷新上下文。各下拉框的当前值先取
+    // 快照：写 language 会触发 engine.retranslate()，重置各 ComboBox 的
+    // model 绑定，之后再读 currentValue 已不是用户所选。
+    // commitSettings 读全部字段（含未显示分类页的），字段必须先经
+    // loadSettingsIntoFields 填充（Main 在进入设置模式时调用）
+    function commitSettings() {
+        commitTimer.stop()
+        const protocol = protocolCombo.currentValue
+        const model = modelCombo.editText
+        const language = languageCombo.currentValue
+        const theme = themeCombo.currentValue
+        const fontScale = fontScaleCombo.currentValue
+        const lineSpacing = lineSpacingCombo.currentValue
+        const sendShortcut = sendShortcutCombo.currentValue
+        const toolPreset = toolPresetCombo.currentValue
+        const languageChanged = language !== settings.language
         settings.updateProvider(settings.activeProvider,
             { "name": providerNameField.text,
-              "protocol": protocolCombo.currentValue,
+              "protocol": protocol,
               "endpoint": endpointField.text,
               "apiKey": apiKeyField.text,
-              "model": modelCombo.editText,
+              "model": model,
               "models": settingsRoot.modelsWorking,
               "serverSearch": serverSearchCheck.checked,
               "inputPrice": Number(inputPriceField.text) || 0,
               "outputPrice": Number(outputPriceField.text) || 0,
               "cachedPrice": Number(cachedPriceField.text) || 0 })
-        settingsRoot.applySettings()
+        settings.systemPrompt = systemPromptField.text
+        settings.webSearchEndpoint = webSearchEndpointField.text
+        settings.webSearchApiKey = webSearchApiKeyField.text
+        settings.language = language
+        settings.theme = theme
+        settings.fontScale = fontScale
+        settings.lineSpacing = lineSpacing
+        settings.sendShortcut = sendShortcut
+        settings.toolPreset = toolPreset
+        settings.customTools = settingsRoot.customToolsWorking
+        settingsRoot.applyMcpServers()
+        settings.save()
+        chat.refreshContext()
+        if (languageChanged)
+            settingsRoot.loadSettingsIntoFields() // retranslate 重置了下拉框，重新回填
     }
 
     // ── MCP 编辑器：字段 ↔ 工作副本 ─────────────────────────────
@@ -93,14 +123,17 @@ ColumnLayout {
         settingsRoot.mcpServersWorking.push({ "name": qsTr("新服务器"), "command": "", "args": [] })
         settingsRoot.mcpSelected = settingsRoot.mcpServersWorking.length - 1
         settingsRoot.loadMcpFields()
+        settingsRoot.scheduleCommit() // 等用户填完命令再提交（空命令的服务器不落盘）
     }
 
     function removeMcpServer() {
         if (settingsRoot.mcpServersWorking.length === 0)
             return
+        settingsRoot.flushMcpFields()
         settingsRoot.mcpServersWorking.splice(settingsRoot.mcpSelected, 1)
         settingsRoot.mcpSelected = Math.max(0, settingsRoot.mcpSelected - 1)
         settingsRoot.loadMcpFields()
+        settingsRoot.commitSettings()
     }
 
     function applyMcpServers() {
@@ -118,13 +151,19 @@ ColumnLayout {
         } else if (!enabled && i >= 0) {
             list.splice(i, 1)
             settingsRoot.customToolsWorking = list
+        } else {
+            return
         }
+        settingsRoot.commitSettings()
     }
 
     // 打开时一次性填充。字段上不能挂 text: settings.xxx 之类的活绑定：
-    // AppSettings 的 setter 每次都会发 settingsChanged，保存时先写的属性
+    // AppSettings 的 setter 每次都会发 settingsChanged，提交时先写的属性
     // 会把还没读到的字段绑定刷回旧值，导致只有第一个字段能保存。
+    // loadingFields 置位期间，程序性赋值触发的 onToggled / onEditTextChanged
+    // 不当作用户改动提交。
     function loadSettingsIntoFields() {
+        settingsRoot.loadingFields = true
         endpointField.text = settings.endpoint
         apiKeyField.text = settings.apiKey
         protocolCombo.currentIndex = protocolCombo.indexOfValue(settings.protocol)
@@ -158,6 +197,7 @@ ColumnLayout {
         sendShortcutCombo.currentIndex = sendShortcutCombo.indexOfValue(settings.sendShortcut)
         toolPresetCombo.currentIndex = toolPresetCombo.indexOfValue(settings.toolPreset)
         settingsRoot.customToolsWorking = settings.customTools
+        settingsRoot.loadingFields = false
     }
 
     // 从端点拉取模型清单：以当前表单值为准（未保存的修改也可拉取），
@@ -191,11 +231,14 @@ ColumnLayout {
                     merged.push(models[i])
             }
             const currentModel = modelCombo.editText
+            settingsRoot.loadingFields = true // 回填触发 onEditTextChanged 不算用户改动
             settingsRoot.modelsWorking = merged
             modelCombo.model = merged
             modelCombo.editText = currentModel
             modelCombo.currentIndex = modelCombo.find(currentModel)
+            settingsRoot.loadingFields = false
             settingsRoot.modelsFetchStatus = qsTr("已获取 %1 个模型").arg(models.length)
+            settingsRoot.scheduleCommit() // 合并结果即时写回供应商
         }
         function onModelsFetchFailed(error) {
             if (settingsRoot.modelsFetchStale())
@@ -204,14 +247,13 @@ ColumnLayout {
         }
     }
 
-    // CI 冒烟钩子：--qml-check 走一遍设置的加载/保存/回读/应用链路，
+    // CI 冒烟钩子：--qml-check 走一遍设置的加载/提交/回读链路，
     // 不向字段写入任何值；由 C++ 侧定时退出。
     // 若任何字段创建失败，此处会抛出 ReferenceError 并打印到 stderr。
     function runQmlCheck() {
         settingsRoot.loadSettingsIntoFields()
-        settingsRoot.saveSettings()
+        settingsRoot.commitSettings()
         settingsRoot.loadSettingsIntoFields()
-        settingsRoot.applySettings()
     }
 
     property var mcpServersWorking: []
@@ -246,6 +288,7 @@ ColumnLayout {
                 Layout.preferredWidth: 150
                 textRole: "text"
                 valueRole: "value"
+                onActivated: settingsRoot.commitSettings()
                 model: [
                     { text: qsTr("跟随系统"), value: "system" },
                     { text: qsTr("中文"), value: "zh" },
@@ -259,6 +302,7 @@ ColumnLayout {
                 Layout.preferredWidth: 150
                 textRole: "text"
                 valueRole: "value"
+                onActivated: settingsRoot.commitSettings()
                 model: [
                     { text: qsTr("跟随系统"), value: "system" },
                     { text: qsTr("深色"), value: "dark" },
@@ -272,6 +316,7 @@ ColumnLayout {
                 Layout.preferredWidth: 150
                 textRole: "text"
                 valueRole: "value"
+                onActivated: settingsRoot.commitSettings()
                 model: [
                     { text: qsTr("小（85%）"), value: 0.85 },
                     { text: qsTr("标准（100%）"), value: 1.0 },
@@ -287,6 +332,7 @@ ColumnLayout {
                 Layout.preferredWidth: 150
                 textRole: "text"
                 valueRole: "value"
+                onActivated: settingsRoot.commitSettings()
                 model: [
                     { text: qsTr("紧凑（100%）"), value: 1.0 },
                     { text: qsTr("标准（115%）"), value: 1.15 },
@@ -310,6 +356,7 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
             TextField {
                 id: webSearchApiKeyField
@@ -319,6 +366,7 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
         }
         Label { text: qsTr("内置工具"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
@@ -333,10 +381,13 @@ ColumnLayout {
                 { text: qsTr("只读（read + 搜索）"), value: "read_only" },
                 { text: qsTr("自定义"), value: "custom" }
             ]
-            onActivated: if (currentValue === "custom" && settingsRoot.customToolsWorking.length === 0) {
-                // 从 full 切到 custom：默认与 full 一致，避免空清单禁掉所有工具
-                settingsRoot.customToolsWorking =
-                    chat.contextTools.filter(t => t.origin === "内置").map(t => t.name)
+            onActivated: {
+                if (currentValue === "custom" && settingsRoot.customToolsWorking.length === 0) {
+                    // 从 full 切到 custom：默认与 full 一致，避免空清单禁掉所有工具
+                    settingsRoot.customToolsWorking =
+                        chat.contextTools.filter(t => t.origin === "内置").map(t => t.name)
+                }
+                settingsRoot.commitSettings()
             }
         }
         Label {
@@ -385,6 +436,7 @@ ColumnLayout {
             wrapMode: TextArea.Wrap
             color: theme.text
             background: SettingFieldBg
+            onTextEdited: settingsRoot.scheduleCommit()
         }
     }
 
@@ -421,6 +473,7 @@ ColumnLayout {
                             "cachedPrice": Number(cachedPriceField.text) || 0
                         })
                         settingsRoot.loadSettingsIntoFields()
+                        settings.save()
                     }
                 }
                 Button {
@@ -432,6 +485,7 @@ ColumnLayout {
                     onClicked: {
                         settings.removeProvider(settings.activeProvider)
                         settingsRoot.loadSettingsIntoFields()
+                        settings.save()
                     }
                 }
             }
@@ -449,6 +503,7 @@ ColumnLayout {
                     width: providerList.width
                     highlighted: index === settings.activeProvider
                     onClicked: {
+                        settingsRoot.commitSettings() // 表单值写回当前激活供应商后再切换
                         settings.activeProvider = index
                         settingsRoot.loadSettingsIntoFields()
                     }
@@ -483,6 +538,7 @@ ColumnLayout {
                     color: theme.text
                     selectByMouse: true
                     background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
                 }
                 Label { text: qsTr("协议"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 ComboBox {
@@ -490,6 +546,7 @@ ColumnLayout {
                     Layout.preferredWidth: 180
                     textRole: "text"
                     valueRole: "value"
+                    onActivated: settingsRoot.commitSettings()
                     model: [
                         { text: qsTr("chat completions"), value: "chat_completions" },
                         { text: qsTr("responses"), value: "responses" },
@@ -501,6 +558,7 @@ ColumnLayout {
                 id: serverSearchCheck
                 text: qsTr("服务端联网搜索（供应商支持时启用）")
                 font.pixelSize: Math.round(12 * settings.fontScale)
+                onToggled: if (!settingsRoot.loadingFields) settingsRoot.commitSettings()
                 contentItem: Label {
                     text: serverSearchCheck.text
                     color: theme.textDim
@@ -519,6 +577,7 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -531,6 +590,7 @@ ColumnLayout {
                     color: theme.text
                     selectByMouse: true
                     background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
                 }
             }
             Label {
@@ -545,6 +605,10 @@ ColumnLayout {
                     Layout.fillWidth: true
                     editable: true
                     selectTextByMouse: true
+                    // activated：从清单选中即提交；editText：手动输入走防抖
+                    onActivated: settingsRoot.commitSettings()
+                    onEditTextChanged: if (!settingsRoot.loadingFields)
+                                           settingsRoot.scheduleCommit()
                 }
                 AccentButton {
                     text: settings.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
@@ -568,6 +632,7 @@ ColumnLayout {
                     color: theme.text
                     selectByMouse: true
                     background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
                 }
                 Label { text: qsTr("输出单价"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
                 TextField {
@@ -576,6 +641,7 @@ ColumnLayout {
                     color: theme.text
                     selectByMouse: true
                     background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
                 }
                 Label {
                     text: qsTr("（每百万 token，留空或 0 表示不计费）")
@@ -593,6 +659,7 @@ ColumnLayout {
                     color: theme.text
                     selectByMouse: true
                     background: SettingFieldBg
+                    onTextEdited: settingsRoot.scheduleCommit()
                 }
                 Label {
                     text: qsTr("（可选，缓存命中部分的单价；留空或 0 时按输入单价计）")
@@ -651,6 +718,7 @@ ColumnLayout {
                         settingsRoot.flushMcpFields()
                         settingsRoot.mcpSelected = index
                         settingsRoot.loadMcpFields()
+                        settingsRoot.scheduleCommit()
                     }
                     background: Rectangle {
                         radius: theme.radiusS
@@ -688,6 +756,7 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
             Label {
                 text: qsTr("启动命令（stdio 传输，如 npx、python）")
@@ -699,6 +768,7 @@ ColumnLayout {
                 color: theme.text
                 selectByMouse: true
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
             Label { text: qsTr("参数（每行一个）"); color: theme.textDim; font.pixelSize: Math.round(12 * settings.fontScale) }
             TextArea {
@@ -710,6 +780,7 @@ ColumnLayout {
                 font.pixelSize: Math.round(11 * settings.fontScale)
                 color: theme.text
                 background: SettingFieldBg
+                onTextEdited: settingsRoot.scheduleCommit()
             }
             Label {
                 text: qsTr("连接状态")
@@ -842,6 +913,7 @@ ColumnLayout {
                 Layout.preferredWidth: 320
                 textRole: "text"
                 valueRole: "value"
+                onActivated: settingsRoot.commitSettings()
                 model: [
                     { text: qsTr("Ctrl+Enter 发送，Enter 换行"), value: "ctrl_enter" },
                     { text: qsTr("Enter 发送，Shift+Enter 换行"), value: "enter" }
@@ -883,16 +955,5 @@ ColumnLayout {
         }
 
         Item { Layout.fillHeight: true }
-    }
-
-    // ── 保存行（Skills 只读，无需保存） ──────────────────────
-    RowLayout {
-        visible: settingsRoot.settingsCategory !== "skills"
-        Layout.fillWidth: true
-        Item { Layout.fillWidth: true }
-        AccentButton {
-            text: qsTr("保存")
-            onClicked: settingsRoot.saveSettings()
-        }
     }
 }
