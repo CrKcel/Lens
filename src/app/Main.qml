@@ -208,6 +208,7 @@ ApplicationWindow {
 
         TitleButton {
             id: closeButton
+            danger: true
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             x: root.buttonsLeft ? 0 : parent.width - width
