@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -67,6 +68,9 @@ class AppSettings : public QObject
     Q_PROPERTY(QString webSearchApiKey READ webSearchApiKey WRITE setWebSearchApiKey NOTIFY settingsChanged)
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY settingsChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY settingsChanged)
+    Q_PROPERTY(QString accentScheme READ accentScheme WRITE setAccentScheme NOTIFY settingsChanged)
+    Q_PROPERTY(double accentHue READ accentHue NOTIFY settingsChanged)
+    Q_PROPERTY(QVariantMap colorOverrides READ colorOverrides NOTIFY settingsChanged)
     Q_PROPERTY(double fontScale READ fontScale WRITE setFontScale NOTIFY settingsChanged)
     Q_PROPERTY(double lineSpacing READ lineSpacing WRITE setLineSpacing NOTIFY settingsChanged)
     Q_PROPERTY(QString sendShortcut READ sendShortcut WRITE setSendShortcut NOTIFY settingsChanged)
@@ -112,6 +116,20 @@ public:
     void setLanguage(const QString &value);
     QString theme() const { return m_theme; }
     void setTheme(const QString &value);
+    // 配色方案（外观页选择），accentHue 为当前方案的色相（0..1），
+    // Theme.qml 的 accent 系列色与设置页色板都由它生成
+    QString accentScheme() const { return m_accentScheme; }
+    void setAccentScheme(const QString &value);
+    double accentHue() const;
+    Q_INVOKABLE QVariantMap accentHues() const;
+    // 当前方案的强调色（QPalette 的 Highlight/Link 与 Theme.qml 同源），
+    // 调色板覆盖了 accent 时优先用覆盖值
+    QColor accentColor() const;
+    // 调色板覆盖（外观页逐色修改）：结构 {"dark": {token: "#hex"}, "light": {...}}，
+    // Theme.qml 未覆盖的 token 走内置默认值
+    QVariantMap colorOverrides() const { return m_colorOverrides; }
+    Q_INVOKABLE void setColorOverride(const QString &mode, const QString &token, const QString &color);
+    Q_INVOKABLE void clearColorOverrides();
     double fontScale() const { return m_fontScale; }
     void setFontScale(double value);
     double lineSpacing() const { return m_lineSpacing; }
@@ -147,6 +165,8 @@ private:
     QString m_webSearchApiKey;
     QString m_language = QStringLiteral("system");   // system | zh | en
     QString m_theme = QStringLiteral("system");      // system | dark | light
+    QString m_accentScheme = QStringLiteral("blue"); // blue | teal | green | purple | orange | rose
+    QVariantMap m_colorOverrides; // Theme.qml 调色板覆盖，按深/浅主题分组
     double m_fontScale = 1.0;                        // 全局字体缩放（1.0 为标准）
     double m_lineSpacing = 1.3;                      // 聊天文本行距倍数（1.0 为字体默认行距）
     QString m_sendShortcut = QStringLiteral("ctrl_enter"); // ctrl_enter | enter

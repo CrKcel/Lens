@@ -145,6 +145,12 @@ Rectangle {
             }
             NavButton {
                 Layout.fillWidth: true
+                highlighted: sidebarRoot.settingsCategory === "appearance"
+                text: qsTr("外观")
+                onClicked: sidebarRoot.categorySelected("appearance")
+            }
+            NavButton {
+                Layout.fillWidth: true
                 highlighted: sidebarRoot.settingsCategory === "providers"
                 text: qsTr("模型提供商")
                 onClicked: sidebarRoot.categorySelected("providers")

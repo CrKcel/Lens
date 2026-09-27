@@ -1,8 +1,9 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Qt.labs.platform as Labs
 
-// 设置视图：常规 / 模型提供商 / MCP / Skills / 快捷键五个分类页。
+// 设置视图：常规 / 外观 / 模型提供商 / MCP / Skills / 快捷键六个分类页。
 // 设置提交链路的字段 id 与函数集中在本文件。改动即时生效、无保存按钮：
 // 下拉/勾选等离散控件改动立即提交，文本字段经 textEdited 触发防抖提交，
 // 退出设置页/关窗时经 commitPending 冲刷未落地的防抖提交。AppSettings 的
@@ -205,6 +206,47 @@ ColumnLayout {
         }
     }
 
+    // 调色板色块：展示某 token 在深/浅主题下的生效颜色，点击弹颜色选择器修改
+    component PaletteSwatch: Rectangle {
+        id: paletteSwatch
+
+        property string mode
+        property string token
+        property color value
+
+        width: 22
+        height: 22
+        radius: 6
+        color: value
+        border.color: paletteHover.hovered ? theme.accent : theme.fieldBorder
+        border.width: paletteHover.hovered ? 2 : 1
+
+        HoverHandler { id: paletteHover }
+        TapHandler {
+            onTapped: settingsRoot.pickPaletteColor(paletteSwatch.mode,
+                                                    paletteSwatch.token,
+                                                    paletteSwatch.value)
+        }
+        ToolTip.visible: paletteHover.hovered
+        ToolTip.delay: 400
+        ToolTip.text: (paletteSwatch.mode === "dark" ? qsTr("深色") : qsTr("浅色"))
+                      + " · " + paletteSwatch.value
+    }
+
+    // 原生颜色选择器（Qt.labs.platform）：选中即写覆盖并持久化
+    Labs.ColorDialog {
+        id: paletteColorDialog
+
+        property string mode
+        property string token
+
+        title: qsTr("选择颜色")
+        onAccepted: {
+            settings.setColorOverride(mode, token, String(color))
+            settings.save()
+        }
+    }
+
     // 防抖提交：文本字段每次编辑重启，停止输入 600ms 后提交
     Timer {
         id: commitTimer
@@ -222,6 +264,22 @@ ColumnLayout {
             settingsRoot.commitSettings()
     }
 
+    // 外观页色板：选中配色方案并即时提交（accent 系列色随 settingsChanged 全局刷新）
+    function selectAccentScheme(key) {
+        if (settingsRoot.accentSchemeWorking === key)
+            return
+        settingsRoot.accentSchemeWorking = key
+        settingsRoot.commitSettings()
+    }
+
+    // 调色板色块：弹出颜色选择器修改对应 token（mode = dark | light）
+    function pickPaletteColor(mode, token, value) {
+        paletteColorDialog.mode = mode
+        paletteColorDialog.token = token
+        paletteColorDialog.color = value
+        paletteColorDialog.open()
+    }
+
     // 把全部字段写回 AppSettings、持久化并刷新上下文。各下拉框的当前值先取
     // 快照：写 language 会触发 engine.retranslate()，重置各 ComboBox 的
     // model 绑定，之后再读 currentValue 已不是用户所选。
@@ -233,6 +291,7 @@ ColumnLayout {
         const theme = themeCombo.currentValue
         const fontScale = fontScaleCombo.currentValue
         const lineSpacing = lineSpacingCombo.currentValue
+        const accentScheme = settingsRoot.accentSchemeWorking
         const sendShortcut = sendShortcutCombo.currentValue
         const toolPreset = toolPresetCombo.currentValue
         const languageChanged = language !== settings.language
@@ -255,6 +314,7 @@ ColumnLayout {
         settings.theme = theme
         settings.fontScale = fontScale
         settings.lineSpacing = lineSpacing
+        settings.accentScheme = accentScheme
         settings.sendShortcut = sendShortcut
         settings.toolPreset = toolPreset
         settings.customTools = settingsRoot.customToolsWorking
@@ -455,6 +515,7 @@ ColumnLayout {
         systemPromptField.text = settings.systemPrompt
         languageCombo.currentIndex = languageCombo.indexOfValue(settings.language)
         themeCombo.currentIndex = themeCombo.indexOfValue(settings.theme)
+        settingsRoot.accentSchemeWorking = settings.accentScheme
         fontScaleCombo.currentIndex = fontScaleCombo.indexOfValue(settings.fontScale)
         lineSpacingCombo.currentIndex = lineSpacingCombo.indexOfValue(settings.lineSpacing)
         sendShortcutCombo.currentIndex = sendShortcutCombo.indexOfValue(settings.sendShortcut)
@@ -525,6 +586,40 @@ ColumnLayout {
     property int mcpSelected: 0
     property int skillsRevision: 0
     property var customToolsWorking: [] // preset=custom 时勾选的内置工具名，保存时写回
+    property string accentSchemeWorking: "blue" // 外观页色板选中的配色方案，保存时写回
+
+    // 调色板可编辑的颜色 token：key 与 Theme.qml 的属性名一一对应
+    readonly property var paletteTokens: [
+        { key: "background", text: qsTr("背景") },
+        { key: "surface", text: qsTr("表面") },
+        { key: "sidebar", text: qsTr("侧栏") },
+        { key: "field", text: qsTr("输入框") },
+        { key: "fieldBorder", text: qsTr("输入框边框") },
+        { key: "card", text: qsTr("卡片") },
+        { key: "cardBorder", text: qsTr("卡片边框") },
+        { key: "highlight", text: qsTr("高亮") },
+        { key: "text", text: qsTr("正文文本") },
+        { key: "textSoft", text: qsTr("次要文本") },
+        { key: "textDim", text: qsTr("弱化文本") },
+        { key: "textFaint", text: qsTr("最弱文本") },
+        { key: "accent", text: qsTr("强调色") },
+        { key: "accentHover", text: qsTr("强调色悬停") },
+        { key: "accentPressed", text: qsTr("强调色按下") },
+        { key: "accentSoft", text: qsTr("柔和强调底色") },
+        { key: "accentBorder", text: qsTr("强调色边框") },
+        { key: "success", text: qsTr("成功") },
+        { key: "error", text: qsTr("错误") },
+        { key: "errorSoft", text: qsTr("错误底色") },
+        { key: "bubbleUser", text: qsTr("用户气泡") },
+        { key: "bubbleUser2", text: qsTr("用户气泡渐变") },
+        { key: "bubbleUserText", text: qsTr("气泡文字") },
+        { key: "divider", text: qsTr("分隔线") }
+    ]
+    readonly property bool hasColorOverrides: {
+        const overrides = settings.colorOverrides
+        return Object.keys(overrides).some(
+            mode => Object.keys(overrides[mode] ?? {}).length > 0)
+    }
 
     // ── 页头 ─────────────────────────────────────────────────
     SettingsPageHeader {
@@ -532,15 +627,17 @@ ColumnLayout {
             : settingsRoot.settingsCategory === "mcp" ? qsTr("MCP")
             : settingsRoot.settingsCategory === "skills" ? qsTr("Skills")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("快捷键")
+            : settingsRoot.settingsCategory === "appearance" ? qsTr("外观")
             : qsTr("常规")
         description: settingsRoot.settingsCategory === "providers" ? qsTr("管理模型供应商与接入参数")
             : settingsRoot.settingsCategory === "mcp" ? qsTr("经 stdio 连接 Model Context Protocol 服务器")
             : settingsRoot.settingsCategory === "skills" ? qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("配置消息的发送方式")
-            : qsTr("语言、主题与阅读体验")
+            : settingsRoot.settingsCategory === "appearance" ? qsTr("主题、配色与阅读体验")
+            : qsTr("语言、联网搜索与系统提示词")
     }
 
-    // ── 常规：外观 / 联网搜索 / 内置工具 / 系统提示词 ─────────
+    // ── 常规：语言 / 联网搜索 / 内置工具 / 系统提示词 ─────────
     ScrollView {
         id: generalScroll
         visible: settingsRoot.settingsCategory === "general"
@@ -557,11 +654,11 @@ ColumnLayout {
 
             SettingsSection {
                 Layout.fillWidth: true
-                title: qsTr("外观")
+                title: qsTr("语言")
 
                 SettingsRow {
                     Layout.fillWidth: true
-                    label: qsTr("语言")
+                    label: qsTr("界面语言")
                     LensComboBox {
                         id: languageCombo
                         Layout.preferredWidth: 170
@@ -572,57 +669,6 @@ ColumnLayout {
                             { text: qsTr("跟随系统"), value: "system" },
                             { text: qsTr("中文"), value: "zh" },
                             { text: qsTr("English"), value: "en" }
-                        ]
-                    }
-                }
-                SettingsRow {
-                    Layout.fillWidth: true
-                    label: qsTr("主题")
-                    LensComboBox {
-                        id: themeCombo
-                        Layout.preferredWidth: 170
-                        textRole: "text"
-                        valueRole: "value"
-                        onActivated: settingsRoot.commitSettings()
-                        model: [
-                            { text: qsTr("跟随系统"), value: "system" },
-                            { text: qsTr("深色"), value: "dark" },
-                            { text: qsTr("浅色"), value: "light" }
-                        ]
-                    }
-                }
-                SettingsRow {
-                    Layout.fillWidth: true
-                    label: qsTr("字体大小")
-                    LensComboBox {
-                        id: fontScaleCombo
-                        Layout.preferredWidth: 170
-                        textRole: "text"
-                        valueRole: "value"
-                        onActivated: settingsRoot.commitSettings()
-                        model: [
-                            { text: qsTr("小（85%）"), value: 0.85 },
-                            { text: qsTr("标准（100%）"), value: 1.0 },
-                            { text: qsTr("大（115%）"), value: 1.15 },
-                            { text: qsTr("特大（130%）"), value: 1.3 },
-                            { text: qsTr("最大（150%）"), value: 1.5 }
-                        ]
-                    }
-                }
-                SettingsRow {
-                    Layout.fillWidth: true
-                    label: qsTr("行间距")
-                    LensComboBox {
-                        id: lineSpacingCombo
-                        Layout.preferredWidth: 170
-                        textRole: "text"
-                        valueRole: "value"
-                        onActivated: settingsRoot.commitSettings()
-                        model: [
-                            { text: qsTr("紧凑（100%）"), value: 1.0 },
-                            { text: qsTr("标准（115%）"), value: 1.15 },
-                            { text: qsTr("宽松（130%）"), value: 1.3 },
-                            { text: qsTr("特宽（150%）"), value: 1.5 }
                         ]
                     }
                 }
@@ -743,6 +789,197 @@ ColumnLayout {
                     color: theme.text
                     background: SettingFieldBg
                     onTextEdited: settingsRoot.scheduleCommit()
+                }
+            }
+        }
+    }
+
+    // ── 外观：主题 / 配色 / 阅读体验 / 调色板 ─────────────────
+    ScrollView {
+        id: appearanceScroll
+        visible: settingsRoot.settingsCategory === "appearance"
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        contentWidth: availableWidth
+        contentHeight: appearanceContent.implicitHeight
+        ScrollBar.vertical: SlimScrollBar {}
+
+        ColumnLayout {
+            id: appearanceContent
+            width: appearanceScroll.availableWidth
+            spacing: 12
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("主题与配色")
+
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("主题")
+                    LensComboBox {
+                        id: themeCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("跟随系统"), value: "system" },
+                            { text: qsTr("深色"), value: "dark" },
+                            { text: qsTr("浅色"), value: "light" }
+                        ]
+                    }
+                }
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("配色")
+                    Row {
+                        spacing: 8
+
+                        Repeater {
+                            model: [
+                                { key: "blue", text: qsTr("蓝色") },
+                                { key: "teal", text: qsTr("青色") },
+                                { key: "green", text: qsTr("绿色") },
+                                { key: "purple", text: qsTr("紫色") },
+                                { key: "orange", text: qsTr("橙色") },
+                                { key: "rose", text: qsTr("玫红") }
+                            ]
+
+                            delegate: Rectangle {
+                                id: swatch
+                                required property var modelData
+                                readonly property bool selected:
+                                    settingsRoot.accentSchemeWorking === modelData.key
+                                // 色板预览色：方案色相 + 明暗两套通用的中间饱和度/亮度
+                                readonly property real hue:
+                                    settings.accentHues()[modelData.key] ?? 0.582
+
+                                width: 26
+                                height: 26
+                                radius: 13
+                                color: Qt.hsla(hue, 0.62, 0.55, 1)
+                                border.color: selected ? theme.text
+                                             : swatchHover.hovered ? theme.textDim
+                                             : theme.fieldBorder
+                                border.width: selected ? 2 : 1
+                                ToolTip.visible: swatchHover.hovered
+                                ToolTip.text: modelData.text
+                                ToolTip.delay: 400
+
+                                HoverHandler { id: swatchHover }
+                                TapHandler {
+                                    onTapped:
+                                        settingsRoot.selectAccentScheme(swatch.modelData.key)
+                                }
+                            }
+                        }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("强调色用于按钮、链接、用户气泡与选中状态")
+                    color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
+                }
+            }
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("阅读体验")
+
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("字体大小")
+                    LensComboBox {
+                        id: fontScaleCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("小（85%）"), value: 0.85 },
+                            { text: qsTr("标准（100%）"), value: 1.0 },
+                            { text: qsTr("大（115%）"), value: 1.15 },
+                            { text: qsTr("特大（130%）"), value: 1.3 },
+                            { text: qsTr("最大（150%）"), value: 1.5 }
+                        ]
+                    }
+                }
+                SettingsRow {
+                    Layout.fillWidth: true
+                    label: qsTr("行间距")
+                    LensComboBox {
+                        id: lineSpacingCombo
+                        Layout.preferredWidth: 170
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: settingsRoot.commitSettings()
+                        model: [
+                            { text: qsTr("紧凑（100%）"), value: 1.0 },
+                            { text: qsTr("标准（115%）"), value: 1.15 },
+                            { text: qsTr("宽松（130%）"), value: 1.3 },
+                            { text: qsTr("特宽（150%）"), value: 1.5 }
+                        ]
+                    }
+                }
+            }
+
+            SettingsSection {
+                Layout.fillWidth: true
+                title: qsTr("调色板")
+                hint: qsTr("点击色块按深/浅主题修改内置颜色，改动即时生效")
+
+                Theme {
+                    id: darkPreviewTheme
+                    dark: true
+                }
+                Theme {
+                    id: lightPreviewTheme
+                    dark: false
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Repeater {
+                        model: settingsRoot.paletteTokens
+
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: modelData.text
+                                color: theme.text
+                                font.pixelSize: Math.round(12 * settings.fontScale)
+                            }
+                            Item { Layout.fillWidth: true }
+                            PaletteSwatch {
+                                mode: "dark"
+                                token: modelData.key
+                                value: darkPreviewTheme.tokens[modelData.key]
+                            }
+                            PaletteSwatch {
+                                mode: "light"
+                                token: modelData.key
+                                value: lightPreviewTheme.tokens[modelData.key]
+                            }
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    AccentButton {
+                        enabled: settingsRoot.hasColorOverrides
+                        text: qsTr("恢复默认调色板")
+                        onClicked: {
+                            settings.clearColorOverrides()
+                            settings.save()
+                        }
+                    }
                 }
             }
         }

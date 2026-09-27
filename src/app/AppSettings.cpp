@@ -1,9 +1,11 @@
 #include "AppSettings.hpp"
 
+#include <QColor>
 #include <QFile>
 #include <QGuiApplication>
 #include <QLocale>
 #include <QPalette>
+#include <QSet>
 #include <QStyleHints>
 #include <nlohmann/json.hpp>
 
@@ -39,6 +41,49 @@ QString normalizeToolPreset(const QString &value)
         || value == QLatin1String("custom"))
         return value;
     return QStringLiteral("full");
+}
+
+QString normalizeAccentScheme(const QString &value)
+{
+    if (value == QLatin1String("teal") || value == QLatin1String("green")
+        || value == QLatin1String("purple") || value == QLatin1String("orange")
+        || value == QLatin1String("rose"))
+        return value;
+    return QStringLiteral("blue");
+}
+
+// 配色方案的色相表（0..1）。Theme.qml 的 accent 系列色与设置页色板都由
+// accentHue / accentHues 读取生成，饱和度/亮度参数在两处 QML 侧，保持一致
+double accentHueFor(const QString &scheme)
+{
+    if (scheme == QLatin1String("teal"))
+        return 0.5;
+    if (scheme == QLatin1String("green"))
+        return 0.36;
+    if (scheme == QLatin1String("purple"))
+        return 0.76;
+    if (scheme == QLatin1String("orange"))
+        return 0.065;
+    if (scheme == QLatin1String("rose"))
+        return 0.95;
+    return 0.582; // blue
+}
+
+// 调色板可覆盖的颜色 token 白名单（与 Theme.qml 的属性名、SettingsView 的
+// paletteTokens 清单一致，三处一起改），未收录的 token 拒绝落盘
+bool isValidPaletteToken(const QString &token)
+{
+    static const QSet<QString> kTokens = {
+        QStringLiteral("background"), QStringLiteral("surface"), QStringLiteral("sidebar"),
+        QStringLiteral("field"), QStringLiteral("fieldBorder"), QStringLiteral("card"),
+        QStringLiteral("cardBorder"), QStringLiteral("highlight"), QStringLiteral("text"),
+        QStringLiteral("textSoft"), QStringLiteral("textDim"), QStringLiteral("textFaint"),
+        QStringLiteral("accent"), QStringLiteral("accentHover"), QStringLiteral("accentPressed"),
+        QStringLiteral("accentSoft"), QStringLiteral("accentBorder"), QStringLiteral("success"),
+        QStringLiteral("error"), QStringLiteral("errorSoft"), QStringLiteral("bubbleUser"),
+        QStringLiteral("bubbleUser2"), QStringLiteral("bubbleUserText"), QStringLiteral("divider")
+    };
+    return kTokens.contains(token);
 }
 
 // 字体缩放档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
@@ -105,6 +150,8 @@ void AppSettings::reset()
     m_customTools.clear();
     m_fontScale = 1.0;
     m_lineSpacing = 1.3;
+    m_accentScheme = QStringLiteral("blue");
+    m_colorOverrides.clear();
     emit settingsChanged();
 }
 
@@ -211,6 +258,28 @@ void AppSettings::load()
     m_webSearchApiKey = readQStr(json, "webSearchApiKey");
     m_language = normalizeChoice(readQStr(json, "language"), {"zh", "en"});
     m_theme = normalizeChoice(readQStr(json, "theme"), {"dark", "light"});
+    m_accentScheme = normalizeAccentScheme(readQStr(json, "accentScheme"));
+    if (json.contains("colorOverrides") && json.at("colorOverrides").is_object()) {
+        m_colorOverrides.clear();
+        for (const auto &mode : json.at("colorOverrides").items()) {
+            if (!mode.value().is_object()
+                || (mode.key() != "dark" && mode.key() != "light"))
+                continue;
+            QVariantMap tokens;
+            for (const auto &token : mode.value().items()) {
+                if (!token.value().is_string())
+                    continue;
+                if (!isValidPaletteToken(QString::fromStdString(token.key())))
+                    continue;
+                const QColor parsed(
+                    QString::fromStdString(token.value().get<std::string>()));
+                if (parsed.isValid())
+                    tokens.insert(QString::fromStdString(token.key()), parsed.name());
+            }
+            if (!tokens.isEmpty())
+                m_colorOverrides.insert(QString::fromStdString(mode.key()), tokens);
+        }
+    }
     const auto fontScaleIt = json.find("fontScale");
     m_fontScale = fontScaleIt != json.end() && fontScaleIt->is_number()
                       ? normalizeFontScale(fontScaleIt->get<double>())
@@ -242,11 +311,21 @@ void AppSettings::save()
         {"webSearchApiKey", readStd(m_webSearchApiKey)},
         {"language", readStd(m_language)},
         {"theme", readStd(m_theme)},
+        {"accentScheme", readStd(m_accentScheme)},
         {"fontScale", m_fontScale},
         {"lineSpacing", m_lineSpacing},
         {"sendShortcut", readStd(m_sendShortcut)},
         {"toolPreset", readStd(m_toolPreset)},
     };
+    auto overrides = nlohmann::json::object();
+    for (auto it = m_colorOverrides.constBegin(); it != m_colorOverrides.constEnd(); ++it) {
+        nlohmann::json tokens = nlohmann::json::object();
+        const QVariantMap tokenMap = it.value().toMap();
+        for (auto tokenIt = tokenMap.constBegin(); tokenIt != tokenMap.constEnd(); ++tokenIt)
+            tokens[readStd(tokenIt.key())] = readStd(tokenIt.value().toString());
+        overrides[readStd(it.key())] = std::move(tokens);
+    }
+    json["colorOverrides"] = std::move(overrides);
     auto customTools = nlohmann::json::array();
     for (const QString &tool : m_customTools)
         customTools.push_back(readStd(tool));
@@ -480,6 +559,64 @@ void AppSettings::setLanguage(const QString &value)
 void AppSettings::setTheme(const QString &value)
 {
     m_theme = normalizeChoice(value, {"dark", "light"});
+    emit settingsChanged();
+}
+
+void AppSettings::setAccentScheme(const QString &value)
+{
+    const QString normalized = normalizeAccentScheme(value);
+    if (normalized == m_accentScheme)
+        return;
+    m_accentScheme = normalized;
+    emit settingsChanged();
+}
+
+double AppSettings::accentHue() const { return accentHueFor(m_accentScheme); }
+
+QVariantMap AppSettings::accentHues() const
+{
+    QVariantMap hues;
+    const QStringList schemes = {QStringLiteral("blue"), QStringLiteral("teal"),
+                                 QStringLiteral("green"), QStringLiteral("purple"),
+                                 QStringLiteral("orange"), QStringLiteral("rose")};
+    for (const QString &scheme : schemes)
+        hues.insert(scheme, accentHueFor(scheme));
+    return hues;
+}
+
+QColor AppSettings::accentColor() const
+{
+    // 调色板覆盖了 accent 时优先用覆盖值；否则按方案色相生成
+    // （饱和度/亮度与 Theme.qml 的 accent 参数一致，深浅两套）
+    const QVariantMap tokens = m_colorOverrides.value(dark() ? QStringLiteral("dark")
+                                                             : QStringLiteral("light")).toMap();
+    const QColor overridden(tokens.value(QStringLiteral("accent")).toString());
+    if (overridden.isValid())
+        return overridden;
+    const double h = accentHue();
+    return dark() ? QColor::fromHslF(h, 0.62, 0.60) : QColor::fromHslF(h, 0.74, 0.53);
+}
+
+void AppSettings::setColorOverride(const QString &mode, const QString &token, const QString &color)
+{
+    if (mode != QLatin1String("dark") && mode != QLatin1String("light"))
+        return;
+    if (!isValidPaletteToken(token))
+        return;
+    const QColor parsed(color);
+    if (!parsed.isValid())
+        return;
+    QVariantMap tokens = m_colorOverrides.value(mode).toMap();
+    tokens.insert(token, parsed.name());
+    m_colorOverrides.insert(mode, tokens);
+    emit settingsChanged();
+}
+
+void AppSettings::clearColorOverrides()
+{
+    if (m_colorOverrides.isEmpty())
+        return;
+    m_colorOverrides.clear();
     emit settingsChanged();
 }
 

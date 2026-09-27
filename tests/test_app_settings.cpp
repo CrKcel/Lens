@@ -20,6 +20,8 @@ private slots:
     void legacyFlatConfigMigration();
     void fontScaleRoundtripAndNormalization();
     void lineSpacingRoundtripAndNormalization();
+    void accentSchemeRoundtripAndNormalization();
+    void colorOverridesRoundtripAndValidation();
 
 private:
     QString writeJson(const QByteArray &json);
@@ -215,6 +217,82 @@ void TestAppSettings::lineSpacingRoundtripAndNormalization()
     const QString invalidPath = writeJson(R"({"lineSpacing":"wide"})");
     AppSettings invalid(invalidPath);
     QCOMPARE(invalid.lineSpacing(), 1.3);
+}
+
+void TestAppSettings::accentSchemeRoundtripAndNormalization()
+{
+    const QString path = writeJson("{}");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    {
+        AppSettings settings(path);
+        QCOMPARE(settings.accentScheme(), QStringLiteral("blue"));
+        settings.setAccentScheme(QStringLiteral("purple"));
+        settings.save();
+    }
+    AppSettings reloaded(path);
+    QCOMPARE(reloaded.accentScheme(), QStringLiteral("purple"));
+    // 色相跟随方案，供 Theme.qml / QPalette 生成强调色
+    QVERIFY(reloaded.accentHue() > 0.7 && reloaded.accentHue() < 0.8);
+
+    // 非法值归一到默认 blue
+    reloaded.setAccentScheme(QStringLiteral("rainbow"));
+    QCOMPARE(reloaded.accentScheme(), QStringLiteral("blue"));
+
+    const QString invalidPath = writeJson(R"({"accentScheme":42})");
+    AppSettings invalid(invalidPath);
+    QCOMPARE(invalid.accentScheme(), QStringLiteral("blue"));
+}
+
+void TestAppSettings::colorOverridesRoundtripAndValidation()
+{
+    const QString path = writeJson("{}");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    {
+        AppSettings settings(path);
+        QVERIFY(settings.colorOverrides().isEmpty());
+        settings.setColorOverride(QStringLiteral("dark"), QStringLiteral("background"),
+                                  QStringLiteral("#123456"));
+        settings.setColorOverride(QStringLiteral("light"), QStringLiteral("accent"),
+                                  QStringLiteral("#abcdef"));
+        // 非法模式 / 非法颜色 / 未收录 token 拒绝
+        settings.setColorOverride(QStringLiteral("high-contrast"), QStringLiteral("background"),
+                                  QStringLiteral("#111111"));
+        settings.setColorOverride(QStringLiteral("dark"), QStringLiteral("background"),
+                                  QStringLiteral("nope"));
+        settings.setColorOverride(QStringLiteral("dark"), QStringLiteral("not-a-token"),
+                                  QStringLiteral("#111111"));
+        QCOMPARE(settings.colorOverrides().size(), 2);
+        settings.save();
+    }
+    AppSettings reloaded(path);
+    const QVariantMap overrides = reloaded.colorOverrides();
+    QCOMPARE(overrides.size(), 2);
+    QCOMPARE(overrides.value(QStringLiteral("dark")).toMap()
+                 .value(QStringLiteral("background")).toString(),
+             QStringLiteral("#123456"));
+    QCOMPARE(overrides.value(QStringLiteral("light")).toMap()
+                 .value(QStringLiteral("accent")).toString(),
+             QStringLiteral("#abcdef"));
+    // accentColor 优先用覆盖值
+    reloaded.setColorOverride(QStringLiteral("dark"), QStringLiteral("accent"),
+                              QStringLiteral("#ff0000"));
+    QCOMPARE(reloaded.accentColor(), QColor(Qt::red));
+
+    // 老配置无 colorOverrides 键：空覆盖，且颜色字段非法时丢弃
+    const QString invalidPath = writeJson(
+        R"({"colorOverrides":{"dark":{"background":42,"card":"#010203"}}})");
+    AppSettings invalid(invalidPath);
+    const QVariantMap invalidOverrides = invalid.colorOverrides();
+    QCOMPARE(invalidOverrides.size(), 1);
+    QVERIFY(!invalidOverrides.value(QStringLiteral("dark")).toMap()
+                 .contains(QStringLiteral("background")));
+    QVERIFY(invalidOverrides.value(QStringLiteral("dark")).toMap()
+                .value(QStringLiteral("card")).isValid());
+
+    reloaded.clearColorOverrides();
+    QVERIFY(reloaded.colorOverrides().isEmpty());
 }
 
 int main(int argc, char **argv)
