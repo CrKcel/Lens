@@ -124,9 +124,6 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         const QString workdir = qEnvironmentVariable("LENS_E2E_WORKDIR");
         if (!workdir.isEmpty())
             chat->newConversation(workdir);
-        // LENS_E2E_NEWWINDOW：走真实 UI 路径开一个新窗口（多窗口冒烟）
-        if (!qEnvironmentVariableIsEmpty("LENS_E2E_NEWWINDOW"))
-            chat->newWindow();
         QObject *input = root->findChild<QObject *>(QStringLiteral("chatInput"));
         if (input) {
             input->setProperty("text", message);

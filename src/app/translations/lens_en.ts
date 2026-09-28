@@ -232,22 +232,22 @@ The first message creates a conversation automatically.</translation>
         <translation>Lens</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="250"/>
+        <location filename="../Main.qml" line="246"/>
         <source>最小化</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="268"/>
+        <location filename="../Main.qml" line="264"/>
         <source>还原</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="268"/>
+        <location filename="../Main.qml" line="264"/>
         <source>最大化</source>
         <translation>Maximize</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="224"/>
+        <location filename="../Main.qml" line="220"/>
         <source>关闭</source>
         <translation>Close</translation>
     </message>
@@ -264,12 +264,12 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">New server</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="197"/>
+        <location filename="../Main.qml" line="193"/>
         <source>展开会话列表</source>
         <translation>Expand conversation list</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="197"/>
+        <location filename="../Main.qml" line="193"/>
         <source>折叠会话列表</source>
         <translation>Collapse conversation list</translation>
     </message>
@@ -322,12 +322,12 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">« Back to Chat</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="151"/>
+        <location filename="../Main.qml" line="147"/>
         <source>新会话</source>
         <translation>New Chat</translation>
     </message>
     <message>
-        <location filename="../Main.qml" line="173"/>
+        <location filename="../Main.qml" line="169"/>
         <source>生成中…</source>
         <translation>Generating…</translation>
     </message>
@@ -2041,98 +2041,95 @@ The first message creates a conversation automatically.</translation>
         <translation>＋ New Chat</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="142"/>
         <source>❐ 新窗口（Ctrl+Shift+N）</source>
-        <translation>❐ New Window (Ctrl+Shift+N)</translation>
+        <translation type="vanished">❐ New Window (Ctrl+Shift+N)</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="166"/>
+        <location filename="../Sidebar.qml" line="140"/>
         <source>搜索会话</source>
         <translation>Search conversations</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="192"/>
+        <location filename="../Sidebar.qml" line="166"/>
         <source>清除搜索</source>
         <translation>Clear search</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="208"/>
+        <location filename="../Sidebar.qml" line="182"/>
         <source>常规</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="214"/>
+        <location filename="../Sidebar.qml" line="188"/>
         <source>外观</source>
         <translation>Appearance</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="220"/>
+        <location filename="../Sidebar.qml" line="194"/>
         <source>模型提供商</source>
         <translation>Model Providers</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="226"/>
+        <location filename="../Sidebar.qml" line="200"/>
         <source>MCP</source>
         <translation>MCP</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="232"/>
+        <location filename="../Sidebar.qml" line="206"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="238"/>
+        <location filename="../Sidebar.qml" line="212"/>
         <source>快捷键</source>
         <translation>Shortcuts</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="189"/>
-        <location filename="../Sidebar.qml" line="360"/>
+        <location filename="../Sidebar.qml" line="163"/>
+        <location filename="../Sidebar.qml" line="325"/>
         <source>×</source>
         <translation>×</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="351"/>
         <source>❐</source>
-        <translation>❐</translation>
+        <translation type="vanished">❐</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="356"/>
         <source>在新窗口打开</source>
-        <translation>Open in new window</translation>
+        <translation type="vanished">Open in new window</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="364"/>
+        <location filename="../Sidebar.qml" line="329"/>
         <source>删除会话</source>
         <translation>Delete conversation</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="374"/>
+        <location filename="../Sidebar.qml" line="339"/>
         <source>暂无会话</source>
         <translation>No conversations yet</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="374"/>
+        <location filename="../Sidebar.qml" line="339"/>
         <source>无匹配会话</source>
         <translation>No matching conversations</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="395"/>
+        <location filename="../Sidebar.qml" line="360"/>
         <source>收起上下文</source>
         <translation>Collapse Context</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="395"/>
+        <location filename="../Sidebar.qml" line="360"/>
         <source>上下文</source>
         <translation>Context</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="408"/>
+        <location filename="../Sidebar.qml" line="373"/>
         <source>« 返回聊天</source>
         <translation>« Back to Chat</translation>
     </message>
     <message>
-        <location filename="../Sidebar.qml" line="408"/>
+        <location filename="../Sidebar.qml" line="373"/>
         <source>⚙ 设置</source>
         <translation>⚙ Settings</translation>
     </message>

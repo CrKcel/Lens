@@ -1,12 +1,8 @@
 #include "ChatEngine.hpp"
 
 #include "AppSettings.hpp"
-#include "ChatController.hpp"
 
 #include <QDir>
-#include <QQmlComponent>
-#include <QQmlContext>
-#include <QQmlEngine>
 #include <QTimer>
 #include <lens/core/providers/QNetworkTransport.hpp>
 #include <lens/core/storage/SessionStore.hpp>
@@ -187,33 +183,6 @@ void ChatEngine::fetchModels(const QString &protocol, const QString &endpoint,
                                 else
                                     emit modelsFetchFailed(error);
                             });
-}
-
-void ChatEngine::createWindow(qint64 conversationId)
-{
-    if (!m_qmlEngine)
-        return;
-    auto *controller = new ChatController(this, this);
-    auto *context = new QQmlContext(m_qmlEngine->rootContext(), controller);
-    context->setContextProperty(QStringLiteral("chat"), controller);
-
-    QQmlComponent component(m_qmlEngine, QUrl(QStringLiteral("qrc:/qt/qml/Lens/app/Main.qml")));
-    QObject *window = component.create(context);
-    if (!window) {
-        qWarning() << "创建窗口失败:" << component.errorString();
-        delete controller;
-        return;
-    }
-    // 窗口对象与其上下文一起析构（上下文随窗口销毁，避免悬空的 chat 属性）
-    context->setParent(window);
-    window->setParent(controller);
-    m_windows.append(controller);
-    connect(window, &QObject::destroyed, controller, [this, controller] {
-        m_windows.removeOne(controller);
-        controller->deleteLater();
-    });
-    if (conversationId != 0)
-        controller->openConversation(conversationId);
 }
 
 } // namespace lens

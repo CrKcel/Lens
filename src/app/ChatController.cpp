@@ -244,14 +244,4 @@ QString ChatController::modelDisplayName(int providerIndex, const QString &model
     return modelId; // 清单为空或未收录：回退模型 id
 }
 
-void ChatController::newWindow()
-{
-    m_engine->createWindow(0);
-}
-
-void ChatController::openConversationInNewWindow(qint64 conversationId)
-{
-    m_engine->createWindow(conversationId);
-}
-
 } // namespace lens

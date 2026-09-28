@@ -13,7 +13,6 @@
 #include <functional>
 #include <memory>
 
-class QQmlEngine;
 class QThreadPool;
 
 namespace lens {
@@ -23,8 +22,7 @@ class ChatController;
 class SessionStore;
 
 // 全局共享层：会话注册表（按会话 id 持有 ChatSession）、工具注册表与 MCP
-// 连接（全应用一份，MCP 子进程不重复）、模型清单拉取，以及多窗口创建。
-// 每窗口一个 ChatController facade 绑定到某个会话；会话在窗口切走/关闭后
+// 连接（全应用一份，MCP 子进程不重复）、模型清单拉取。会话在窗口切走后
 // 照常生成（后台生成）。全部状态只在主线程访问（AgentSession/QNetworkTransport
 // 的事件循环模型，SessionStore 的线程亲和性都不允许其他线程）。
 class ChatEngine : public QObject
@@ -35,8 +33,6 @@ public:
                QObject *parent = nullptr);
     ~ChatEngine() override;
 
-    // QML 引擎注入后 createWindow 才可用（测试不设窗口）
-    void setQmlEngine(QQmlEngine *engine) { m_qmlEngine = engine; }
     // 测试注入口：会话创建时用假传输替代 QNetworkTransport
     void setTransportFactory(std::function<std::unique_ptr<ITransport>()> factory)
     {
@@ -71,11 +67,6 @@ public:
     void fetchModels(const QString &protocol, const QString &endpoint, const QString &apiKey);
     bool fetchingModels() const { return m_fetchingModels; }
 
-    // 多窗口：新建窗口（conversationId 为 0 时空窗口），窗口持有自己的
-    // ChatController facade（经子 QQmlContext 的 chat 属性暴露给 QML 实例）
-    void createWindow(qint64 conversationId);
-    const QVector<ChatController *> &windows() const { return m_windows; }
-
 signals:
     void sessionStreamingChanged(qint64 conversationId, bool streaming);
     void conversationsChanged(); // 会话增删/改名，facade 据此重载各自的列表模型
@@ -104,8 +95,6 @@ private:
     ModelListClient m_modelListClient;
     bool m_fetchingModels = false;
 
-    QQmlEngine *m_qmlEngine = nullptr;
-    QVector<ChatController *> m_windows;
     std::function<std::unique_ptr<ITransport>()> m_transportFactory;
 };
 

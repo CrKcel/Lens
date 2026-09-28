@@ -14,7 +14,7 @@ namespace lens {
 
 class ChatSession;
 
-// 每窗口 facade：QML 只与此类交互（context property `chat`）。会话相关属性
+// QML facade（context property `chat`）：QML 只与此类交互。会话相关属性
 // 转发到当前绑定的 ChatSession（无会话时空占位），会话列表/搜索/删除与工具、
 // MCP、模型清单拉取转发到 ChatEngine（全应用共享一份）。会话切换只重绑视图
 // 不中断生成：原会话的回合继续在后台进行，切回即恢复现场（后台生成）。
@@ -94,9 +94,6 @@ public:
     // 模型显示名：providerIndex 对应供应商的 models 清单里按 id 找 displayName，
     // 未配置显示名、清单为空或未收录时回退模型 id（聊天按钮与模型弹层共用）
     Q_INVOKABLE QString modelDisplayName(int providerIndex, const QString &modelId) const;
-    // 多窗口：新开一个窗口（可带会话）；本窗口不切换
-    Q_INVOKABLE void newWindow();
-    Q_INVOKABLE void openConversationInNewWindow(qint64 conversationId);
 
 signals:
     void streamingChanged();
