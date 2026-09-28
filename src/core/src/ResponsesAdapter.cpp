@@ -150,29 +150,20 @@ ResponsesAdapter::applyEvent(const nlohmann::json &payload,
         stream.mergeToolCall(index, QString(), QString(),
                              QString::fromStdString(payload.value("delta", std::string())));
     } else if (type == "response.completed" || type == "response.incomplete") {
-        stream.setFinishReason(type == "response.completed" ? "stop" : "incomplete");
         const auto responseIt = payload.find("response");
         if (responseIt != payload.end() && responseIt->is_object()) {
             const auto usageIt = responseIt->find("usage");
             if (usageIt != responseIt->end() && usageIt->is_object()) {
                 TokenUsage usage;
                 usage.valid = true;
-                if (auto it = usageIt->find("input_tokens");
-                    it != usageIt->end() && it->is_number())
-                    usage.promptTokens = it->get<qint64>();
-                if (auto it = usageIt->find("output_tokens");
-                    it != usageIt->end() && it->is_number())
-                    usage.completionTokens = it->get<qint64>();
-                const auto detailsIt = usageIt->find("input_tokens_details");
-                if (detailsIt != usageIt->end() && detailsIt->is_object()) {
-                    if (auto it = detailsIt->find("cached_tokens");
-                        it != detailsIt->end() && it->is_number())
-                        usage.cachedTokens = it->get<qint64>();
-                }
+                usage.promptTokens = jsonNumberOr(*usageIt, "input_tokens");
+                usage.completionTokens = jsonNumberOr(*usageIt, "output_tokens");
+                if (auto detailsIt = usageIt->find("input_tokens_details");
+                    detailsIt != usageIt->end() && detailsIt->is_object())
+                    usage.cachedTokens = jsonNumberOr(*detailsIt, "cached_tokens");
                 stream.setUsage(usage);
             }
         }
-        stream.markDone();
     }
     return delta;
 }

@@ -216,11 +216,6 @@ void MessageListModel::setToolCallRunning(const QString &callId)
     emit dataChanged(createIndex(row, 0), createIndex(row, 0), {ToolPendingRole});
 }
 
-void MessageListModel::setToolCallResult(const QString &callId, const QString &output)
-{
-    setToolCallResult(callId, output, {});
-}
-
 void MessageListModel::setToolCallResult(const QString &callId, const QString &output,
                                          const QList<ImageAttachment> &images)
 {

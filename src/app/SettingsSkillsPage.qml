@@ -93,9 +93,4 @@ ColumnLayout {
             color: theme.textFaint
         }
     }
-    Label {
-        text: qsTr("全局目录：数据目录下 skills/*/SKILL.md；项目目录：工作文件夹下 .lens/skills/")
-        color: theme.textFaint
-        font.pixelSize: Math.round(11 * settings.fontScale)
-    }
 }

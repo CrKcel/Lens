@@ -23,6 +23,16 @@ QString nowIso()
     return QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
 }
 
+// 从 SELECT id, title, workdir ... 的当前行读出会话
+Conversation readConversationRow(const QSqlQuery &query)
+{
+    Conversation conversation;
+    conversation.id = query.value(0).toLongLong();
+    conversation.title = query.value(1).toString();
+    conversation.workdir = query.value(2).toString();
+    return conversation;
+}
+
 QString toolCallsToJson(const QList<ToolCall> &toolCalls)
 {
     if (toolCalls.isEmpty())
@@ -201,35 +211,19 @@ bool SessionStore::open()
         m_lastError = query.lastError().text();
         return false;
     }
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("tool_calls"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("tool_call_id"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("reasoning"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("usage_json"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("images_json"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
-    if (!ensureColumn(m_db, QStringLiteral("messages"), QStringLiteral("files_json"),
-                      QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
-        return false;
+    for (const QString &column : {QStringLiteral("tool_calls"), QStringLiteral("tool_call_id"),
+                                 QStringLiteral("reasoning"), QStringLiteral("usage_json"),
+                                 QStringLiteral("images_json"), QStringLiteral("files_json")}) {
+        if (!ensureColumn(m_db, QStringLiteral("messages"), column,
+                          QStringLiteral("TEXT NOT NULL DEFAULT ''"), &m_lastError))
+            return false;
+    }
     return true;
 }
 
 QString SessionStore::lastError() const
 {
     return m_lastError;
-}
-
-QString SessionStore::databasePath() const
-{
-    return m_path;
 }
 
 qint64 SessionStore::createConversation(const QString &title, const QString &workdir)
@@ -306,18 +300,10 @@ QList<Conversation> SessionStore::conversations() const
     QList<Conversation> result;
     QSqlQuery query(m_db);
     query.exec(QStringLiteral(
-        "SELECT id, title, workdir, created_at, updated_at "
+        "SELECT id, title, workdir "
         "FROM conversations ORDER BY updated_at DESC, id DESC"));
     while (query.next()) {
-        Conversation conversation;
-        conversation.id = query.value(0).toLongLong();
-        conversation.title = query.value(1).toString();
-        conversation.workdir = query.value(2).toString();
-        conversation.createdAt =
-            QDateTime::fromString(query.value(3).toString(), Qt::ISODateWithMs);
-        conversation.updatedAt =
-            QDateTime::fromString(query.value(4).toString(), Qt::ISODateWithMs);
-        result.append(conversation);
+        result.append(readConversationRow(query));
     }
     return result;
 }
@@ -337,7 +323,7 @@ QList<Conversation> SessionStore::searchConversations(const QString &query) cons
 
     QSqlQuery stmt(m_db);
     stmt.prepare(QStringLiteral(
-        "SELECT DISTINCT c.id, c.title, c.workdir, c.created_at, c.updated_at "
+        "SELECT DISTINCT c.id, c.title, c.workdir "
         "FROM conversations c "
         "WHERE c.title LIKE ? ESCAPE '\\' "
         "   OR EXISTS (SELECT 1 FROM messages m "
@@ -348,15 +334,7 @@ QList<Conversation> SessionStore::searchConversations(const QString &query) cons
     if (!stmt.exec())
         return result;
     while (stmt.next()) {
-        Conversation conversation;
-        conversation.id = stmt.value(0).toLongLong();
-        conversation.title = stmt.value(1).toString();
-        conversation.workdir = stmt.value(2).toString();
-        conversation.createdAt =
-            QDateTime::fromString(stmt.value(3).toString(), Qt::ISODateWithMs);
-        conversation.updatedAt =
-            QDateTime::fromString(stmt.value(4).toString(), Qt::ISODateWithMs);
-        result.append(conversation);
+        result.append(readConversationRow(stmt));
     }
     return result;
 }

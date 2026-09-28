@@ -9,6 +9,7 @@
 #include <QPalette>
 #include <QStyleHints>
 #include <nlohmann/json.hpp>
+#include <utility>
 
 namespace lens {
 namespace {
@@ -47,52 +48,41 @@ QString normalizeToolPreset(const QString &value)
 // 调色板 token 白名单在 AppStyle（与 Theme.qml 的属性名、外观页 paletteTokens
 // 清单一致），未收录的 token 拒绝落盘
 
-// 字体缩放档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
+// 归一到 allowed 里离 value 最近的档位（档位与设置页 ComboBox 的选项一一对应），
+// 并列时取靠前的档位
+template <typename T, std::size_t N>
+T normalizeToNearest(T value, const T (&allowed)[N], T fallback)
+{
+    T best = fallback;
+    bool first = true;
+    T bestDiff{};
+    for (T candidate : allowed) {
+        const T diff = qAbs(value - candidate);
+        if (first || diff < bestDiff) {
+            best = candidate;
+            bestDiff = diff;
+            first = false;
+        }
+    }
+    return best;
+}
+
 double normalizeFontScale(double value)
 {
     static constexpr double kAllowed[] = {0.85, 1.0, 1.15, 1.3, 1.5};
-    double best = 1.0;
-    double bestDiff = -1.0;
-    for (double allowed : kAllowed) {
-        const double diff = qAbs(value - allowed);
-        if (bestDiff < 0 || diff < bestDiff) {
-            best = allowed;
-            bestDiff = diff;
-        }
-    }
-    return best;
+    return normalizeToNearest(value, kAllowed, 1.0);
 }
 
-// 行距档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
 double normalizeLineSpacing(double value)
 {
     static constexpr double kAllowed[] = {1.0, 1.15, 1.3, 1.5};
-    double best = 1.3;
-    double bestDiff = -1.0;
-    for (double allowed : kAllowed) {
-        const double diff = qAbs(value - allowed);
-        if (bestDiff < 0 || diff < bestDiff) {
-            best = allowed;
-            bestDiff = diff;
-        }
-    }
-    return best;
+    return normalizeToNearest(value, kAllowed, 1.3);
 }
 
-// 重试档位与设置页 ComboBox 的选项（关闭/1/2/3/5）一一对应，非法值归到最近档位
 int normalizeMaxRetries(int value)
 {
     static constexpr int kAllowed[] = {0, 1, 2, 3, 5};
-    int best = 3;
-    int bestDiff = -1;
-    for (int allowed : kAllowed) {
-        const int diff = qAbs(value - allowed);
-        if (bestDiff < 0 || diff < bestDiff) {
-            best = allowed;
-            bestDiff = diff;
-        }
-    }
-    return best;
+    return normalizeToNearest(value, kAllowed, 3);
 }
 
 } // namespace
@@ -369,39 +359,33 @@ QString AppSettings::model() const { return activeProviderConfig().model; }
 QString AppSettings::protocol() const { return activeProviderConfig().protocol; }
 bool AppSettings::serverSearch() const { return activeProviderConfig().serverSearch; }
 
+// 激活供应商视图字段的统一写入口（E2eDriver / test_chat_engine 注入用；
+// 设置页的常规提交走 updateProvider，不经过这里）
+template <typename Member, typename Value>
+void mutateActiveProvider(QList<ProviderConfig> &providers, int activeProvider,
+                          Member member, Value value)
+{
+    if (providers.isEmpty())
+        return;
+    providers[qBound(0, activeProvider, providers.size() - 1)].*member = std::move(value);
+    // 注意：不落盘——调用方（如测试/E2e）自行决定 save 时机
+}
+
 void AppSettings::setEndpoint(const QString &value)
 {
-    if (!m_providers.isEmpty())
-        m_providers[qBound(0, m_activeProvider, m_providers.size() - 1)].endpoint = value;
+    mutateActiveProvider(m_providers, m_activeProvider, &ProviderConfig::endpoint, value);
     emit settingsChanged();
 }
 
 void AppSettings::setApiKey(const QString &value)
 {
-    if (!m_providers.isEmpty())
-        m_providers[qBound(0, m_activeProvider, m_providers.size() - 1)].apiKey = value;
+    mutateActiveProvider(m_providers, m_activeProvider, &ProviderConfig::apiKey, value);
     emit settingsChanged();
 }
 
 void AppSettings::setModel(const QString &value)
 {
-    if (!m_providers.isEmpty())
-        m_providers[qBound(0, m_activeProvider, m_providers.size() - 1)].model = value;
-    emit settingsChanged();
-}
-
-void AppSettings::setProtocol(const QString &value)
-{
-    if (!m_providers.isEmpty())
-        m_providers[qBound(0, m_activeProvider, m_providers.size() - 1)].protocol =
-            value.isEmpty() ? kDefaultProtocol : value;
-    emit settingsChanged();
-}
-
-void AppSettings::setServerSearch(bool value)
-{
-    if (!m_providers.isEmpty())
-        m_providers[qBound(0, m_activeProvider, m_providers.size() - 1)].serverSearch = value;
+    mutateActiveProvider(m_providers, m_activeProvider, &ProviderConfig::model, value);
     emit settingsChanged();
 }
 
@@ -409,17 +393,6 @@ void AppSettings::setActiveProvider(int index)
 {
     m_activeProvider = qBound(0, index, qMax(0, m_providers.size() - 1));
     emit settingsChanged();
-}
-
-void AppSettings::selectActiveModel(int providerIndex, const QString &modelId)
-{
-    const bool indexChanged = m_activeProvider != providerIndex;
-    setActiveProvider(providerIndex); // 越界索引由 setActiveProvider 收敛
-    const bool modelChanged = !modelId.isEmpty() && model() != modelId;
-    if (modelChanged)
-        setModel(modelId);
-    if (indexChanged || modelChanged)
-        save();
 }
 
 QVariantMap AppSettings::providerToMap(const ProviderConfig &provider) const

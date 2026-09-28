@@ -18,8 +18,6 @@ class UsageTracker : public QObject
 public:
     explicit UsageTracker(AppSettings *settings, QObject *parent = nullptr);
 
-    // 会话切换 / 清空 / 删除时归零
-    void reset();
     // 会话级模型覆盖（与 ChatSession::setModelOverride 同步）：计价与上下文
     // 窗口展示按覆盖的供应商/模型算，-1 清除回退全局激活供应商
     void setProviderOverride(int providerIndex, const QString &modelId);
@@ -31,6 +29,8 @@ public:
     void record(const TokenUsage &usage);
 
     QVariantMap summary() const;
+    // 键齐全的归零用量（无会话时 QML 仍可直接取 hasUsage / contextTokens 等键）
+    static QVariantMap emptySummary();
 
 signals:
     void changed();

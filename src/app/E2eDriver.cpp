@@ -3,8 +3,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -13,6 +11,8 @@
 #include "AppSettings.hpp"
 #include "ChatController.hpp"
 #include "MessageListModel.hpp"
+
+#include <lens/core/providers/ModelListClient.hpp>
 
 namespace lens {
 namespace {
@@ -96,18 +96,20 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         settings->setApiKey(qEnvironmentVariable("LENS_E2E_API_KEY"));
         QString model = qEnvironmentVariable("LENS_E2E_MODEL");
         if (model.isEmpty()) {
-            QNetworkAccessManager nam;
-            QUrl modelsUrl(envEndpoint);
-            modelsUrl.setPath(QStringLiteral("/v1/models"));
-            auto *reply = nam.get(QNetworkRequest(modelsUrl));
+            // 复用 core 的清单拉取（端点解析 + 排序去重），局部事件循环等待结果
+            ModelListClient client;
             QEventLoop loop;
-            QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            QString fetched;
+            client.fetch(Protocol::ChatCompletions, envEndpoint,
+                         qEnvironmentVariable("LENS_E2E_API_KEY"),
+                         [&fetched, &loop](QStringList models, QString) {
+                             if (!models.isEmpty())
+                                 fetched = models.first();
+                             loop.quit();
+                         });
             QTimer::singleShot(5000, &loop, &QEventLoop::quit);
             loop.exec();
-            const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-            reply->deleteLater();
-            model = doc.object().value("data").toArray().at(0).toObject()
-                        .value("id").toString();
+            model = fetched;
         }
         settings->setModel(model);
         settings->save();

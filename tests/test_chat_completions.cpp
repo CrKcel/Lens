@@ -122,7 +122,6 @@ void TestChatCompletions::toleratesMalformedPayload()
     QCOMPARE(stream.apply(discarded).content, QString());
     QCOMPARE(stream.apply(nlohmann::json::object()).content, QString());
     QCOMPARE(stream.content(), QString());
-    QVERIFY(!stream.isDone());
 }
 
 void TestChatCompletions::streamAccumulatesContentAndToolCalls()
@@ -149,11 +148,6 @@ void TestChatCompletions::streamAccumulatesContentAndToolCalls()
     QCOMPARE(calls[0].id, QStringLiteral("c1"));
     QCOMPARE(calls[0].name, QStringLiteral("edit"));
     QCOMPARE(calls[0].arguments, QStringLiteral("{\"path\":\"x\"}"));
-    QCOMPARE(stream.finishReason(), QStringLiteral("tool_calls"));
-    QVERIFY(!stream.isDone());
-
-    stream.markDone();
-    QVERIFY(stream.isDone());
 }
 
 void TestChatCompletions::llamaCppStreamWithReasoning()
@@ -181,7 +175,6 @@ void TestChatCompletions::llamaCppStreamWithReasoning()
 
     QCOMPARE(stream.content(), QStringLiteral("答案"));
     QCOMPARE(stream.reasoning(), QStringLiteral("思考中"));
-    QCOMPARE(stream.finishReason(), QStringLiteral("stop"));
     QVERIFY(stream.toolCalls().isEmpty());
 }
 

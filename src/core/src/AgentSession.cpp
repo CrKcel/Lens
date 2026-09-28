@@ -92,10 +92,8 @@ void AgentSession::startTurn()
                             m_sse.feed(bytes, [this, generation](const QByteArray &event) {
                                 if (generation != m_generation)
                                     return;
-                                if (m_adapter->isDoneEvent(event)) {
-                                    m_stream.markDone();
-                                    return;
-                                }
+                                if (m_adapter->isDoneEvent(event))
+                                    return; // 流结束帧（[DONE] 等）不是 JSON，直接跳过
                                 const auto payload = nlohmann::json::parse(
                                     event.constData(), event.constData() + event.size(),
                                     nullptr, false);

@@ -45,6 +45,7 @@ qt_add_qml_module(lens
         SettingsRow.qml
         SettingsField.qml
         SettingsGeneralPage.qml
+        SettingsTextField.qml
         SettingsAppearancePage.qml
         SettingsProvidersPage.qml
         SettingsMcpPage.qml

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import Qt.labs.platform as Labs
 
 // 外观页：主题 / 配色 / 阅读体验 / 调色板。
-// view 回引 SettingsView（提交链路与 accentSchemeWorking 所在），字段经 alias 暴露给提交链路。
+// view 回引 SettingsView（提交链路所在），字段经 alias 暴露给提交链路。
 ScrollView {
     id: appearancePage
 
@@ -174,7 +174,6 @@ ScrollView {
         SettingsSection {
             Layout.fillWidth: true
             title: qsTr("调色板")
-            hint: qsTr("点击色块按深/浅主题修改内置颜色，改动即时生效")
 
             Theme {
                 id: darkPreviewTheme

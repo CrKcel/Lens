@@ -52,9 +52,8 @@ public:
     void appendReasoningDelta(const QString &delta); // 落在最后一个流式行
     void finishStreamingRow(const QString &finalText, const QString &finalReasoning);
     void setToolCallRunning(const QString &callId);
-    void setToolCallResult(const QString &callId, const QString &output);
     void setToolCallResult(const QString &callId, const QString &output,
-                           const QList<ImageAttachment> &images);
+                           const QList<ImageAttachment> &images = {});
     bool hasStreamingRow() const { return m_streamingIndex >= 0; }
     void dropEmptyStreamingRow();
     void clearStreamingRow(); // 清空流式行已累积的文本/思考（自动重试重新生成时）

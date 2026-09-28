@@ -34,7 +34,6 @@ public:
     // 按 index 合并工具调用分片：id/name 非空时覆盖，arguments 追加
     void mergeToolCall(int index, const QString &id, const QString &name,
                        const QString &argumentsDelta);
-    void setFinishReason(const QString &reason) { m_finishReason = reason; }
     void setUsage(const TokenUsage &usage) { m_usage = usage; }
 
     // 该 delta index 上是否已登记本地工具调用。协议适配器据此区分本地工具与
@@ -45,19 +44,13 @@ public:
     QString content() const { return m_content; }
     QString reasoning() const { return m_reasoning; }
     QList<ToolCall> toolCalls() const; // 按 delta index 顺序
-    QString finishReason() const { return m_finishReason; }
     const TokenUsage &usage() const { return m_usage; }
-    bool isDone() const { return m_done; } // 流结束（[DONE] 或协议等价事件）
-
-    void markDone() { m_done = true; }
 
 private:
     QString m_content;
     QString m_reasoning;
     QMap<int, ToolCall> m_toolCalls;
-    QString m_finishReason;
     TokenUsage m_usage;
-    bool m_done = false;
 };
 
 } // namespace lens::chatcompletions

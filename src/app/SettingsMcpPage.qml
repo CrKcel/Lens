@@ -97,25 +97,18 @@ RowLayout {
         SettingsField {
             Layout.fillWidth: true
             label: qsTr("名称")
-            TextField {
+            SettingsTextField {
                 id: mcpNameField
                 Layout.fillWidth: true
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg {}
                 onTextEdited: mcpPage.view.scheduleCommit()
             }
         }
         SettingsField {
             Layout.fillWidth: true
             label: qsTr("启动命令")
-            hint: qsTr("stdio 传输，如 npx、python")
-            TextField {
+            SettingsTextField {
                 id: mcpCommandField
                 Layout.fillWidth: true
-                color: theme.text
-                selectByMouse: true
-                background: SettingFieldBg {}
                 onTextEdited: mcpPage.view.scheduleCommit()
             }
         }

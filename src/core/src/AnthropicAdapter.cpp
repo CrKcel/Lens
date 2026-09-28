@@ -191,12 +191,8 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
             if (usageIt != messageIt->end() && usageIt->is_object()) {
                 TokenUsage usage;
                 usage.valid = true;
-                if (auto it = usageIt->find("input_tokens");
-                    it != usageIt->end() && it->is_number())
-                    usage.promptTokens = it->get<qint64>();
-                if (auto it = usageIt->find("cache_read_input_tokens");
-                    it != usageIt->end() && it->is_number())
-                    usage.cachedTokens = it->get<qint64>();
+                usage.promptTokens = jsonNumberOr(*usageIt, "input_tokens");
+                usage.cachedTokens = jsonNumberOr(*usageIt, "cache_read_input_tokens");
                 stream.setUsage(usage);
             }
         }
@@ -237,29 +233,14 @@ AnthropicAdapter::applyEvent(const nlohmann::json &payload,
                                          deltaIt->value("partial_json", std::string())));
         }
     } else if (type == "message_delta") {
-        const auto deltaIt = payload.find("delta");
-        if (deltaIt != payload.end() && deltaIt->is_object()) {
-            const QString stopReason =
-                QString::fromStdString(deltaIt->value("stop_reason", std::string()));
-            if (!stopReason.isEmpty()) {
-                // Anthropic 的 tool_use 对应 chat completions 的 tool_calls
-                stream.setFinishReason(stopReason == QStringLiteral("tool_use")
-                                           ? QStringLiteral("tool_calls")
-                                           : stopReason);
-            }
-        }
         // 输出侧用量与 message_start 记下的输入侧合并成完整 TokenUsage
         const auto usageIt = payload.find("usage");
         if (usageIt != payload.end() && usageIt->is_object()) {
             TokenUsage usage = stream.usage(); // 保留 message_start 的输入侧
             usage.valid = true;
-            if (auto it = usageIt->find("output_tokens");
-                it != usageIt->end() && it->is_number())
-                usage.completionTokens = it->get<qint64>();
+            usage.completionTokens = jsonNumberOr(*usageIt, "output_tokens");
             stream.setUsage(usage);
         }
-    } else if (type == "message_stop") {
-        stream.markDone();
     }
     return delta;
 }

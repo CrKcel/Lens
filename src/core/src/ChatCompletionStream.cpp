@@ -13,16 +13,11 @@ void parseUsage(const nlohmann::json &usageJson, ChatCompletionStream &stream)
         return;
     TokenUsage usage;
     usage.valid = true;
-    if (usageJson.at("prompt_tokens").is_number())
-        usage.promptTokens = usageJson.at("prompt_tokens").get<qint64>();
-    if (usageJson.at("completion_tokens").is_number())
-        usage.completionTokens = usageJson.at("completion_tokens").get<qint64>();
-    if (usageJson.contains("prompt_tokens_details")
-        && usageJson.at("prompt_tokens_details").is_object()
-        && usageJson.at("prompt_tokens_details").contains("cached_tokens")
-        && usageJson.at("prompt_tokens_details").at("cached_tokens").is_number())
-        usage.cachedTokens =
-            usageJson.at("prompt_tokens_details").at("cached_tokens").get<qint64>();
+    usage.promptTokens = jsonNumberOr(usageJson, "prompt_tokens");
+    usage.completionTokens = jsonNumberOr(usageJson, "completion_tokens");
+    if (auto detailsIt = usageJson.find("prompt_tokens_details");
+        detailsIt != usageJson.end() && detailsIt->is_object())
+        usage.cachedTokens = jsonNumberOr(*detailsIt, "cached_tokens");
     stream.setUsage(usage);
 }
 
@@ -86,8 +81,6 @@ StreamDelta ChatCompletionStream::apply(const nlohmann::json &chunk)
             }
         }
     }
-    if (choice.contains("finish_reason") && choice.at("finish_reason").is_string())
-        m_finishReason = QString::fromStdString(choice.at("finish_reason").get<std::string>());
     return delta;
 }
 

@@ -57,8 +57,8 @@ class AppSettings : public QObject
     Q_PROPERTY(QString endpoint READ endpoint WRITE setEndpoint NOTIFY settingsChanged)
     Q_PROPERTY(QString apiKey READ apiKey WRITE setApiKey NOTIFY settingsChanged)
     Q_PROPERTY(QString model READ model WRITE setModel NOTIFY settingsChanged)
-    Q_PROPERTY(QString protocol READ protocol WRITE setProtocol NOTIFY settingsChanged)
-    Q_PROPERTY(bool serverSearch READ serverSearch WRITE setServerSearch NOTIFY settingsChanged)
+    Q_PROPERTY(QString protocol READ protocol NOTIFY settingsChanged)
+    Q_PROPERTY(bool serverSearch READ serverSearch NOTIFY settingsChanged)
     Q_PROPERTY(QString systemPrompt READ systemPrompt WRITE setSystemPrompt NOTIFY settingsChanged)
     Q_PROPERTY(bool environmentPrompt READ environmentPrompt WRITE setEnvironmentPrompt NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList providers READ providers NOTIFY settingsChanged)
@@ -87,8 +87,6 @@ public:
     void setEndpoint(const QString &value);
     void setApiKey(const QString &value);
     void setModel(const QString &value);
-    void setProtocol(const QString &value);
-    void setServerSearch(bool value);
     void setSystemPrompt(const QString &value) { m_systemPrompt = value; emit settingsChanged(); }
     // 环境信息段（操作系统/日期/工作文件夹/Git）注入开关
     bool environmentPrompt() const { return m_environmentPrompt; }
@@ -100,7 +98,6 @@ public:
     QVariantList providers() const;
     int activeProvider() const { return m_activeProvider; }
     void setActiveProvider(int index);
-    void selectActiveModel(int providerIndex, const QString &modelId);
 
     Q_INVOKABLE void addProvider(const QVariantMap &provider);
     Q_INVOKABLE void updateProvider(int index, const QVariantMap &provider);
@@ -138,7 +135,7 @@ public:
     void setCustomTools(const QVariantList &tools);
 
     Q_INVOKABLE void save();
-    Q_INVOKABLE void reset();
+    void reset(); // 恢复默认值（仅构造期用；QML 无重置入口）
 
 signals:
     void settingsChanged();

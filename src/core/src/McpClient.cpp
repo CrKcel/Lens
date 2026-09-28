@@ -25,11 +25,6 @@ McpClient::~McpClient()
     stop();
 }
 
-bool McpClient::isRunning() const
-{
-    return m_process && m_process->state() == QProcess::Running;
-}
-
 void McpClient::stop()
 {
     if (!m_process)
@@ -122,8 +117,7 @@ void McpClient::pumpIncoming()
         const auto idIt = frame.find("id");
         if (idIt != frame.end() && idIt->is_number_integer())
             m_responses.insert(idIt->get<int>(), frame);
-        else
-            m_notifications.append(QString::fromStdString(jsonToString(frame)));
+        // 无 id 的帧（服务器主动通知）忽略
     }
 }
 

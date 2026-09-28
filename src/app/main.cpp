@@ -76,8 +76,6 @@ int main(int argc, char *argv[])
     QString installedLanguage = settings.language();
 
     QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("appVersion"),
-                                             QGuiApplication::applicationVersion());
     engine.rootContext()->setContextProperty(QStringLiteral("chat"), &chat);
     engine.rootContext()->setContextProperty(QStringLiteral("settings"), &settings);
     // 自绘标题栏按钮方位（macOS 左上，Linux 跟随桌面环境设定）

@@ -246,8 +246,6 @@ void TestProtocols::anthropicEventStream()
 
     QCOMPARE(stream.content(), QStringLiteral("已写入"));
     QCOMPARE(stream.reasoning(), QStringLiteral("推理"));
-    QCOMPARE(stream.finishReason(), QStringLiteral("tool_calls"));
-    QVERIFY(stream.isDone());
 
     const auto calls = stream.toolCalls();
     QCOMPARE(calls.size(), 1);
@@ -260,7 +258,6 @@ void TestProtocols::anthropicEventStream()
     const auto json = nlohmann::json::parse(R"({"type":"ping"})", nullptr, false);
     const auto delta = adapter.applyEvent(json, quiet);
     QVERIFY(delta.content.isEmpty());
-    QVERIFY(!quiet.isDone());
 }
 
 void TestProtocols::anthropicServerToolUseIsNotLocalToolCall()
@@ -293,7 +290,6 @@ void TestProtocols::anthropicServerToolUseIsNotLocalToolCall()
     QVERIFY(stream.toolCalls().isEmpty()); // 关键断言：服务端工具不产生本地工具调用
     QCOMPARE(stream.content(), QStringLiteral("今天的新闻是……来源：路透社"));
     QCOMPARE(stream.reasoning(), QStringLiteral("搜一下"));
-    QVERIFY(stream.isDone());
 
     // 适配器无状态：换一个回合（累积器按回合重建）真正的 tool_use 依然正常累积
     chatcompletions::ChatCompletionStream next;
@@ -439,8 +435,6 @@ void TestProtocols::responsesEventStream()
 
     QCOMPARE(stream.content(), QStringLiteral("正在"));
     QCOMPARE(stream.reasoning(), QStringLiteral("思考"));
-    QCOMPARE(stream.finishReason(), QStringLiteral("stop"));
-    QVERIFY(stream.isDone());
 
     const auto calls = stream.toolCalls();
     QCOMPARE(calls.size(), 1);
@@ -463,7 +457,6 @@ void TestProtocols::responsesUsageExtraction()
          R"("usage":{"input_tokens":200,"output_tokens":50,)"
          R"("input_tokens_details":{"cached_tokens":150}}}})");
 
-    QVERIFY(stream.isDone());
     QVERIFY(stream.usage().valid);
     QCOMPARE(stream.usage().promptTokens, 200);
     QCOMPARE(stream.usage().completionTokens, 50);

@@ -42,9 +42,6 @@ public:
         return m_client->callTool(m_info.name, args);
     }
 
-    // 上下文透明化：工具来自哪个 MCP 服务器
-    QString serverName() const { return m_serverName; }
-
 private:
     QString m_serverName;
     McpClient::ToolInfo m_info;

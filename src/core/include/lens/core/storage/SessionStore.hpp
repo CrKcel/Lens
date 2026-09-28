@@ -19,7 +19,6 @@ public:
 
     bool open();
     QString lastError() const;
-    QString databasePath() const;
 
     qint64 createConversation(const QString &title, const QString &workdir);
     void renameConversation(qint64 conversationId, const QString &title);

@@ -34,7 +34,6 @@ public:
     // 启动子进程并完成 initialize 握手；失败返回 false 并写 error
     bool start(QString *error = nullptr);
     void stop();
-    bool isRunning() const;
 
     struct ToolInfo {
         QString name;
@@ -61,7 +60,6 @@ private:
     std::unique_ptr<QProcess> m_process;
     QByteArray m_buffer;
     QMap<int, nlohmann::json> m_responses;      // id → 完整响应帧
-    QStringList m_notifications;                // 服务器主动通知（暂存，忽略内容）
     int m_nextId = 1;
 };
 

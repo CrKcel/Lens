@@ -99,7 +99,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
             }
             Label {
-                visible: !sidebarRoot.collapsed
                 Layout.fillWidth: true
                 text: sidebarRoot.settingsMode ? qsTr("设置") : qsTr("Lens")
                 font.pixelSize: Math.round(17 * settings.fontScale)
@@ -110,7 +109,7 @@ Rectangle {
 
         TextField {
             id: workdirField
-            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            visible: !sidebarRoot.settingsMode
             Layout.fillWidth: true
             placeholderText: qsTr("工作文件夹（默认主目录）")
             color: theme.textSoft
@@ -126,7 +125,7 @@ Rectangle {
         }
 
         AccentButton {
-            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            visible: !sidebarRoot.settingsMode
             Layout.fillWidth: true
             text: qsTr("＋ 新建会话")
             onClicked: chat.newConversation(sidebarRoot.workdirText)
@@ -135,7 +134,7 @@ Rectangle {
         // 会话搜索：按标题或消息内容过滤会话列表（即时生效）
         TextField {
             id: searchField
-            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            visible: !sidebarRoot.settingsMode
             Layout.fillWidth: true
             placeholderText: qsTr("搜索会话")
             color: theme.textSoft
@@ -173,7 +172,7 @@ Rectangle {
 
         // 设置模式：分类导航
         ColumnLayout {
-            visible: !sidebarRoot.collapsed && sidebarRoot.settingsMode
+            visible: sidebarRoot.settingsMode
             Layout.fillWidth: true
             spacing: 4
             NavButton {
@@ -216,7 +215,7 @@ Rectangle {
 
         ListView {
             id: conversationList
-            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            visible: !sidebarRoot.settingsMode
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true

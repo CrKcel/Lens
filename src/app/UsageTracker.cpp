@@ -55,16 +55,6 @@ void UsageTracker::refreshProviderInputs()
     m_model = provider.model;
 }
 
-void UsageTracker::reset()
-{
-    m_last = TokenUsage();
-    m_totalPrompt = 0;
-    m_totalCompletion = 0;
-    m_totalCached = 0;
-    m_hasUsage = false;
-    emit changed();
-}
-
 void UsageTracker::loadFrom(const QList<Message> &history)
 {
     m_last = TokenUsage();
@@ -94,6 +84,18 @@ void UsageTracker::accumulate(const TokenUsage &usage)
     m_totalCompletion += usage.completionTokens;
     m_totalCached += usage.cachedTokens;
     m_hasUsage = true;
+}
+
+QVariantMap UsageTracker::emptySummary()
+{
+    return {{QStringLiteral("hasUsage"), false},
+            {QStringLiteral("contextTokens"), 0},
+            {QStringLiteral("contextWindow"), 0},
+            {QStringLiteral("totalPrompt"), 0},
+            {QStringLiteral("totalCompletion"), 0},
+            {QStringLiteral("totalCached"), 0},
+            {QStringLiteral("hasCost"), false},
+            {QStringLiteral("cost"), 0.0}};
 }
 
 QVariantMap UsageTracker::summary() const

@@ -62,17 +62,22 @@ inline nlohmann::json usageToJson(const TokenUsage &usage)
     };
 }
 
+// 读取对象里的整数字段，缺失或非数字返回 fallback（各协议 usage 解析共用）
+inline qint64 jsonNumberOr(const nlohmann::json &json, const char *key, qint64 fallback = 0)
+{
+    if (auto it = json.find(key); it != json.end() && it->is_number())
+        return it->get<qint64>();
+    return fallback;
+}
+
 inline TokenUsage usageFromJson(const nlohmann::json &json)
 {
     TokenUsage usage;
     if (!json.is_object()) return usage;
     usage.valid = true;
-    if (auto it = json.find("prompt_tokens"); it != json.end() && it->is_number())
-        usage.promptTokens = it->get<qint64>();
-    if (auto it = json.find("completion_tokens"); it != json.end() && it->is_number())
-        usage.completionTokens = it->get<qint64>();
-    if (auto it = json.find("cached_tokens"); it != json.end() && it->is_number())
-        usage.cachedTokens = it->get<qint64>();
+    usage.promptTokens = jsonNumberOr(json, "prompt_tokens");
+    usage.completionTokens = jsonNumberOr(json, "completion_tokens");
+    usage.cachedTokens = jsonNumberOr(json, "cached_tokens");
     return usage;
 }
 
@@ -147,8 +152,6 @@ struct Conversation {
     qint64 id = 0;
     QString title;
     QString workdir; // 工作文件夹：Agent 读写与内置工具的根目录
-    QDateTime createdAt;
-    QDateTime updatedAt;
 };
 
 } // namespace lens

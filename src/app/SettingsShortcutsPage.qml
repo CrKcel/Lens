@@ -70,13 +70,6 @@ ScrollView {
                     ]
                 }
             }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("输入框内：Enter / Shift+Enter 均可换行，取决于上方发送方式")
-                color: theme.textFaint
-                font.pixelSize: Math.round(11 * settings.fontScale)
-                wrapMode: Text.Wrap
-            }
         }
 
         SettingsSection {

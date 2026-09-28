@@ -74,7 +74,6 @@ public:
     Q_INVOKABLE void deleteConversation(qint64 conversationId);
     // 会话列表搜索：标题或消息内容命中（空串恢复全量）；列表模型每窗口独立
     Q_INVOKABLE void searchConversations(const QString &query);
-    Q_INVOKABLE void send(const QString &text, const QString &workdir = QString());
     // 带附件的发送：attachments 每项为 {url, name, isImage}（兼容旧纯字符串路径/data URL）；
     // 图片与文本文件由嗅探分类（文本文件内容随消息发给模型）；
     // thinkingLevel 为会话内临时状态（disabled/low/medium/high/max），不持久化

@@ -107,12 +107,9 @@ ScrollView {
                 SettingsField {
                     Layout.fillWidth: true
                     label: qsTr("名称")
-                    TextField {
+                    SettingsTextField {
                         id: providerNameField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -155,26 +152,19 @@ ScrollView {
             SettingsField {
                 Layout.fillWidth: true
                 label: qsTr("API 地址")
-                hint: qsTr("含协议路径，或仅主机/根路径自动补全")
-                TextField {
+                SettingsTextField {
                     id: endpointField
                     Layout.fillWidth: true
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg {}
                     onTextEdited: providersPage.view.scheduleCommit()
                 }
             }
             SettingsField {
                 Layout.fillWidth: true
                 label: qsTr("API Key")
-                TextField {
+                SettingsTextField {
                     id: apiKeyField
                     Layout.fillWidth: true
                     echoMode: TextInput.Password
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg {}
                     onTextEdited: providersPage.view.scheduleCommit()
                 }
             }
@@ -183,7 +173,6 @@ ScrollView {
         SettingsSection {
             Layout.fillWidth: true
             title: qsTr("模型")
-            hint: qsTr("显示名用于界面展示，其余参数按模型单独生效")
 
             RowLayout {
                 Layout.fillWidth: true
@@ -218,26 +207,18 @@ ScrollView {
                 SettingsField {
                     Layout.fillWidth: true
                     label: qsTr("显示名称")
-                    hint: qsTr("留空显示模型 ID")
-                    TextField {
+                    SettingsTextField {
                         id: modelDisplayNameField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
                 SettingsField {
                     Layout.fillWidth: true
                     label: qsTr("模型 ID")
-                    hint: qsTr("请求体使用的模型名")
-                    TextField {
+                    SettingsTextField {
                         id: modelIdField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -248,12 +229,9 @@ ScrollView {
                 SettingsField {
                     Layout.preferredWidth: 150
                     label: qsTr("上下文窗口")
-                    TextField {
+                    SettingsTextField {
                         id: modelContextField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         inputMethodHints: Qt.ImhDigitsOnly
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
@@ -261,12 +239,9 @@ ScrollView {
                 SettingsField {
                     Layout.preferredWidth: 150
                     label: qsTr("最大输出 Token")
-                    TextField {
+                    SettingsTextField {
                         id: modelMaxOutputField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         inputMethodHints: Qt.ImhDigitsOnly
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
@@ -286,12 +261,6 @@ ScrollView {
                 }
                 Item { Layout.fillWidth: true }
             }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("上下文窗口与最大输出留空或 0 表示不限制；关闭图片输入后，消息与工具返回的图片不再发给该模型")
-                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-                wrapMode: Text.Wrap
-            }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -301,8 +270,8 @@ ScrollView {
                     onClicked: providersPage.view.setCurrentModel()
                 }
                 AccentButton {
-                    text: settings.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
-                    enabled: !settings.fetchingModels && endpointField.text.trim().length > 0
+                    text: chat.fetchingModels ? qsTr("获取中…") : qsTr("获取模型列表")
+                    enabled: !chat.fetchingModels && endpointField.text.trim().length > 0
                     onClicked: providersPage.view.fetchModels()
                 }
                 Label {
@@ -333,12 +302,9 @@ ScrollView {
                     Layout.fillWidth: true
                     Layout.maximumWidth: 140
                     label: qsTr("输入单价")
-                    TextField {
+                    SettingsTextField {
                         id: inputPriceField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -346,12 +312,9 @@ ScrollView {
                     Layout.fillWidth: true
                     Layout.maximumWidth: 140
                     label: qsTr("输出单价")
-                    TextField {
+                    SettingsTextField {
                         id: outputPriceField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -359,22 +322,13 @@ ScrollView {
                     Layout.fillWidth: true
                     Layout.maximumWidth: 140
                     label: qsTr("缓存单价")
-                    TextField {
+                    SettingsTextField {
                         id: cachedPriceField
                         Layout.fillWidth: true
-                        color: theme.text
-                        selectByMouse: true
-                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
                 Item { Layout.fillWidth: true }
-            }
-            Label {
-                text: qsTr("每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计")
-                color: theme.textFaint; font.pixelSize: Math.round(11 * settings.fontScale)
-                wrapMode: Text.Wrap
-                Layout.fillWidth: true
             }
         }
     }

@@ -27,6 +27,82 @@ ColumnLayout {
     signal sendRequested()
     signal stopRequested()
 
+// 附件图片缩略图（用户气泡 / 工具返回共用）：圆角底 + 裁剪填充
+component AttachmentThumb : Rectangle {
+    property url source
+    property int imageMargin: 2
+
+    radius: thumbTheme.radiusS
+    color: thumbTheme.field
+    clip: true
+    Image {
+        anchors.fill: parent
+        anchors.margins: parent.imageMargin
+        source: parent.source
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+    }
+
+    Theme {
+        id: thumbTheme
+        dark: settings.dark
+    }
+}
+
+// 输入区圆角药丸按钮背景（模型 / 附件按钮共用）；background 的 parent 是宿主按钮
+component PillBackground : Rectangle {
+    radius: 18
+    color: parent.down || parent.hovered ? pillTheme.accentSoft : "transparent"
+    border.color: pillTheme.fieldBorder
+    border.width: 1
+
+    Theme {
+        id: pillTheme
+        dark: settings.dark
+    }
+}
+
+// 模型弹层条目（跟随全局 / 具体模型共用）：左侧标题 + 当前项 ✓
+component ModelMenuRow : AbstractButton {
+    id: menuRow
+
+    property string title
+    property bool current: false
+    property bool dimTitle: false
+
+    Layout.fillWidth: true
+    implicitHeight: 30
+    leftPadding: 10
+    rightPadding: 10
+
+    background: Rectangle {
+        radius: menuRowTheme.radiusS
+        color: menuRow.pressed || menuRow.hovered ? menuRowTheme.accentSoft : "transparent"
+    }
+    contentItem: RowLayout {
+        spacing: 6
+        Label {
+            Layout.fillWidth: true
+            text: menuRow.title
+            elide: Text.ElideRight
+            color: menuRow.current ? menuRowTheme.accent
+                 : menuRow.dimTitle ? menuRowTheme.textDim : menuRowTheme.text
+            font.pixelSize: Math.round(12 * settings.fontScale)
+        }
+        Label {
+            visible: menuRow.current
+            text: "✓"
+            color: menuRowTheme.accent
+            font.pixelSize: Math.round(12 * settings.fontScale)
+        }
+    }
+
+    Theme {
+        id: menuRowTheme
+        dark: settings.dark
+    }
+}
+
     anchors.topMargin: 16
     anchors.bottomMargin: 16
     anchors.leftMargin: 64
@@ -147,19 +223,10 @@ ColumnLayout {
                                 rowSpacing: 6
                                 Repeater {
                                     model: userImages.visible ? model.images : []
-                                    delegate: Rectangle {
+                                    delegate: AttachmentThumb {
                                         width: 124
                                         height: 92
-                                        radius: theme.radiusS
-                                        color: theme.field
-                                        clip: true
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: 2
-                                            source: modelData
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                        }
+                                        source: modelData
                                     }
                                 }
                             }
@@ -339,19 +406,11 @@ ColumnLayout {
                                 rowSpacing: 4
                                 Repeater {
                                     model: model.images
-                                    delegate: Rectangle {
+                                    delegate: AttachmentThumb {
                                         width: 64
                                         height: 48
-                                        radius: theme.radiusS
-                                        color: theme.field
-                                        clip: true
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: 1
-                                            source: modelData
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                        }
+                                        imageMargin: 1
+                                        source: modelData
                                     }
                                 }
                             }
@@ -584,14 +643,7 @@ ColumnLayout {
             ToolTip.visible: hovered
             ToolTip.text: qsTr("模型与思考强度")
 
-            background: Rectangle {
-                radius: 18
-                color: modelButton.down ? theme.accentSoft
-                     : modelButton.hovered ? theme.accentSoft
-                     : "transparent"
-                border.color: theme.fieldBorder
-                border.width: 1
-            }
+            background: PillBackground {}
             contentItem: Label {
                 id: modelLabel
                 text: modelButton.label
@@ -653,34 +705,12 @@ ColumnLayout {
                         spacing: 0
 
                         // 会话覆盖生效时提供回退：清除覆盖，恢复跟随全局激活供应商
-                        AbstractButton {
+                        ModelMenuRow {
                             id: followGlobalItem
                             visible: chat.modelOverridden
-                            Layout.fillWidth: true
-                            implicitHeight: 30
-                            leftPadding: 10
-                            rightPadding: 10
-
-                            background: Rectangle {
-                                radius: theme.radiusS
-                                color: followGlobalItem.pressed ? theme.accentSoft
-                                     : followGlobalItem.hovered ? theme.accentSoft
-                                     : "transparent"
-                            }
-                            contentItem: RowLayout {
-                                spacing: 6
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: qsTr("跟随全局设置")
-                                    color: theme.textDim
-                                    font.pixelSize: Math.round(12 * settings.fontScale)
-                                }
-                                Label {
-                                    text: "✓"
-                                    color: theme.accent
-                                    font.pixelSize: Math.round(12 * settings.fontScale)
-                                }
-                            }
+                            title: qsTr("跟随全局设置")
+                            current: true
+                            dimTitle: true
                             onClicked: {
                                 modelMenu.close()
                                 Qt.callLater(chat.clearModelOverride)
@@ -712,45 +742,15 @@ ColumnLayout {
                                     model: providerSection.providerData.models.length > 0
                                            ? providerSection.providerData.models
                                            : [{ "id": providerSection.providerData.model }]
-                                    delegate: AbstractButton {
+                                    delegate: ModelMenuRow {
                                         id: modelItem
                                         required property var modelData
                                         readonly property string modelId: modelData.id
-                                        readonly property string modelTitle:
-                                            chat.modelDisplayName(providerSection.providerIndex,
-                                                                  modelItem.modelId)
-                                        readonly property bool current:
-                                            chat.currentProviderIndex === providerSection.providerIndex
-                                                ? chat.currentModelId === modelItem.modelId
-                                                : providerSection.providerData.model === modelItem.modelId
-                                        Layout.fillWidth: true
-                                        implicitHeight: 30
-                                        leftPadding: 10
-                                        rightPadding: 10
-
-                                        background: Rectangle {
-                                            radius: theme.radiusS
-                                            color: modelItem.pressed ? theme.accentSoft
-                                                 : modelItem.hovered ? theme.accentSoft
-                                                 : "transparent"
-                                        }
-                                        contentItem: RowLayout {
-                                            spacing: 6
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: modelItem.modelTitle
-                                                elide: Text.ElideRight
-                                                color: modelItem.current ? theme.accent
-                                                     : theme.text
-                                                font.pixelSize: Math.round(12 * settings.fontScale)
-                                            }
-                                            Label {
-                                                visible: modelItem.current
-                                                text: "✓"
-                                                color: theme.accent
-                                                font.pixelSize: Math.round(12 * settings.fontScale)
-                                            }
-                                        }
+                                        title: chat.modelDisplayName(providerSection.providerIndex,
+                                                                     modelItem.modelId)
+                                        current: chat.currentProviderIndex === providerSection.providerIndex
+                                                 ? chat.currentModelId === modelItem.modelId
+                                                 : providerSection.providerData.model === modelItem.modelId
                                         // 单次调用进 C++ 完成切换+保存：若在此逐条改 settings，
                                         // settingsChanged 会重建模型列表、销毁正在执行的
                                         // onClicked 的宿主，引发级联错误——先关弹层，
@@ -867,14 +867,7 @@ ColumnLayout {
             ToolTip.visible: hovered
             ToolTip.text: qsTr("附加文件")
 
-            background: Rectangle {
-                radius: 18
-                color: attachButton.down ? theme.accentSoft
-                     : attachButton.hovered ? theme.accentSoft
-                     : "transparent"
-                border.color: theme.fieldBorder
-                border.width: 1
-            }
+            background: PillBackground {}
             contentItem: Label {
                 text: "📎"
                 font.pixelSize: Math.round(14 * settings.fontScale)

@@ -882,12 +882,11 @@ The first message creates a conversation automatically.</translation>
         <translation>Palette</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="177"/>
         <source>点击色块按深/浅主题修改内置颜色，改动即时生效</source>
-        <translation>Click a swatch to change a built-in color for the dark or light theme; changes apply immediately</translation>
+        <translation type="vanished">Click a swatch to change a built-in color for the dark or light theme; changes apply immediately</translation>
     </message>
     <message>
-        <location filename="../SettingsAppearancePage.qml" line="225"/>
+        <location filename="../SettingsAppearancePage.qml" line="224"/>
         <source>恢复默认调色板</source>
         <translation>Reset palette</translation>
     </message>
@@ -941,17 +940,16 @@ The first message creates a conversation automatically.</translation>
         <translation>Built-in tools</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="57"/>
         <source>联网搜索由供应商的服务端搜索能力提供，在模型提供商页按供应商开启</source>
-        <translation>Web search is provided by the provider&apos;s server-side search capability; enable it per provider on the Model Providers page</translation>
+        <translation type="vanished">Web search is provided by the provider&apos;s server-side search capability; enable it per provider on the Model Providers page</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="61"/>
+        <location filename="../SettingsGeneralPage.qml" line="60"/>
         <source>预设</source>
         <translation>Preset</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="68"/>
+        <location filename="../SettingsGeneralPage.qml" line="67"/>
         <source>完整（全部工具）</source>
         <translation>Full (all tools)</translation>
     </message>
@@ -964,89 +962,85 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Read-only (read + search)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="69"/>
+        <location filename="../SettingsGeneralPage.qml" line="68"/>
         <source>对话（无内置工具）</source>
         <translation>Chat (no built-in tools)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="70"/>
+        <location filename="../SettingsGeneralPage.qml" line="69"/>
         <source>只读（仅 read）</source>
         <translation>Read-only (read only)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="71"/>
+        <location filename="../SettingsGeneralPage.qml" line="70"/>
         <source>自定义</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="85"/>
         <source>禁用后的工具不进入上下文，模型无法调用</source>
-        <translation>Disabled tools are kept out of the context and cannot be called by the model</translation>
+        <translation type="vanished">Disabled tools are kept out of the context and cannot be called by the model</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="125"/>
+        <location filename="../SettingsGeneralPage.qml" line="118"/>
         <source>自动重试</source>
         <translation>Auto retry</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="126"/>
         <source>连接断开或供应商繁忙（限流/过载/超时）时按退避自动重发，鉴权等失败不重试</source>
-        <translation>Automatically resend with backoff when the connection drops or the provider is busy (rate limit/overload/timeout); auth and similar failures are not retried</translation>
+        <translation type="vanished">Automatically resend with backoff when the connection drops or the provider is busy (rate limit/overload/timeout); auth and similar failures are not retried</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="130"/>
+        <location filename="../SettingsGeneralPage.qml" line="122"/>
         <source>重试次数</source>
         <translation>Retry attempts</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="138"/>
+        <location filename="../SettingsGeneralPage.qml" line="130"/>
         <source>关闭</source>
         <translation>Off</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="139"/>
+        <location filename="../SettingsGeneralPage.qml" line="131"/>
         <source>1 次</source>
         <translation>1 attempt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="140"/>
+        <location filename="../SettingsGeneralPage.qml" line="132"/>
         <source>2 次</source>
         <translation>2 attempts</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="141"/>
+        <location filename="../SettingsGeneralPage.qml" line="133"/>
         <source>3 次</source>
         <translation>3 attempts</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="142"/>
+        <location filename="../SettingsGeneralPage.qml" line="134"/>
         <source>5 次</source>
         <translation>5 attempts</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="150"/>
+        <location filename="../SettingsGeneralPage.qml" line="142"/>
         <source>环境信息</source>
         <translation>Environment</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="151"/>
         <source>向模型注入运行环境（操作系统、日期、工作文件夹、Git 状态）</source>
-        <translation>Inject the running environment (OS, date, working folder, Git status) into the model</translation>
+        <translation type="vanished">Inject the running environment (OS, date, working folder, Git status) into the model</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="155"/>
+        <location filename="../SettingsGeneralPage.qml" line="146"/>
         <source>注入环境提示词</source>
         <translation>Inject environment prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="166"/>
+        <location filename="../SettingsGeneralPage.qml" line="157"/>
         <source>系统提示词</source>
         <translation>System Prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="167"/>
         <source>留空则不注入任何系统提示词</source>
-        <translation>Leave empty to inject no system prompt at all</translation>
+        <translation type="vanished">Leave empty to inject no system prompt at all</translation>
     </message>
     <message>
         <source>作为身份提示词，未填时使用内置</source>
@@ -1096,22 +1090,21 @@ The first message creates a conversation automatically.</translation>
         <translation>Launch command</translation>
     </message>
     <message>
-        <location filename="../SettingsMcpPage.qml" line="112"/>
         <source>stdio 传输，如 npx、python</source>
-        <translation>stdio transport, e.g. npx or python</translation>
+        <translation type="vanished">stdio transport, e.g. npx or python</translation>
     </message>
     <message>
-        <location filename="../SettingsMcpPage.qml" line="125"/>
+        <location filename="../SettingsMcpPage.qml" line="124"/>
         <source>参数（每行一个）</source>
         <translation>Arguments (one per line)</translation>
     </message>
     <message>
-        <location filename="../SettingsMcpPage.qml" line="138"/>
+        <location filename="../SettingsMcpPage.qml" line="137"/>
         <source>连接状态</source>
         <translation>Connection status</translation>
     </message>
     <message>
-        <location filename="../SettingsMcpPage.qml" line="145"/>
+        <location filename="../SettingsMcpPage.qml" line="144"/>
         <source>&#x3000;[%1]</source>
         <translation>&#x3000;[%1]</translation>
     </message>
@@ -1125,7 +1118,7 @@ The first message creates a conversation automatically.</translation>
     </message>
     <message>
         <location filename="../SettingsProvidersPage.qml" line="84"/>
-        <location filename="../SettingsProvidersPage.qml" line="202"/>
+        <location filename="../SettingsProvidersPage.qml" line="200"/>
         <source>＋</source>
         <translation>＋</translation>
     </message>
@@ -1145,7 +1138,7 @@ The first message creates a conversation automatically.</translation>
     </message>
     <message>
         <location filename="../SettingsProvidersPage.qml" line="91"/>
-        <location filename="../SettingsProvidersPage.qml" line="208"/>
+        <location filename="../SettingsProvidersPage.qml" line="206"/>
         <source>－</source>
         <translation>－</translation>
     </message>
@@ -1200,124 +1193,118 @@ The first message creates a conversation automatically.</translation>
         <translation>API endpoint</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="158"/>
         <source>含协议路径，或仅主机/根路径自动补全</source>
-        <translation>Full API path, or host/root path with automatic completion</translation>
+        <translation type="vanished">Full API path, or host/root path with automatic completion</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="170"/>
+        <location filename="../SettingsProvidersPage.qml" line="169"/>
         <source>API Key</source>
         <translation>API Key</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="185"/>
+        <location filename="../SettingsProvidersPage.qml" line="184"/>
         <source>模型</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="186"/>
         <source>显示名用于界面展示，其余参数按模型单独生效</source>
-        <translation>Display names are for the UI only; other parameters apply per model</translation>
+        <translation type="vanished">Display names are for the UI only; other parameters apply per model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="204"/>
+        <location filename="../SettingsProvidersPage.qml" line="202"/>
         <source>新增模型</source>
         <translation>Add model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="211"/>
+        <location filename="../SettingsProvidersPage.qml" line="209"/>
         <source>删除当前选中的模型</source>
         <translation>Remove the selected model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="220"/>
+        <location filename="../SettingsProvidersPage.qml" line="218"/>
         <source>显示名称</source>
         <translation>Display name</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="221"/>
         <source>留空显示模型 ID</source>
-        <translation>Leave empty to show the model ID</translation>
+        <translation type="vanished">Leave empty to show the model ID</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="233"/>
+        <location filename="../SettingsProvidersPage.qml" line="230"/>
         <source>模型 ID</source>
         <translation>Model ID</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="234"/>
         <source>请求体使用的模型名</source>
-        <translation>The model name used in request bodies</translation>
+        <translation type="vanished">The model name used in request bodies</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="250"/>
+        <location filename="../SettingsProvidersPage.qml" line="246"/>
         <source>上下文窗口</source>
         <translation>Context window</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="263"/>
+        <location filename="../SettingsProvidersPage.qml" line="259"/>
         <source>最大输出 Token</source>
         <translation>Max output tokens</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="276"/>
+        <location filename="../SettingsProvidersPage.qml" line="272"/>
         <source>启用图片输入</source>
         <translation>Image input</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="291"/>
         <source>上下文窗口与最大输出留空或 0 表示不限制；关闭图片输入后，消息与工具返回的图片不再发给该模型</source>
-        <translation>Leave context window and max output empty or 0 for no limit; with image input off, images from messages and tools are not sent to this model</translation>
+        <translation type="vanished">Leave context window and max output empty or 0 for no limit; with image input off, images from messages and tools are not sent to this model</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="299"/>
+        <location filename="../SettingsProvidersPage.qml" line="289"/>
         <source>设为当前模型</source>
         <translation>Set as current</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="304"/>
+        <location filename="../SettingsProvidersPage.qml" line="294"/>
         <source>获取中…</source>
         <translation>Fetching…</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="304"/>
+        <location filename="../SettingsProvidersPage.qml" line="294"/>
         <source>获取模型列表</source>
         <translation>Fetch model list</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="311"/>
+        <location filename="../SettingsProvidersPage.qml" line="301"/>
         <source>当前模型：%1</source>
         <translation>Current model: %1</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="312"/>
+        <location filename="../SettingsProvidersPage.qml" line="302"/>
         <source>尚未选择当前模型</source>
         <translation>No model selected yet</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="327"/>
+        <location filename="../SettingsProvidersPage.qml" line="317"/>
         <source>计费</source>
         <translation>Pricing</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="335"/>
+        <location filename="../SettingsProvidersPage.qml" line="325"/>
         <source>输入单价</source>
         <translation>Input price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="348"/>
+        <location filename="../SettingsProvidersPage.qml" line="338"/>
         <source>输出单价</source>
         <translation>Output price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="361"/>
+        <location filename="../SettingsProvidersPage.qml" line="351"/>
         <source>缓存单价</source>
         <translation>Cache price</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="374"/>
         <source>每百万 token 单价，留空或 0 表示不计费；缓存单价留空或 0 时按输入单价计</source>
-        <translation>Price per million tokens; empty or 0 means free. When the cached price is empty or 0, cached tokens are billed at the input price</translation>
+        <translation type="vanished">Price per million tokens; empty or 0 means free. When the cached price is empty or 0, cached tokens are billed at the input price</translation>
     </message>
 </context>
 <context>
@@ -1343,22 +1330,21 @@ The first message creates a conversation automatically.</translation>
         <translation>Enter to send, Shift+Enter for a new line</translation>
     </message>
     <message>
-        <location filename="../SettingsShortcutsPage.qml" line="75"/>
         <source>输入框内：Enter / Shift+Enter 均可换行，取决于上方发送方式</source>
-        <translation>In the input box, Enter / Shift+Enter insert a new line depending on the send mode above</translation>
+        <translation type="vanished">In the input box, Enter / Shift+Enter insert a new line depending on the send mode above</translation>
     </message>
     <message>
-        <location filename="../SettingsShortcutsPage.qml" line="84"/>
+        <location filename="../SettingsShortcutsPage.qml" line="77"/>
         <source>固定快捷键</source>
         <translation>Fixed shortcuts</translation>
     </message>
     <message>
-        <location filename="../SettingsShortcutsPage.qml" line="88"/>
+        <location filename="../SettingsShortcutsPage.qml" line="81"/>
         <source>新建会话</source>
         <translation>New chat</translation>
     </message>
     <message>
-        <location filename="../SettingsShortcutsPage.qml" line="89"/>
+        <location filename="../SettingsShortcutsPage.qml" line="82"/>
         <source>Ctrl+N</source>
         <translation>Ctrl+N</translation>
     </message>
@@ -1386,9 +1372,8 @@ The first message creates a conversation automatically.</translation>
         <translation>No skills found</translation>
     </message>
     <message>
-        <location filename="../SettingsSkillsPage.qml" line="97"/>
         <source>全局目录：数据目录下 skills/*/SKILL.md；项目目录：工作文件夹下 .lens/skills/</source>
-        <translation>Global: skills/*/SKILL.md under the data directory; project: .lens/skills/ in the working folder</translation>
+        <translation type="vanished">Global: skills/*/SKILL.md under the data directory; project: .lens/skills/ in the working folder</translation>
     </message>
 </context>
 <context>
@@ -2177,7 +2162,7 @@ The first message creates a conversation automatically.</translation>
 <context>
     <name>lens::ChatSession</name>
     <message>
-        <location filename="../ChatSession.cpp" line="149"/>
+        <location filename="../ChatSession.cpp" line="150"/>
         <source>连接中断，正在重试（第 %1/%2 次，%3 秒后）</source>
         <translation>Connection lost, retrying (attempt %1 of %2, in %3s)</translation>
     </message>

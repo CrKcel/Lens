@@ -2,6 +2,7 @@
 
 #include "ChatEngine.hpp"
 #include "ChatSession.hpp"
+#include "UsageTracker.hpp"
 
 #include <QClipboard>
 #include <QDir>
@@ -80,16 +81,7 @@ void ChatController::rebindSession(ChatSession *session)
 // QML 直接取 hasUsage / contextTokens 等键，缺键会得到 undefined
 QVariantMap ChatController::usageSummary() const
 {
-    if (!m_session)
-        return {{QStringLiteral("hasUsage"), false},
-                {QStringLiteral("contextTokens"), 0},
-                {QStringLiteral("contextWindow"), 0},
-                {QStringLiteral("totalPrompt"), 0},
-                {QStringLiteral("totalCompletion"), 0},
-                {QStringLiteral("totalCached"), 0},
-                {QStringLiteral("hasCost"), false},
-                {QStringLiteral("cost"), 0.0}};
-    return m_session->usageSummary();
+    return m_session ? m_session->usageSummary() : UsageTracker::emptySummary();
 }
 
 void ChatController::revealNewConversation(const QString &workdir)
@@ -122,11 +114,6 @@ void ChatController::deleteConversation(qint64 conversationId)
 void ChatController::searchConversations(const QString &query)
 {
     m_conversationModel->setFilter(query);
-}
-
-void ChatController::send(const QString &text, const QString &workdir)
-{
-    send(text, workdir, {});
 }
 
 void ChatController::send(const QString &text, const QString &workdir,
@@ -234,17 +221,9 @@ QString ChatController::modelDisplayName(int providerIndex, const QString &model
 {
     if (modelId.isEmpty())
         return {};
-    const QVariantMap provider =
-        m_engine->settings()->providers().value(providerIndex).toMap();
-    const QVariantList models = provider.value(QStringLiteral("models")).toList();
-    for (const QVariant &entry : models) {
-        const QVariantMap model = entry.toMap();
-        if (model.value(QStringLiteral("id")).toString() == modelId) {
-            const QString displayName = model.value(QStringLiteral("displayName")).toString();
-            return displayName.isEmpty() ? modelId : displayName;
-        }
-    }
-    return modelId; // 清单为空或未收录：回退模型 id
+    const ProviderConfig config = m_engine->settings()->providerConfigAt(providerIndex);
+    const QString displayName = modelConfigFor(config, modelId).displayName;
+    return displayName.isEmpty() ? modelId : displayName;
 }
 
 } // namespace lens
