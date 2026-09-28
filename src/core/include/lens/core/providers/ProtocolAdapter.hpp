@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lens/core/Conversation.hpp"
-#include "lens/core/providers/ChatCompletionsClient.hpp"
+#include "lens/core/providers/ChatCompletionStream.hpp"
 #include "lens/core/providers/ITransport.hpp"
 #include "lens/core/tools/BuiltinTool.hpp"
 
@@ -95,6 +95,18 @@ inline std::vector<Message> withoutImages(std::vector<Message> history)
     for (Message &message : history)
         message.images.clear();
     return history;
+}
+
+// 错误对象里的 message 字符串字段；缺失、非字符串或类型不符时回退 fallback。
+// 三家协议错误事件的错误对象形态不同，但叶子都是 {"message": "..."}
+inline QString errorMessageOr(const nlohmann::json &errorObject, const QString &fallback)
+{
+    if (!errorObject.is_object())
+        return fallback;
+    const auto it = errorObject.find("message");
+    if (it == errorObject.end() || !it->is_string())
+        return fallback;
+    return QString::fromStdString(it->get<std::string>());
 }
 
 // OpenAI 系 function-calling 工具数组。通用 ToolSpec → 各家格式的转换属适配层

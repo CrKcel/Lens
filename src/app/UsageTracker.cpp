@@ -6,8 +6,31 @@ UsageTracker::UsageTracker(AppSettings *settings, QObject *parent)
     : QObject(parent)
     , m_settings(settings)
 {
-    // 单价属于激活供应商配置，设置改动后费用展示需重算
-    connect(m_settings, &AppSettings::settingsChanged, this, &UsageTracker::changed);
+    refreshProviderInputs();
+    // 设置改动全域广播：只有激活供应商的单价/模型（影响费用与上下文窗口展示）
+    // 真的变了才重发 changed，改主题、语言等不触发用量条刷新
+    connect(m_settings, &AppSettings::settingsChanged, this, [this] {
+        if (providerInputsChanged()) {
+            refreshProviderInputs();
+            emit changed();
+        }
+    });
+}
+
+bool UsageTracker::providerInputsChanged() const
+{
+    const ProviderConfig provider = m_settings->activeProviderConfig();
+    return provider.inputPrice != m_inputPrice || provider.outputPrice != m_outputPrice
+        || provider.cachedPrice != m_cachedPrice || provider.model != m_model;
+}
+
+void UsageTracker::refreshProviderInputs()
+{
+    const ProviderConfig provider = m_settings->activeProviderConfig();
+    m_inputPrice = provider.inputPrice;
+    m_outputPrice = provider.outputPrice;
+    m_cachedPrice = provider.cachedPrice;
+    m_model = provider.model;
 }
 
 void UsageTracker::reset()

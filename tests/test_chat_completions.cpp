@@ -1,7 +1,8 @@
 #include <QtTest/QtTest>
 
 #include <lens/core/context/PromptAssembler.hpp>
-#include <lens/core/providers/ChatCompletionsClient.hpp>
+#include <lens/core/providers/ChatCompletionsRequest.hpp>
+#include <lens/core/providers/ChatCompletionStream.hpp>
 #include <lens/core/providers/ProtocolAdapter.hpp>
 #include <lens/core/providers/SseParser.hpp>
 #include <lens/core/tools/ToolRegistry.hpp>

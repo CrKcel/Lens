@@ -82,9 +82,14 @@ void AgentSession::startTurn()
         m_adapter->buildRequestBody(m_history, m_model, m_systemPrompt, true, specs, features)
             .dump());
 
+    const quint64 generation = m_generation; // 取消/协议错误会使其失效，过期回调直接丢弃
     m_transport->start(request,
-                       {[this](const QByteArray &bytes) {
-                            m_sse.feed(bytes, [this](const QByteArray &event) {
+                       {[this, generation](const QByteArray &bytes) {
+                            if (generation != m_generation)
+                                return;
+                            m_sse.feed(bytes, [this, generation](const QByteArray &event) {
+                                if (generation != m_generation)
+                                    return;
                                 if (m_adapter->isDoneEvent(event)) {
                                     m_stream.markDone();
                                     return;
@@ -112,7 +117,11 @@ void AgentSession::startTurn()
                                     emit reasoningDelta(delta.reasoning);
                             });
                         },
-                        [this] { finishAssistantMessage(); },
+                        [this, generation] { // 完成回调同样带代际：取消后不再入历史
+                            if (generation != m_generation)
+                                return;
+                            finishAssistantMessage();
+                        },
                         [this](QString error) {
                             m_busy = false;
                             emit failed(error);

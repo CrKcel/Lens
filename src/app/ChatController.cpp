@@ -4,16 +4,13 @@
 
 #include <QClipboard>
 #include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QBuffer>
 #include <QMetaObject>
-#include <QSet>
-#include <QStringDecoder>
 #include <QThreadPool>
 #include <QTimer>
+#include <lens/core/attachments/Attachments.hpp>
 #include <lens/core/context/AgentDocs.hpp>
 #include <lens/core/context/EnvironmentPrompt.hpp>
 #include <lens/core/context/PromptAssembler.hpp>
@@ -74,29 +71,15 @@ void ChatController::registerBuiltinTools()
     registerBuiltin(std::make_shared<BashTool>());
 }
 
-// 预设语义：full 全部启用；chat 不启用任何内置工具（纯对话）；
-// read_only 仅 read；custom 取 customTools 清单。MCP 工具不受预设影响，
-// 始终启用。联网搜索是供应商能力（服务端搜索），不在此列
+// 预设语义（full/chat/read_only/custom）与换算规则在 core 的
+// disabledToolsForPreset；MCP 工具不在内置名单里，不受预设影响
 void ChatController::applyToolSettings()
 {
-    const QString preset = m_settings->toolPreset();
-    QSet<QString> enabled;
-    if (preset == QLatin1String("read_only")) {
-        enabled.insert(QStringLiteral("read"));
-    } else if (preset == QLatin1String("custom")) {
-        const QVariantList customTools = m_settings->customTools();
-        for (const QVariant &entry : customTools)
-            enabled.insert(entry.toString());
-    } else {
-        for (const QString &name : m_builtinToolNames)
-            enabled.insert(name);
-    }
-    QSet<QString> disabled;
-    for (const QString &name : m_builtinToolNames) {
-        if (!enabled.contains(name))
-            disabled.insert(name);
-    }
-    m_registry.setDisabledTools(disabled);
+    QStringList customTools;
+    for (const QVariant &entry : m_settings->customTools())
+        customTools.append(entry.toString());
+    m_registry.setDisabledTools(disabledToolsForPreset(m_settings->toolPreset(),
+                                                       m_builtinToolNames, customTools));
 }
 
 void ChatController::rebuildToolList()
@@ -263,92 +246,11 @@ void ChatController::send(const QString &text, const QString &workdir)
     send(text, workdir, {});
 }
 
-// 附件条目：{url, name, isImage}（QVariantMap），兼容旧纯字符串路径/data URL。
-// 分类以嗅探为准（QML 的 isImage 只影响预览渲染）：魔数命中 → 图片；
-// 否则无 NUL 且为合法 UTF-8 → 文本附件，其余拒绝。无法识别的条目跳过并告警
+// 附件加载与分类规则在 core 的 attachments::loadAttachments，这里只做转发
 ChatController::LoadedAttachments ChatController::loadAttachments(
     const QVariantList &attachments) const
 {
-    static constexpr qint64 kMaxImageBytes = 5 * 1024 * 1024; // 主流 API 的单图上限
-    static constexpr qint64 kMaxTextBytes = 1024 * 1024;      // 单文本附件上限
-    LoadedAttachments result;
-    for (const QVariant &entry : attachments) {
-        const QVariantMap map = entry.toMap();
-        const QString value = map.isEmpty()
-                                  ? entry.toString()
-                                  : map.value(QStringLiteral("url")).toString();
-        if (value.isEmpty())
-            continue;
-        if (value.startsWith(QLatin1String("data:"))) { // data:<mime>;base64,<payload>
-            ImageAttachment image;
-            image.mimeType = value.mid(5, value.indexOf(QLatin1Char(';')) - 5);
-            image.data = QByteArray::fromBase64(
-                value.section(QLatin1String("base64,"), 1).toLatin1());
-            if (image.mimeType.isEmpty() || image.data.isEmpty()) {
-                qWarning("附件 %s 不是受支持的图片（png/jpg/gif/webp/bmp），已跳过",
-                         qPrintable(value));
-                continue;
-            }
-            if (image.data.size() > kMaxImageBytes) {
-                qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(value),
-                         kMaxImageBytes / (1024 * 1024));
-                continue;
-            }
-            result.images.append(image);
-            continue;
-        }
-        const QString path = value.startsWith(QLatin1String("file:"))
-                                 ? QUrl(value).toLocalFile()
-                                 : value;
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly)) {
-            qWarning("附件 %s 无法打开，已跳过", qPrintable(path));
-            continue;
-        }
-        const QByteArray head = file.peek(8192);
-        if (const QString mime = sniffImageMime(head, file.size()); !mime.isEmpty()) {
-            ImageAttachment image;
-            image.mimeType = mime;
-            image.data = file.read(kMaxImageBytes + 1);
-            if (image.data.isEmpty()) {
-                qWarning("附件 %s 无法读取，已跳过", qPrintable(path));
-                continue;
-            }
-            if (image.data.size() > kMaxImageBytes) {
-                qWarning("附件 %s 超过 %lldMB 上限，已跳过", qPrintable(path),
-                         kMaxImageBytes / (1024 * 1024));
-                continue;
-            }
-            result.images.append(image);
-            continue;
-        }
-        if (file.size() > kMaxTextBytes) {
-            qWarning("附件 %s 超过 1MB 文本上限，已跳过", qPrintable(path));
-            continue;
-        }
-        // 文本候选：空文件、NUL 字节或非法 UTF-8 都拒绝（空文件持久化回读
-        // 会被 filesFromJson 丢弃，会话重启后附件不一致，故加载时就拒绝）
-        const QByteArray bytes = file.readAll();
-        if (bytes.isEmpty()) {
-            qWarning("附件 %s 是空文件，已跳过", qPrintable(path));
-            continue;
-        }
-        if (bytes.contains('\0')) {
-            qWarning("附件 %s 是二进制文件，已跳过", qPrintable(path));
-            continue;
-        }
-        QStringDecoder decoder(QStringConverter::Utf8);
-        const QString content = decoder.decode(bytes);
-        if (decoder.hasError()) {
-            qWarning("附件 %s 不是合法 UTF-8 文本，已跳过", qPrintable(path));
-            continue;
-        }
-        QString fileName = map.value(QStringLiteral("name")).toString();
-        if (fileName.isEmpty())
-            fileName = QFileInfo(path).fileName();
-        result.files.append(TextAttachment{fileName, content});
-    }
-    return result;
+    return attachments::loadAttachments(attachments);
 }
 
 void ChatController::send(const QString &text, const QString &workdir,
@@ -436,6 +338,24 @@ void ChatController::selectModel(int providerIndex, const QString &model)
     m_settings->selectActiveModel(providerIndex, model);
 }
 
+// 显示名解析从 QML 表达式收拢到这里（此前在 ChatView 两处重复）
+QString ChatController::modelDisplayName(int providerIndex, const QString &modelId) const
+{
+    if (modelId.isEmpty())
+        return {};
+    const QVariantMap provider =
+        m_settings->providers().value(providerIndex).toMap();
+    const QVariantList models = provider.value(QStringLiteral("models")).toList();
+    for (const QVariant &entry : models) {
+        const QVariantMap model = entry.toMap();
+        if (model.value(QStringLiteral("id")).toString() == modelId) {
+            const QString displayName = model.value(QStringLiteral("displayName")).toString();
+            return displayName.isEmpty() ? modelId : displayName;
+        }
+    }
+    return modelId; // 清单为空或未收录：回退模型 id
+}
+
 // 参数取设置页当前表单值（未保存的修改也可拉取）；同一时间仅允许一次拉取，
 // 结果原样经信号返回，“用户已切走”等过期判断由界面侧比对表单快照完成
 void ChatController::fetchModels(const QString &protocol, const QString &endpoint,
@@ -486,21 +406,12 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
             doc.path, doc.content);
     }
 
-    QStringList skillLines;
-    for (const QString &dir :
-         {m_dataDir + QStringLiteral("/skills"), m_workdir + QStringLiteral("/.lens/skills")}) {
-        for (const skills::Skill &skill : skills::discover(dir)) {
-            skillLines.append(QStringLiteral("- %1：%2（%3）")
-                                  .arg(skill.name, skill.description.isEmpty()
-                                                            ? QStringLiteral("（无描述）")
-                                                            : skill.description,
-                                       skill.path));
-        }
-    }
-    if (!skillLines.isEmpty()) {
-        add(QStringLiteral("skills"), QStringLiteral("自动发现"),
-            QStringLiteral("以下技能可用，需要时先用 read 工具读取对应 SKILL.md 了解具体做法：\n")
-                + skillLines.join(QLatin1Char('\n')));
+    // 技能段正文由 core 的 skills::promptSection 拼装，无技能时该段不注入
+    if (const QString skillsSection = skills::promptSection(
+             {m_dataDir + QStringLiteral("/skills"),
+              m_workdir + QStringLiteral("/.lens/skills")});
+        !skillsSection.isEmpty()) {
+        add(QStringLiteral("skills"), QStringLiteral("自动发现"), skillsSection);
     }
 
     return sections;

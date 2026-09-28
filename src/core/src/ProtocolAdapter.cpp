@@ -1,7 +1,8 @@
 #include "lens/core/providers/ProtocolAdapter.hpp"
 
-#include "lens/core/providers/AnthropicClient.hpp"
-#include "lens/core/providers/ResponsesClient.hpp"
+#include "lens/core/providers/AnthropicAdapter.hpp"
+#include "lens/core/providers/ChatCompletionsRequest.hpp"
+#include "lens/core/providers/ResponsesAdapter.hpp"
 
 namespace lens {
 namespace {
@@ -61,7 +62,7 @@ public:
         const auto it = payload.find("error");
         if (it == payload.end() || !it->is_object())
             return {};
-        return QString::fromStdString(it->value("message", std::string("chat completions 协议错误")));
+        return detail::errorMessageOr(*it, QStringLiteral("chat completions 协议错误"));
     }
 };
 

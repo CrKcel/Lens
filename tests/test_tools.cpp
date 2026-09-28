@@ -63,6 +63,7 @@ private slots:
     void resolveWorkdirExpandsTilde();
     void unknownToolFails();
     void disabledToolHiddenAndRejected();
+    void presetDisabledSets();
 };
 
 void TestTools::writeAndReadFile()
@@ -563,6 +564,35 @@ void TestTools::disabledToolHiddenAndRejected()
         QStringLiteral("write"), nlohmann::json{{"path", "a.txt"}, {"content", "x"}},
         dir.path());
     QVERIFY(wrote.ok);
+}
+
+// 预设 → 禁用集合的换算（ChatController 的 applyToolSettings 委托此规则）
+void TestTools::presetDisabledSets()
+{
+    const QStringList builtins = {QStringLiteral("read"), QStringLiteral("write"),
+                                  QStringLiteral("edit"), QStringLiteral("bash")};
+    const auto disabled = [&builtins](const QString &preset, const QStringList &custom = {}) {
+        return disabledToolsForPreset(preset, builtins, custom);
+    };
+
+    // full：全部启用
+    QVERIFY(disabled(QStringLiteral("full")).isEmpty());
+    // 未知预设按 full 处理
+    QVERIFY(disabled(QStringLiteral("bogus")).isEmpty());
+    // chat：全禁
+    QCOMPARE(disabled(QStringLiteral("chat")),
+             QSet<QString>({QStringLiteral("read"), QStringLiteral("write"),
+                            QStringLiteral("edit"), QStringLiteral("bash")}));
+    // read_only：仅 read 启用
+    const QSet<QString> readOnly = disabled(QStringLiteral("read_only"));
+    QCOMPARE(readOnly.size(), 3);
+    QVERIFY(!readOnly.contains(QStringLiteral("read")));
+    QVERIFY(readOnly.contains(QStringLiteral("bash")));
+    // custom：清单内的启用，其余禁用；MCP 工具名不在内置名单里不受影响
+    const QSet<QString> custom = disabled(
+        QStringLiteral("custom"), {QStringLiteral("read"), QStringLiteral("bash"),
+                                   QStringLiteral("mcp_fs_list")});
+    QCOMPARE(custom, QSet<QString>({QStringLiteral("write"), QStringLiteral("edit")}));
 }
 
 QTEST_GUILESS_MAIN(TestTools)

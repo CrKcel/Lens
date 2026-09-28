@@ -1,4 +1,4 @@
-#include "lens/core/providers/AnthropicClient.hpp"
+#include "lens/core/providers/AnthropicAdapter.hpp"
 
 #include <algorithm>
 
@@ -272,7 +272,7 @@ QString AnthropicAdapter::errorFromEvent(const nlohmann::json &payload) const
     const auto it = payload.find("error");
     if (it == payload.end() || !it->is_object())
         return QStringLiteral("Anthropic 协议错误");
-    return QString::fromStdString(it->value("message", std::string("Anthropic 协议错误")));
+    return detail::errorMessageOr(*it, QStringLiteral("Anthropic 协议错误"));
 }
 
 } // namespace lens::anthropic

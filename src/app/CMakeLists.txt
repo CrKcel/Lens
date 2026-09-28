@@ -2,6 +2,8 @@ find_package(Qt6 REQUIRED COMPONENTS LinguistTools Widgets)
 
 qt_add_executable(lens
     main.cpp
+    AppStyle.hpp
+    AppStyle.cpp
     AppSettings.hpp
     AppSettings.cpp
     ChatController.hpp

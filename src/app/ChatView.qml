@@ -572,16 +572,9 @@ ColumnLayout {
             implicitHeight: 36
             // 文本宽度用 TextMetrics 度量：elide 的 Label 的 implicitWidth 依赖
             // 自身 width，直接引用会成绑定环
-            // 模型文字用显示名（设置里可配）：在激活供应商的清单里按 id 找条目
-            readonly property string modelDisplayName: {
-                const provider = settings.providers[settings.activeProvider]
-                if (!provider)
-                    return settings.model
-                const models = provider.models.length > 0
-                    ? provider.models : [{ "id": provider.model }]
-                const entry = models.find(m => m.id === settings.model)
-                return entry ? (entry.displayName || entry.id) : settings.model
-            }
+            // 模型文字用显示名（设置里可配）：解析逻辑在 ChatController.modelDisplayName
+            readonly property string modelDisplayName:
+                chat.modelDisplayName(settings.activeProvider, settings.model)
             readonly property string label: modelDisplayName
                 + (chatRoot.thinkingLevel !== "disabled"
                    ? " · " + chatRoot.thinkingLevelLabel(chatRoot.thinkingLevel) : "")
@@ -688,7 +681,8 @@ ColumnLayout {
                                         required property var modelData
                                         readonly property string modelId: modelData.id
                                         readonly property string modelTitle:
-                                            modelData.displayName || modelData.id
+                                            chat.modelDisplayName(providerSection.providerIndex,
+                                                                  modelItem.modelId)
                                         readonly property bool current:
                                             settings.activeProvider === providerSection.providerIndex
                                                 ? settings.model === modelItem.modelId

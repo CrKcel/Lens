@@ -33,8 +33,16 @@ signals:
 
 private:
     void accumulate(const TokenUsage &usage);
+    // 费用/上下文窗口展示依赖的激活供应商数据（单价 + 当前模型）是否变化；
+    // settingsChanged 是全域广播（改主题、语言也会发），此处过滤掉无关改动
+    bool providerInputsChanged() const;
+    void refreshProviderInputs();
 
     AppSettings *m_settings;
+    double m_inputPrice = 0.0;
+    double m_outputPrice = 0.0;
+    double m_cachedPrice = 0.0;
+    QString m_model;
     TokenUsage m_last; // 最近一次上报：其输入侧即当前上下文长度
     qint64 m_totalPrompt = 0;
     qint64 m_totalCompletion = 0;

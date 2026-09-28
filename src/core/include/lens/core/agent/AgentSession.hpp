@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lens/core/Conversation.hpp"
-#include "lens/core/providers/ChatCompletionsClient.hpp"
+#include "lens/core/providers/ChatCompletionStream.hpp"
 #include "lens/core/providers/ITransport.hpp"
 #include "lens/core/providers/ProtocolAdapter.hpp"
 #include "lens/core/providers/SseParser.hpp"

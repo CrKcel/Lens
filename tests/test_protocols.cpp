@@ -1,9 +1,10 @@
 #include <QtTest/QtTest>
 
 #include <lens/core/providers/ProtocolAdapter.hpp>
-#include <lens/core/providers/AnthropicClient.hpp>
-#include <lens/core/providers/ChatCompletionsClient.hpp>
-#include <lens/core/providers/ResponsesClient.hpp>
+#include <lens/core/providers/AnthropicAdapter.hpp>
+#include <lens/core/providers/ChatCompletionsRequest.hpp>
+#include <lens/core/providers/ChatCompletionStream.hpp>
+#include <lens/core/providers/ResponsesAdapter.hpp>
 
 using namespace lens;
 

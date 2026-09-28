@@ -47,9 +47,9 @@ add_executable(test_mcp test_mcp.cpp)
 target_link_libraries(test_mcp PRIVATE Lens::Core Qt6::Test)
 add_test(NAME mcp COMMAND test_mcp)
 
-# McpManager（app 层）：异步连接管线，需 AppSettings 一起编译
+# McpManager（app 层）：异步连接管线，需 AppSettings（及其 AppStyle 依赖）一起编译
 add_executable(test_mcp_manager test_mcp_manager.cpp
-    ../src/app/McpManager.cpp ../src/app/AppSettings.cpp)
+    ../src/app/McpManager.cpp ../src/app/AppSettings.cpp ../src/app/AppStyle.cpp)
 target_include_directories(test_mcp_manager PRIVATE ../src/app)
 target_link_libraries(test_mcp_manager PRIVATE Lens::Core Qt6::Gui Qt6::Test)
 add_test(NAME mcp_manager COMMAND test_mcp_manager)
@@ -58,9 +58,15 @@ add_executable(test_model_list test_model_list.cpp)
 target_link_libraries(test_model_list PRIVATE Lens::Core Qt6::Test)
 add_test(NAME model_list COMMAND test_model_list)
 
-add_executable(test_app_settings test_app_settings.cpp ../src/app/AppSettings.cpp)
+add_executable(test_app_settings test_app_settings.cpp ../src/app/AppSettings.cpp
+    ../src/app/AppStyle.cpp)
 target_include_directories(test_app_settings PRIVATE ../src/app)
 # 调色板 token 一致性用例要读源码里的 Theme.qml / SettingsAppearancePage.qml
 target_compile_definitions(test_app_settings PRIVATE LENS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(test_app_settings PRIVATE Lens::Core Qt6::Gui Qt6::Test)
 add_test(NAME app_settings COMMAND test_app_settings)
+
+# 附件加载（core）：嗅探分类、大小上限、文本校验
+add_executable(test_attachments test_attachments.cpp)
+target_link_libraries(test_attachments PRIVATE Lens::Core Qt6::Test)
+add_test(NAME attachments COMMAND test_attachments)

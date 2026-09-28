@@ -10,10 +10,11 @@ add_library(lens_core STATIC
     include/lens/core/providers/ITransport.hpp
     include/lens/core/providers/QNetworkTransport.hpp
     include/lens/core/providers/SseParser.hpp
-    include/lens/core/providers/ChatCompletionsClient.hpp
+    include/lens/core/providers/ChatCompletionStream.hpp
+    include/lens/core/providers/ChatCompletionsRequest.hpp
     include/lens/core/providers/ProtocolAdapter.hpp
-    include/lens/core/providers/AnthropicClient.hpp
-    include/lens/core/providers/ResponsesClient.hpp
+    include/lens/core/providers/AnthropicAdapter.hpp
+    include/lens/core/providers/ResponsesAdapter.hpp
     include/lens/core/providers/ModelListClient.hpp
     include/lens/core/storage/SessionStore.hpp
     include/lens/core/tools/Shell.hpp
@@ -24,16 +25,19 @@ add_library(lens_core STATIC
     include/lens/core/tools/builtins/EditTool.hpp
     include/lens/core/tools/builtins/ReadTool.hpp
     include/lens/core/tools/builtins/WriteTool.hpp
+    include/lens/core/attachments/Attachments.hpp
     src/AgentSession.cpp
     src/BashTool.cpp
     src/QNetworkTransport.cpp
-    src/ChatCompletionsClient.cpp
+    src/ChatCompletionsRequest.cpp
+    src/ChatCompletionStream.cpp
     src/ProtocolAdapter.cpp
-    src/AnthropicClient.cpp
-    src/ResponsesClient.cpp
+    src/AnthropicAdapter.cpp
+    src/ResponsesAdapter.cpp
     src/ModelListClient.cpp
     src/McpClient.cpp
     src/SessionStore.cpp
+    src/Attachments.cpp
 )
 add_library(Lens::Core ALIAS lens_core)
 

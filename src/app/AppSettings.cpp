@@ -1,11 +1,12 @@
 #include "AppSettings.hpp"
 
+#include "AppStyle.hpp"
+
 #include <QColor>
 #include <QFile>
 #include <QGuiApplication>
 #include <QLocale>
 #include <QPalette>
-#include <QSet>
 #include <QStyleHints>
 #include <nlohmann/json.hpp>
 
@@ -43,22 +44,8 @@ QString normalizeToolPreset(const QString &value)
     return QStringLiteral("full");
 }
 
-// 调色板可覆盖的颜色 token 白名单（与 Theme.qml 的属性名、SettingsView 的
-// paletteTokens 清单一致，三处一起改），未收录的 token 拒绝落盘
-bool isValidPaletteToken(const QString &token)
-{
-    static const QSet<QString> kTokens = {
-        QStringLiteral("background"), QStringLiteral("surface"), QStringLiteral("sidebar"),
-        QStringLiteral("field"), QStringLiteral("fieldBorder"), QStringLiteral("card"),
-        QStringLiteral("cardBorder"), QStringLiteral("highlight"), QStringLiteral("text"),
-        QStringLiteral("textSoft"), QStringLiteral("textDim"), QStringLiteral("textFaint"),
-        QStringLiteral("accent"), QStringLiteral("accentHover"), QStringLiteral("accentPressed"),
-        QStringLiteral("accentSoft"), QStringLiteral("accentBorder"), QStringLiteral("success"),
-        QStringLiteral("error"), QStringLiteral("errorSoft"), QStringLiteral("bubbleUser"),
-        QStringLiteral("bubbleUser2"), QStringLiteral("bubbleUserText"), QStringLiteral("divider")
-    };
-    return kTokens.contains(token);
-}
+// 调色板 token 白名单在 AppStyle（与 Theme.qml 的属性名、外观页 paletteTokens
+// 清单一致），未收录的 token 拒绝落盘
 
 // 字体缩放档位与设置页 ComboBox 的选项一一对应，非法值归到最近档位
 double normalizeFontScale(double value)
@@ -241,7 +228,7 @@ void AppSettings::load()
             for (const auto &token : mode.value().items()) {
                 if (!token.value().is_string())
                     continue;
-                if (!isValidPaletteToken(QString::fromStdString(token.key())))
+                if (!appstyle::isValidPaletteToken(QString::fromStdString(token.key())))
                     continue;
                 const QColor parsed(
                     QString::fromStdString(token.value().get<std::string>()));
@@ -547,7 +534,7 @@ void AppSettings::setColorOverride(const QString &mode, const QString &token, co
 {
     if (mode != QLatin1String("dark") && mode != QLatin1String("light"))
         return;
-    if (!isValidPaletteToken(token))
+    if (!appstyle::isValidPaletteToken(token))
         return;
     const QColor parsed(color);
     if (!parsed.isValid())

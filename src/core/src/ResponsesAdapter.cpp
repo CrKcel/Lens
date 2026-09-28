@@ -1,4 +1,4 @@
-#include "lens/core/providers/ResponsesClient.hpp"
+#include "lens/core/providers/ResponsesAdapter.hpp"
 
 namespace lens::responses {
 namespace {
@@ -188,9 +188,8 @@ QString ResponsesAdapter::errorFromEvent(const nlohmann::json &payload) const
     if (it != payload.end() && it->is_object()) {
         const auto errorIt = it->find("error");
         if (errorIt != it->end() && errorIt->is_object())
-            return QString::fromStdString(
-                errorIt->value("message", std::string("responses 协议错误")));
-        return QString::fromStdString(it->value("message", std::string("responses 协议错误")));
+            return detail::errorMessageOr(*errorIt, QStringLiteral("responses 协议错误"));
+        return detail::errorMessageOr(*it, QStringLiteral("responses 协议错误"));
     }
     // {"type":"error","message":"..."}：错误信息直接在顶层
     const auto messageIt = payload.find("message");

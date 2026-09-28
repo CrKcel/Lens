@@ -5,6 +5,7 @@
 #include "MessageListModel.hpp"
 #include "UsageTracker.hpp"
 #include "lens/core/agent/AgentSession.hpp"
+#include "lens/core/attachments/Attachments.hpp"
 #include "lens/core/providers/ModelListClient.hpp"
 #include "lens/core/tools/ToolRegistry.hpp"
 
@@ -83,6 +84,9 @@ public:
                                  const QString &apiKey);
     // 聊天区模型切换：切激活供应商并写回其模型，立即持久化（越界索引/空模型名忽略）
     Q_INVOKABLE void selectModel(int providerIndex, const QString &model);
+    // 模型显示名：providerIndex 对应供应商的 models 清单里按 id 找 displayName，
+    // 未配置显示名、清单为空或未收录时回退模型 id（聊天按钮与模型弹层共用）
+    Q_INVOKABLE QString modelDisplayName(int providerIndex, const QString &modelId) const;
     bool fetchingModels() const { return m_fetchingModels; }
 
 signals:
@@ -95,11 +99,8 @@ signals:
     void modelsFetchFailed(const QString &error);
 
 private:
-    // loadAttachments 的结果：图片与文本附件分类收集
-    struct LoadedAttachments {
-        QList<ImageAttachment> images;
-        QList<TextAttachment> files;
-    };
+    // 附件加载结果（图片与文本分类收集）类型在 core：attachments::LoadedAttachments
+    using LoadedAttachments = attachments::LoadedAttachments;
 
     void connectAgent();
     LoadedAttachments loadAttachments(const QVariantList &attachments) const;

@@ -6,20 +6,8 @@
 #include <QMap>
 #include <QString>
 #include <nlohmann/json.hpp>
-#include <vector>
 
 namespace lens::chatcompletions {
-
-// 构造 chat/completions 请求体。systemPrompt 为空时不插入 system 段；
-// history 中的 System 消息被忽略——系统提示词统一由 PromptAssembler 编排。
-// tools 为 function-calling 格式的工具数组（由适配器转换，
-// 见 ProtocolAdapter 的 detail::toChatCompletionsTools），传空数组或 discarded
-// 时不携带 tools 字段。
-nlohmann::json buildRequestBody(const std::vector<Message> &history,
-                                const QString &model,
-                                const QString &systemPrompt,
-                                bool stream,
-                                const nlohmann::json &tools = nlohmann::json());
 
 // 一次 apply 产生的增量：正文与思考过程分开交付
 struct StreamDelta {
@@ -28,9 +16,9 @@ struct StreamDelta {
 };
 
 // 累积一次回合的流式响应，组装完整的 assistant 消息（文本 + 思考 + 工具调用）。
-// 既是 chat.completion.chunk 的累积器，也是其它协议适配器的统一落点：
-// 各家 SSE 事件由 ProtocolAdapter 转成增量写入（appendContent / mergeToolCall 等）。
-// 兼容 llama.cpp / OpenAI 的字段形态：
+// 协议中立的统一落点：chat.completion.chunk 直接喂入，其它协议的 SSE 事件由
+// 各自的 ProtocolAdapter 转成增量写入（appendContent / mergeToolCall 等）。
+// chat.completion.chunk 形态兼容 llama.cpp / OpenAI 的字段差异：
 //  · delta.content: string 或 null（llama.cpp 首帧为 null）
 //  · delta.reasoning_content: 思考模型的推理增量（Qwen3.5 等）
 // 一个回合内复用同一实例，每回合重置。

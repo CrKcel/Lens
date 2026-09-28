@@ -45,6 +45,7 @@ private slots:
 
     void skillsDiscover();
     void skillsMissingDirectory();
+    void skillsPromptSection();
 
     // —— PromptAssembler（上下文透明化的分节基础） ——
 
@@ -191,6 +192,25 @@ void TestContext::promptAssemblerSections()
     const QStringList names = assembler.sectionNames();
     QCOMPARE(names, QStringList({"identity", "workspace", "custom"}));
     QCOMPARE(assembler.assemble(), QStringLiteral("身份2\n\n工作区"));
+}
+
+// 技能段正文拼装（ChatController 的 skills 分节委托此规则）
+void TestContext::skillsPromptSection()
+{
+    // 无技能：返回空串（该段不注入）
+    QVERIFY(skills::promptSection({QStringLiteral("/nonexistent-lens-skills")}).isEmpty());
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString skillDir = dir.filePath(QStringLiteral("code-review"));
+    QVERIFY(QDir().mkpath(skillDir));
+    QVERIFY(writeFile(skillDir + QStringLiteral("/SKILL.md"),
+                      QStringLiteral("---\nname: code-review\ndescription: 审查代码\n---\n")));
+
+    const QString section = skills::promptSection({dir.path()});
+    QVERIFY(section.startsWith(QStringLiteral("以下技能可用")));
+    QVERIFY(section.contains(QStringLiteral("- code-review：审查代码（")));
+    QVERIFY(section.contains(QStringLiteral("SKILL.md）")));
 }
 
 QTEST_GUILESS_MAIN(TestContext)

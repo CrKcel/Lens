@@ -76,4 +76,24 @@ inline QList<Skill> discover(const QString &dir)
     return skills;
 }
 
+// 技能清单的提示词段正文：每个技能一行"名称：描述（路径）"。正文不进上下文，
+// 路径交给模型按需 read；dirs 里没有发现任何技能时返回空串（该段不注入）
+inline QString promptSection(const QStringList &dirs)
+{
+    QStringList lines;
+    for (const QString &dir : dirs) {
+        for (const Skill &skill : discover(dir)) {
+            lines.append(QStringLiteral("- %1：%2（%3）")
+                             .arg(skill.name,
+                                  skill.description.isEmpty() ? QStringLiteral("（无描述）")
+                                                              : skill.description,
+                                  skill.path));
+        }
+    }
+    if (lines.isEmpty())
+        return {};
+    return QStringLiteral("以下技能可用，需要时先用 read 工具读取对应 SKILL.md 了解具体做法：\n")
+        + lines.join(QLatin1Char('\n'));
+}
+
 } // namespace lens::skills
