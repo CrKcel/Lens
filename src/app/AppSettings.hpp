@@ -70,6 +70,7 @@ class AppSettings : public QObject
     Q_PROPERTY(double fontScale READ fontScale WRITE setFontScale NOTIFY settingsChanged)
     Q_PROPERTY(double lineSpacing READ lineSpacing WRITE setLineSpacing NOTIFY settingsChanged)
     Q_PROPERTY(QString sendShortcut READ sendShortcut WRITE setSendShortcut NOTIFY settingsChanged)
+    Q_PROPERTY(int maxRetries READ maxRetries WRITE setMaxRetries NOTIFY settingsChanged)
     Q_PROPERTY(QString toolPreset READ toolPreset WRITE setToolPreset NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList customTools READ customTools WRITE setCustomTools NOTIFY settingsChanged)
     Q_PROPERTY(bool dark READ dark NOTIFY settingsChanged)
@@ -125,6 +126,9 @@ public:
     bool dark() const;
     QString sendShortcut() const { return m_sendShortcut; }
     void setSendShortcut(const QString &value);
+    // 传输层错误自动重试次数（0 关闭），默认 3
+    int maxRetries() const { return m_maxRetries; }
+    void setMaxRetries(int value);
 
     // 内置工具预设：chat（不启用内置工具）/ read_only（仅 read）/
     // full（全部，默认）/ custom（customTools 清单里列出的工具）
@@ -156,6 +160,7 @@ private:
     double m_fontScale = 1.0;                        // 全局字体缩放（1.0 为标准）
     double m_lineSpacing = 1.3;                      // 聊天文本行距倍数（1.0 为字体默认行距）
     QString m_sendShortcut = QStringLiteral("ctrl_enter"); // ctrl_enter | enter
+    int m_maxRetries = 3;                          // 传输层错误自动重试次数，0 关闭
     QString m_toolPreset = QStringLiteral("full"); // chat | read_only | full | custom
     QStringList m_customTools;                     // preset=custom 时启用的内置工具名
 };

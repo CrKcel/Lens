@@ -97,6 +97,7 @@ ColumnLayout {
         const lineSpacing = appearancePage.lineSpacingCombo.currentValue
         const sendShortcut = shortcutsPage.sendShortcutCombo.currentValue
         const toolPreset = generalPage.toolPresetCombo.currentValue
+        const maxRetries = generalPage.maxRetriesCombo.currentValue
         const languageChanged = language !== settings.language
         // 写回工作副本所属的供应商而非当前激活的：激活供应商可能在字段加载后
         // 被聊天弹层 selectModel 改变，按当前值写会把 A 的配置写进 B。
@@ -116,6 +117,7 @@ ColumnLayout {
         settings.lineSpacing = lineSpacing
         settings.sendShortcut = sendShortcut
         settings.toolPreset = toolPreset
+        settings.maxRetries = maxRetries
         settings.customTools = settingsRoot.customToolsWorking
         settingsRoot.applyMcpServers()
         settings.save()
@@ -379,6 +381,8 @@ ColumnLayout {
             shortcutsPage.sendShortcutCombo.indexOfValue(settings.sendShortcut)
         generalPage.toolPresetCombo.currentIndex =
             generalPage.toolPresetCombo.indexOfValue(settings.toolPreset)
+        generalPage.maxRetriesCombo.currentIndex =
+            generalPage.maxRetriesCombo.indexOfValue(settings.maxRetries)
         settingsRoot.customToolsWorking = settings.customTools
         settingsRoot.loadingFields = false
     }

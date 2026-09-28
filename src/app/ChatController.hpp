@@ -22,6 +22,8 @@ class ChatController : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool streaming READ streaming NOTIFY streamingChanged)
+    // 传输层错误自动重试的进行中提示（重试间隙显示在「生成中」药丸上），空 = 不在重试
+    Q_PROPERTY(QString retryNotice READ retryNotice NOTIFY retryNoticeChanged)
     Q_PROPERTY(qint64 currentConversationId READ currentConversationId NOTIFY currentConversationChanged)
     Q_PROPERTY(QString currentWorkdir READ currentWorkdir NOTIFY currentConversationChanged)
     Q_PROPERTY(QString currentTitle READ currentTitle NOTIFY currentConversationChanged)
@@ -41,6 +43,7 @@ public:
     explicit ChatController(ChatEngine *engine, QObject *parent = nullptr);
 
     bool streaming() const { return m_session && m_session->streaming(); }
+    QString retryNotice() const { return m_session ? m_session->retryNotice() : QString(); }
     qint64 currentConversationId() const
     {
         return m_session ? m_session->conversationId() : 0;
@@ -97,6 +100,7 @@ public:
 
 signals:
     void streamingChanged();
+    void retryNoticeChanged();
     void currentConversationChanged();
     void contextChanged();
     void usageChanged();

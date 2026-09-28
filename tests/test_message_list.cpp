@@ -12,6 +12,7 @@ private slots:
     void streamingDeltasAccumulateInOneRow();
     void reasoningStreamsIntoSameRow();
     void emptyStreamingRowDropped();
+    void clearedStreamingRowDroppedOnFailure();
     void resetFromMessagesBuildsReasoningAndToolRows();
     void imagesRoleRoundtrip();
     void filesRoleRoundtrip();
@@ -73,6 +74,25 @@ void TestMessageList::emptyStreamingRowDropped()
     model.finishStreamingRow(QString(), QString());
     model.dropEmptyStreamingRow();
     QCOMPARE(model.rowCount(), 0);
+}
+
+// 自动重试清空流式行后回合仍失败：活跃的空流式行也要被收尾，
+// 不给错误卡片上方留空气泡
+void TestMessageList::clearedStreamingRowDroppedOnFailure()
+{
+    MessageListModel model;
+    MessageListModel::Item item;
+    item.kind = MessageListModel::Assistant;
+    item.streaming = true;
+    model.appendItem(item);
+    model.appendDelta(QStringLiteral("部分输出"));
+    model.clearStreamingRow();
+    QVERIFY(model.hasStreamingRow());
+    QCOMPARE(model.rowCount(), 1);
+
+    model.dropEmptyStreamingRow();
+    QCOMPARE(model.rowCount(), 0);
+    QVERIFY(!model.hasStreamingRow());
 }
 
 void TestMessageList::resetFromMessagesBuildsReasoningAndToolRows()

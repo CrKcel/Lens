@@ -167,6 +167,20 @@ void MessageListModel::finishStreamingRow(const QString &finalText,
 
 void MessageListModel::dropEmptyStreamingRow()
 {
+    // 收尾两种空行：回合失败时仍挂着的活跃流式行（自动重试已清空其内容），
+    // 以及正常结束路径落定后的空助手行
+    if (m_streamingIndex >= 0 && m_streamingIndex < m_items.size()) {
+        const Item &item = m_items.at(m_streamingIndex);
+        if (item.kind == MessageListModel::Assistant && item.text.isEmpty()
+            && item.reasoning.isEmpty()) {
+            const int row = m_streamingIndex;
+            m_streamingIndex = -1;
+            beginRemoveRows({}, row, row);
+            m_items.removeAt(row);
+            endRemoveRows();
+            return;
+        }
+    }
     const int row = m_lastFinalizedRow;
     m_lastFinalizedRow = -1;
     if (row < 0 || row >= m_items.size())
@@ -178,6 +192,19 @@ void MessageListModel::dropEmptyStreamingRow()
         m_items.removeAt(row);
         endRemoveRows();
     }
+}
+
+void MessageListModel::clearStreamingRow()
+{
+    if (m_streamingIndex < 0 || m_streamingIndex >= m_items.size())
+        return;
+    Item &item = m_items[m_streamingIndex];
+    if (item.text.isEmpty() && item.reasoning.isEmpty())
+        return;
+    item.text.clear();
+    item.reasoning.clear();
+    const QModelIndex index = createIndex(m_streamingIndex, 0);
+    emit dataChanged(index, index, {TextRole, ReasoningRole});
 }
 
 void MessageListModel::setToolCallRunning(const QString &callId)

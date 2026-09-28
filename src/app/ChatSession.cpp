@@ -90,6 +90,7 @@ void ChatSession::clearModelOverride()
 void ChatSession::connectAgent()
 {
     connect(m_agent.get(), &AgentSession::assistantDelta, this, [this](const QString &delta) {
+        setRetryNotice(QString()); // 重试后模型恢复输出，撤掉重试提示
         if (!m_messageModel->hasStreamingRow()) {
             MessageListModel::Item item;
             item.kind = MessageListModel::Assistant;
@@ -99,6 +100,7 @@ void ChatSession::connectAgent()
         m_messageModel->appendDelta(delta);
     });
     connect(m_agent.get(), &AgentSession::reasoningDelta, this, [this](const QString &delta) {
+        setRetryNotice(QString());
         if (!m_messageModel->hasStreamingRow()) {
             MessageListModel::Item item;
             item.kind = MessageListModel::Assistant;
@@ -109,6 +111,7 @@ void ChatSession::connectAgent()
     });
     connect(m_agent.get(), &AgentSession::assistantCompleted, this,
             [this](const Message &message) {
+                setRetryNotice(QString()); // 重试成功后不再有 delta 的纯工具回合也要撤提示
                 m_messageModel->finishStreamingRow(message.content, message.reasoning);
                 m_messageModel->dropEmptyStreamingRow();
                 for (const ToolCall &call : message.toolCalls) {
@@ -140,11 +143,22 @@ void ChatSession::connectAgent()
                 toolMessage.images = images;
                 m_store->appendMessage(m_conversationId, toolMessage);
             });
+    connect(m_agent.get(), &AgentSession::retryScheduled, this,
+            [this](int attempt, int maxRetries, int delayMs) {
+                // 断连前可能已流出部分文本，清空后重新生成
+                m_messageModel->clearStreamingRow();
+                setRetryNotice(tr("连接中断，正在重试（第 %1/%2 次，%3 秒后）")
+                                   .arg(attempt)
+                                   .arg(maxRetries)
+                                   .arg(qMax(1, qRound(delayMs / 1000.0))));
+            });
     connect(m_agent.get(), &AgentSession::failed, this, [this](const QString &message) {
+        setRetryNotice(QString());
         m_messageModel->dropEmptyStreamingRow();
         setErrorRow(message);
     });
     connect(m_agent.get(), &AgentSession::idle, this, [this] {
+        setRetryNotice(QString());
         if (m_streaming) {
             m_streaming = false;
             emit streamingChanged();
@@ -209,6 +223,7 @@ void ChatSession::send(const QString &text, const QVariantList &attachments,
     const ModelConfig modelConfig = modelConfigFor(provider, effectiveModel());
     m_agent->setMaxOutputTokens(modelConfig.maxOutputTokens);
     m_agent->setImagesEnabled(modelConfig.images);
+    m_agent->setMaxRetries(m_settings->maxRetries());
     // 思考强度是聊天区会话内临时状态：每次发送随消息带入，非法值回退关闭
     ThinkingLevel thinking = ThinkingLevel::Disabled;
     if (const auto parsed = thinkingLevelFromString(thinkingLevel))
@@ -303,6 +318,14 @@ void ChatSession::setErrorRow(const QString &text)
     item.kind = MessageListModel::Error;
     item.text = text;
     m_messageModel->appendItem(item);
+}
+
+void ChatSession::setRetryNotice(const QString &text)
+{
+    if (m_retryNotice == text)
+        return;
+    m_retryNotice = text;
+    emit retryNoticeChanged();
 }
 
 } // namespace lens

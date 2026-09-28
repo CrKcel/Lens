@@ -166,7 +166,8 @@ ApplicationWindow {
             Label {
                 id: streamingLabel
                 anchors.centerIn: parent
-                text: qsTr("生成中…")
+                // 自动重试间隙显示重试提示（含第几次与等待秒数），其余时间显示生成中
+                text: chat.retryNotice !== "" ? chat.retryNotice : qsTr("生成中…")
                 color: theme.accent
                 font.pixelSize: Math.round(11 * settings.fontScale)
 

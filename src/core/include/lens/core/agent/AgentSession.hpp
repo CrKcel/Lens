@@ -33,6 +33,7 @@ public:
     void setThinkingLevel(ThinkingLevel level) { m_thinkingLevel = level; }
     void setMaxOutputTokens(int tokens) { m_maxOutputTokens = tokens; }
     void setImagesEnabled(bool enabled) { m_imagesEnabled = enabled; }
+    void setMaxRetries(int retries) { m_maxRetries = retries; }
     void setSystemPrompt(const QString &systemPrompt) { m_systemPrompt = systemPrompt; }
     void setWorkdir(const QString &workdir) { m_workdir = workdir; }
     void setHistory(std::vector<Message> history) { m_history = std::move(history); }
@@ -57,12 +58,15 @@ signals:
     void toolCallFinished(const QString &id, const QString &output,
                           const QList<ImageAttachment> &images = {});
     void failed(const QString &message);
-    void idle(); 
+    void retryScheduled(int attempt, int maxRetries, int delayMs); // 传输层错误自动重试
+    void idle();
 
 private:
     void startTurn();
     void finishAssistantMessage();
     void processNextToolCall();
+    bool retryable(const TransportError &error) const;
+    int retryDelayMs(const TransportError &error) const;
 
     std::unique_ptr<ITransport> m_transport;
     ToolRegistry *m_registry;
@@ -85,6 +89,8 @@ private:
     bool m_busy = false;
     quint64 m_generation = 0; 
     int m_toolCallsThisTurn = 0;
+    int m_maxRetries = 0;   // 传输层错误自动重试次数，0 关闭
+    int m_retryAttempt = 0; // 当前回合已重试次数
     static constexpr int kMaxToolCallsPerTurn = 32;
 };
 

@@ -40,6 +40,7 @@ public:
     ~ChatSession() override;
 
     bool streaming() const { return m_streaming; }
+    QString retryNotice() const { return m_retryNotice; }
     qint64 conversationId() const { return m_conversationId; }
     QString workdir() const { return m_workdir; }
     QString title() const { return m_title; }
@@ -65,6 +66,7 @@ public:
 
 signals:
     void streamingChanged();
+    void retryNoticeChanged();
     void currentConversationChanged();
     void contextChanged();
     void usageChanged();
@@ -78,6 +80,7 @@ private:
     QString effectiveModel() const;
     QVector<ContextSectionInfo> collectSections() const;
     void setErrorRow(const QString &text);
+    void setRetryNotice(const QString &text);
     // 环境段的 Git 行异步取得（git 子进程最长数秒）：只走后台，主线程拼装时
     // 用缓存，未就绪就省略该行，取到后经 contextChanged 补上
     void refreshGitLine();
@@ -101,6 +104,7 @@ private:
     QString m_workdir;
     QString m_title;
     bool m_streaming = false;
+    QString m_retryNotice; // 传输层错误自动重试的进行中提示，空 = 不在重试
 
     int m_overrideProviderIndex = -1;
     QString m_overrideModel;

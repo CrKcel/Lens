@@ -58,7 +58,14 @@ void QNetworkTransport::start(const HttpRequest &request, StreamCallbacks callba
                 const QByteArray body = reply->readAll(); // API 错误响应体（JSON 错误信息）
                 if (!body.isEmpty())
                     detail += QStringLiteral("\n") + QString::fromUtf8(body.left(2000));
-                d->callbacks.onError(detail);
+                TransportError error;
+                error.message = detail;
+                error.httpStatus =
+                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                error.networkError = int(reply->error());
+                const QByteArray retryAfter = reply->rawHeader(QByteArrayLiteral("Retry-After"));
+                error.retryAfterSeconds = retryAfter.toInt();
+                d->callbacks.onError(error);
             }
         }
     });

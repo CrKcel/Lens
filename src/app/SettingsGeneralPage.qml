@@ -11,6 +11,7 @@ ScrollView {
 
     property alias languageCombo: languageCombo
     property alias toolPresetCombo: toolPresetCombo
+    property alias maxRetriesCombo: maxRetriesCombo
     property alias systemPromptField: systemPromptField
     property alias environmentPromptCheck: environmentPromptCheck
 
@@ -115,6 +116,31 @@ ScrollView {
                             verticalAlignment: Text.AlignVCenter
                         }
                     }
+                }
+            }
+        }
+
+        SettingsSection {
+            Layout.fillWidth: true
+            title: qsTr("自动重试")
+            hint: qsTr("连接断开或供应商繁忙（限流/过载/超时）时按退避自动重发，鉴权等失败不重试")
+
+            SettingsRow {
+                Layout.fillWidth: true
+                label: qsTr("重试次数")
+                LensComboBox {
+                    id: maxRetriesCombo
+                    Layout.preferredWidth: 170
+                    textRole: "text"
+                    valueRole: "value"
+                    onActivated: generalPage.view.commitSettings()
+                    model: [
+                        { text: qsTr("关闭"), value: 0 },
+                        { text: qsTr("1 次"), value: 1 },
+                        { text: qsTr("2 次"), value: 2 },
+                        { text: qsTr("3 次"), value: 3 },
+                        { text: qsTr("5 次"), value: 5 }
+                    ]
                 }
             }
         }

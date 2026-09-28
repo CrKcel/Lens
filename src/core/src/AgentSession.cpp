@@ -1,6 +1,7 @@
 #include "lens/core/agent/AgentSession.hpp"
 
 #include <QMetaObject>
+#include <QNetworkReply>
 #include <QThreadPool>
 #include <QTimer>
 #include <QUrl>
@@ -46,6 +47,7 @@ void AgentSession::sendUserMessage(const QString &text, const QList<ImageAttachm
     m_history.push_back(message);
 
     m_toolCallsThisTurn = 0;
+    m_retryAttempt = 0;
     m_busy = true;
     ++m_generation;
     startTurn();
@@ -122,9 +124,22 @@ void AgentSession::startTurn()
                                 return;
                             finishAssistantMessage();
                         },
-                        [this](QString error) {
+                        [this, generation](const TransportError &error) {
+                            // 传输层错误：可重试的（断连、繁忙）按退避自动重发，
+                            // busy 保持、不发 idle；不可重试或次数耗尽才终止回合
+                            if (retryable(error) && m_retryAttempt < m_maxRetries) {
+                                ++m_retryAttempt;
+                                const int delay = retryDelayMs(error);
+                                emit retryScheduled(m_retryAttempt, m_maxRetries, delay);
+                                QTimer::singleShot(delay, this, [this, generation] {
+                                    if (generation != m_generation) // 退避期间已取消
+                                        return;
+                                    startTurn();
+                                });
+                                return;
+                            }
                             m_busy = false;
-                            emit failed(error);
+                            emit failed(error.message);
                             emit idle();
                         },
                         [this] { // 取消：由发起方（cancel / 协议错误路径）自行 emit idle，
@@ -209,6 +224,47 @@ void AgentSession::processNextToolCall()
             },
             Qt::QueuedConnection);
     });
+}
+
+// 可自动重试的传输层错误：供应商繁忙（限流/过载/超时）或连接中途断开。
+// 鉴权失败（401/403）、参数错误（400）、DNS 解析失败、SSL 握手失败等重试也不会好，不在此列。
+bool AgentSession::retryable(const TransportError &error) const
+{
+    switch (error.httpStatus) {
+    case 408: // 请求超时
+    case 429: // 限流
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+        return true;
+    case 0: // 请求没到服务器：按网络错误码判断
+        switch (static_cast<QNetworkReply::NetworkError>(error.networkError)) {
+        case QNetworkReply::ConnectionRefusedError:
+        case QNetworkReply::RemoteHostClosedError:
+        case QNetworkReply::TimeoutError:
+        case QNetworkReply::TemporaryNetworkFailureError:
+        case QNetworkReply::NetworkSessionFailedError:
+        case QNetworkReply::ProxyConnectionRefusedError:
+        case QNetworkReply::ProxyConnectionClosedError:
+        case QNetworkReply::ProxyTimeoutError:
+            return true;
+        default:
+            return false;
+        }
+    default:
+        return false;
+    }
+}
+
+// 重试退避：供应商的 Retry-After 优先（封顶 1 分钟，防溢出与异常长的等待），
+// 否则指数退避 2s→4s→8s→16s→30s 封顶
+int AgentSession::retryDelayMs(const TransportError &error) const
+{
+    if (error.retryAfterSeconds > 0)
+        return qMin(error.retryAfterSeconds, 60) * 1000;
+    const int backoffMs = 2000 << qMin(m_retryAttempt - 1, 4);
+    return qMin(backoffMs, 30000);
 }
 
 } // namespace lens

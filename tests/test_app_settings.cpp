@@ -21,6 +21,7 @@ private slots:
     void legacyFlatConfigMigration();
     void fontScaleRoundtripAndNormalization();
     void lineSpacingRoundtripAndNormalization();
+    void maxRetriesRoundtrip();
     void colorOverridesRoundtripAndValidation();
     void paletteTokensMatchQml();
 
@@ -219,6 +220,35 @@ void TestAppSettings::lineSpacingRoundtripAndNormalization()
     const QString invalidPath = writeJson(R"({"lineSpacing":"wide"})");
     AppSettings invalid(invalidPath);
     QCOMPARE(invalid.lineSpacing(), 1.3);
+}
+
+void TestAppSettings::maxRetriesRoundtrip()
+{
+    const QString path = writeJson("{}");
+    QVERIFY2(!path.isEmpty(), "写入测试配置文件失败");
+
+    {
+        AppSettings settings(path);
+        QCOMPARE(settings.maxRetries(), 3); // 缺省 3
+        settings.setMaxRetries(5);
+        settings.save();
+    }
+    AppSettings reloaded(path);
+    QCOMPARE(reloaded.maxRetries(), 5);
+
+    // 档位归一：设置页下拉只有 关闭/1/2/3/5，非法值归到最近档位
+    reloaded.setMaxRetries(4);
+    QCOMPARE(reloaded.maxRetries(), 3);
+    reloaded.setMaxRetries(9);
+    QCOMPARE(reloaded.maxRetries(), 5);
+    reloaded.setMaxRetries(-2);
+    QCOMPARE(reloaded.maxRetries(), 0);
+    const QString invalidPath = writeJson(R"({"maxRetries":"many"})");
+    AppSettings invalid(invalidPath);
+    QCOMPARE(invalid.maxRetries(), 3);
+    const QString offPath = writeJson(R"({"maxRetries":-1})");
+    AppSettings off(offPath);
+    QCOMPARE(off.maxRetries(), 0);
 }
 
 void TestAppSettings::colorOverridesRoundtripAndValidation()

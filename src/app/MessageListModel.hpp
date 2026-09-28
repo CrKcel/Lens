@@ -57,6 +57,7 @@ public:
                            const QList<ImageAttachment> &images);
     bool hasStreamingRow() const { return m_streamingIndex >= 0; }
     void dropEmptyStreamingRow();
+    void clearStreamingRow(); // 清空流式行已累积的文本/思考（自动重试重新生成时）
 
 private:
     int findIndexByToolCallId(const QString &callId) const;

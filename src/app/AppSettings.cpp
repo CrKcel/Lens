@@ -79,6 +79,22 @@ double normalizeLineSpacing(double value)
     return best;
 }
 
+// 重试档位与设置页 ComboBox 的选项（关闭/1/2/3/5）一一对应，非法值归到最近档位
+int normalizeMaxRetries(int value)
+{
+    static constexpr int kAllowed[] = {0, 1, 2, 3, 5};
+    int best = 3;
+    int bestDiff = -1;
+    for (int allowed : kAllowed) {
+        const int diff = qAbs(value - allowed);
+        if (bestDiff < 0 || diff < bestDiff) {
+            best = allowed;
+            bestDiff = diff;
+        }
+    }
+    return best;
+}
+
 } // namespace
 
 AppSettings::AppSettings(QString filePath, QObject *parent)
@@ -110,6 +126,7 @@ void AppSettings::reset()
     m_customTools.clear();
     m_fontScale = 1.0;
     m_lineSpacing = 1.3;
+    m_maxRetries = 3;
     m_colorOverrides.clear();
     emit settingsChanged();
 }
@@ -250,6 +267,9 @@ void AppSettings::load()
     m_sendShortcut = readQStr(json, "sendShortcut") == QLatin1String("enter")
                          ? QStringLiteral("enter")
                          : QStringLiteral("ctrl_enter");
+    if (const auto it = json.find("maxRetries");
+        it != json.end() && it->is_number_integer())
+        m_maxRetries = normalizeMaxRetries(it->get<int>());
     m_toolPreset = normalizeToolPreset(readQStr(json, "toolPreset"));
     m_customTools.clear();
     if (json.contains("customTools") && json.at("customTools").is_array()) {
@@ -272,6 +292,7 @@ void AppSettings::save()
         {"fontScale", m_fontScale},
         {"lineSpacing", m_lineSpacing},
         {"sendShortcut", readStd(m_sendShortcut)},
+        {"maxRetries", m_maxRetries},
         {"toolPreset", readStd(m_toolPreset)},
     };
     auto overrides = nlohmann::json::object();
@@ -600,6 +621,15 @@ void AppSettings::setSendShortcut(const QString &value)
     m_sendShortcut = value == QLatin1String("enter")
                          ? QStringLiteral("enter")
                          : QStringLiteral("ctrl_enter");
+    emit settingsChanged();
+}
+
+void AppSettings::setMaxRetries(int value)
+{
+    value = normalizeMaxRetries(value);
+    if (m_maxRetries == value)
+        return;
+    m_maxRetries = value;
     emit settingsChanged();
 }
 

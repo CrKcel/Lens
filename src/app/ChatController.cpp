@@ -56,6 +56,8 @@ void ChatController::rebindSession(ChatSession *session)
         m_sessionConnections = {
             connect(m_session, &ChatSession::streamingChanged, this,
                     &ChatController::streamingChanged),
+            connect(m_session, &ChatSession::retryNoticeChanged, this,
+                    &ChatController::retryNoticeChanged),
             connect(m_session, &ChatSession::currentConversationChanged, this,
                     &ChatController::currentConversationChanged),
             connect(m_session, &ChatSession::contextChanged, this,
@@ -70,6 +72,7 @@ void ChatController::rebindSession(ChatSession *session)
     emit contextChanged();
     emit usageChanged();
     emit streamingChanged();
+    emit retryNoticeChanged();
     emit modelSelectionChanged();
 }
 
