@@ -28,11 +28,6 @@
 
 namespace lens {
 
-inline const QString kBasePrompt = QStringLiteral(
-    "You are a helpful assistant。用户工作文件夹是当前任务的根目录："
-    "read/write/edit 工具的相对路径以它为基准；结束后简要说明做了什么、结果如何。"
-    "回答使用与用户一致的语言。");
-
 ChatController::ChatController(SessionStore *store, AppSettings *settings, const QString &dataDir,
                                QObject *parent)
     : QObject(parent)
@@ -264,6 +259,9 @@ void ChatController::deleteConversation(qint64 conversationId)
 void ChatController::refreshContext()
 {
     applyToolSettings();
+    // 环境段开启且该工作文件夹还没有 Git 行缓存（如刚重新开启注入）时补取
+    if (m_settings->environmentPrompt() && m_gitLineWorkdir != m_workdir)
+        refreshGitLine();
     m_mcp->requestReload(m_settings->mcpServerConfigs(), m_streaming);
     m_lastSections = collectSections();
     rebuildToolList();
@@ -481,15 +479,15 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
         sections.append({name, source, content});
     };
 
-    // 用户自定义提示词即 identity 段：覆盖内置身份提示词，未设置时回退内置
+    // 用户自定义提示词即 identity 段：未设置时不注入任何身份提示词
     const QString customPrompt = m_settings->systemPrompt().trimmed();
-    add(QStringLiteral("identity"), customPrompt.isEmpty() ? QStringLiteral("内置")
-                                                           : QStringLiteral("用户设置"),
-        customPrompt.isEmpty() ? kBasePrompt : customPrompt);
-    // 环境段：Git 行来自后台缓存（未就绪则省略该行，不阻塞主线程）
-    add(QStringLiteral("environment"), QStringLiteral("自动生成"),
-        envprompt::build(m_workdir,
-                         m_gitLineWorkdir == m_workdir ? m_gitLine : QString()));
+    if (!customPrompt.isEmpty())
+        add(QStringLiteral("identity"), QStringLiteral("用户设置"), customPrompt);
+    // 环境段：设置可关；Git 行来自后台缓存（未就绪则省略该行，不阻塞主线程）
+    if (m_settings->environmentPrompt())
+        add(QStringLiteral("environment"), QStringLiteral("自动生成"),
+            envprompt::build(m_workdir,
+                             m_gitLineWorkdir == m_workdir ? m_gitLine : QString()));
 
     for (const agentdocs::AgentDoc &doc :
          agentdocs::discover(m_workdir, m_dataDir)) {
@@ -522,6 +520,8 @@ QVector<ContextSectionInfo> ChatController::collectSections() const
 // 上下文清单（检查器随之更新，下一次发送的提示词也带上该行）
 void ChatController::refreshGitLine()
 {
+    if (!m_settings->environmentPrompt()) // 环境段关闭时不取 Git 状态
+        return;
     const QString workdir = m_workdir.trimmed();
     if (workdir.isEmpty())
         return;

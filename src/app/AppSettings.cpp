@@ -117,6 +117,7 @@ void AppSettings::reset()
     m_providers = {defaultProvider()};
     m_activeProvider = 0;
     m_systemPrompt = QString();
+    m_environmentPrompt = true;
     m_mcpServers.clear();
     m_webSearchEndpoint = QString();
     m_webSearchApiKey = QString();
@@ -206,6 +207,9 @@ void AppSettings::load()
     m_activeProvider = qBound(0, m_activeProvider, m_providers.size() - 1);
 
     m_systemPrompt = readQStr(json, "systemPrompt");
+    if (const auto it = json.find("environmentPrompt");
+        it != json.end() && it->is_boolean())
+        m_environmentPrompt = it->get<bool>();
 
     if (json.contains("mcpServers") && json.at("mcpServers").is_array()) {
         m_mcpServers.clear();
@@ -279,6 +283,7 @@ void AppSettings::save()
     nlohmann::json json = {
         {"activeProvider", m_activeProvider},
         {"systemPrompt", readStd(m_systemPrompt)},
+        {"environmentPrompt", m_environmentPrompt},
         {"webSearchEndpoint", readStd(m_webSearchEndpoint)},
         {"webSearchApiKey", readStd(m_webSearchApiKey)},
         {"language", readStd(m_language)},

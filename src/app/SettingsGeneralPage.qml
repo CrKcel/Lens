@@ -14,6 +14,7 @@ ScrollView {
     property alias webSearchApiKeyField: webSearchApiKeyField
     property alias toolPresetCombo: toolPresetCombo
     property alias systemPromptField: systemPromptField
+    property alias environmentPromptCheck: environmentPromptCheck
 
     contentWidth: availableWidth
     contentHeight: generalContent.implicitHeight
@@ -155,8 +156,24 @@ ScrollView {
 
         SettingsSection {
             Layout.fillWidth: true
+            title: qsTr("环境信息")
+            hint: qsTr("向模型注入运行环境（操作系统、日期、工作文件夹、Git 状态）")
+
+            SettingsRow {
+                Layout.fillWidth: true
+                label: qsTr("注入环境提示词")
+                ToggleSwitch {
+                    id: environmentPromptCheck
+                    checked: true
+                    onToggled: if (!generalPage.view.loadingFields) generalPage.view.commitSettings()
+                }
+            }
+        }
+
+        SettingsSection {
+            Layout.fillWidth: true
             title: qsTr("系统提示词")
-            hint: qsTr("作为身份提示词，未填时使用内置")
+            hint: qsTr("留空则不注入任何系统提示词")
 
             TextArea {
                 id: systemPromptField

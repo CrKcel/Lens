@@ -109,6 +109,7 @@ ColumnLayout {
                                     settingsRoot.providerMapFromFields())
         }
         settings.systemPrompt = generalPage.systemPromptField.text
+        settings.environmentPrompt = generalPage.environmentPromptCheck.checked
         settings.webSearchEndpoint = generalPage.webSearchEndpointField.text
         settings.webSearchApiKey = generalPage.webSearchApiKeyField.text
         settings.language = language
@@ -369,6 +370,7 @@ ColumnLayout {
         settingsRoot.mcpSelected = 0
         settingsRoot.loadMcpFields()
         generalPage.systemPromptField.text = settings.systemPrompt
+        generalPage.environmentPromptCheck.checked = settings.environmentPrompt
         generalPage.languageCombo.currentIndex =
             generalPage.languageCombo.indexOfValue(settings.language)
         appearancePage.themeCombo.currentIndex =
@@ -459,7 +461,7 @@ ColumnLayout {
             : settingsRoot.settingsCategory === "skills" ? qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("配置消息的发送方式")
             : settingsRoot.settingsCategory === "appearance" ? qsTr("主题、配色与阅读体验")
-            : qsTr("语言、联网搜索与系统提示词")
+            : qsTr("语言、联网搜索、环境信息与系统提示词")
     }
 
     // ── 常规：语言 / 联网搜索 / 内置工具 / 系统提示词 ─────────

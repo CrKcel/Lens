@@ -32,6 +32,7 @@ qt_add_qml_module(lens
         LensComboBox.qml
         NavButton.qml
         SettingFieldBg.qml
+        ToggleSwitch.qml
         SettingsView.qml
         SettingsPageHeader.qml
         SettingsSection.qml

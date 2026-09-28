@@ -60,6 +60,7 @@ class AppSettings : public QObject
     Q_PROPERTY(QString protocol READ protocol WRITE setProtocol NOTIFY settingsChanged)
     Q_PROPERTY(bool serverSearch READ serverSearch WRITE setServerSearch NOTIFY settingsChanged)
     Q_PROPERTY(QString systemPrompt READ systemPrompt WRITE setSystemPrompt NOTIFY settingsChanged)
+    Q_PROPERTY(bool environmentPrompt READ environmentPrompt WRITE setEnvironmentPrompt NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList providers READ providers NOTIFY settingsChanged)
     Q_PROPERTY(int activeProvider READ activeProvider WRITE setActiveProvider NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList mcpServers READ mcpServers NOTIFY settingsChanged)
@@ -90,6 +91,9 @@ public:
     void setProtocol(const QString &value);
     void setServerSearch(bool value);
     void setSystemPrompt(const QString &value) { m_systemPrompt = value; emit settingsChanged(); }
+    // 环境信息段（操作系统/日期/工作文件夹/Git）注入开关
+    bool environmentPrompt() const { return m_environmentPrompt; }
+    void setEnvironmentPrompt(bool value) { m_environmentPrompt = value; emit settingsChanged(); }
 
     ProviderConfig activeProviderConfig() const;
     QVariantList providers() const;
@@ -149,6 +153,7 @@ private:
     QVector<ProviderConfig> m_providers;
     int m_activeProvider = 0;
     QString m_systemPrompt;
+    bool m_environmentPrompt = true;
     QList<McpServerConfig> m_mcpServers;
     QString m_webSearchEndpoint;
     QString m_webSearchApiKey;
