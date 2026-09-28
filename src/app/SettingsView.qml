@@ -126,9 +126,8 @@ ColumnLayout {
             settingsRoot.loadSettingsIntoFields() // retranslate 重置了下拉框，重新回填
     }
 
-    // 表单字段 → 供应商配置 map。commitSettings（更新当前编辑项）与
-    // addProviderFromFields（复制为新项）共用，新增供应商字段只改这里，
-    // 避免两处拼装漂移
+    // 表单字段 → 供应商配置 map，commitSettings（更新当前编辑项）使用；
+    // 新增供应商不经过这里（空参数起步，缺省项由 AppSettings 补默认值）
     function providerMapFromFields() {
         return { "name": providersPage.providerNameField.text,
                  "protocol": providersPage.protocolCombo.currentValue,
@@ -156,10 +155,11 @@ ColumnLayout {
     }
 
     function addProviderFromFields(name) {
-        settingsRoot.flushModelFields()
-        const provider = settingsRoot.providerMapFromFields()
-        provider.name = name
-        settings.addProvider(provider) // 新增项即成为激活供应商
+        // 先把表单待提交改动写回当前供应商（同 switchProvider）：新增项即成为
+        // 激活供应商，漏掉这步未落地的防抖提交会在 reload 后写进新供应商
+        settingsRoot.commitSettings()
+        // 新供应商空参数起步，只给名字；协议/计费等缺省项由 AppSettings 补默认值
+        settings.addProvider({ "name": name })
         settingsRoot.loadSettingsIntoFields()
         settings.save()
     }

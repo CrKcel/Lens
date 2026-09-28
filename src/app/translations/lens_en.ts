@@ -982,17 +982,17 @@ The first message creates a conversation automatically.</translation>
         <translation>Inject the running environment (OS, date, working folder, Git status) into the model</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="168"/>
+        <location filename="../SettingsGeneralPage.qml" line="164"/>
         <source>注入环境提示词</source>
         <translation>Inject environment prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="179"/>
+        <location filename="../SettingsGeneralPage.qml" line="175"/>
         <source>系统提示词</source>
         <translation>System Prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="180"/>
+        <location filename="../SettingsGeneralPage.qml" line="176"/>
         <source>留空则不注入任何系统提示词</source>
         <translation>Leave empty to inject no system prompt at all</translation>
     </message>
@@ -1078,9 +1078,13 @@ The first message creates a conversation automatically.</translation>
         <translation>＋</translation>
     </message>
     <message>
-        <location filename="../SettingsProvidersPage.qml" line="86"/>
         <source>新增供应商（复制当前配置）</source>
-        <translation>Add provider (copies current settings)</translation>
+        <translation type="vanished">Add provider (copies current settings)</translation>
+    </message>
+    <message>
+        <location filename="../SettingsProvidersPage.qml" line="86"/>
+        <source>新增供应商</source>
+        <translation>Add provider</translation>
     </message>
     <message>
         <location filename="../SettingsProvidersPage.qml" line="88"/>

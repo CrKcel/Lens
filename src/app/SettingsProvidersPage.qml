@@ -83,7 +83,7 @@ ScrollView {
                 GhostButton {
                     text: qsTr("＋")
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("新增供应商（复制当前配置）")
+                    ToolTip.text: qsTr("新增供应商")
                     onClicked: providersPage.view.addProviderFromFields(
                                    qsTr("供应商%1").arg(settings.providers.length + 1))
                 }
