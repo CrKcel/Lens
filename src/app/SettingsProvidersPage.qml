@@ -112,7 +112,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -161,7 +161,7 @@ ScrollView {
                     Layout.fillWidth: true
                     color: theme.text
                     selectByMouse: true
-                    background: SettingFieldBg
+                    background: SettingFieldBg {}
                     onTextEdited: providersPage.view.scheduleCommit()
                 }
             }
@@ -174,7 +174,7 @@ ScrollView {
                     echoMode: TextInput.Password
                     color: theme.text
                     selectByMouse: true
-                    background: SettingFieldBg
+                    background: SettingFieldBg {}
                     onTextEdited: providersPage.view.scheduleCommit()
                 }
             }
@@ -224,7 +224,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -237,7 +237,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -253,7 +253,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         inputMethodHints: Qt.ImhDigitsOnly
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
@@ -266,7 +266,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         inputMethodHints: Qt.ImhDigitsOnly
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
@@ -338,7 +338,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -351,7 +351,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }
@@ -364,7 +364,7 @@ ScrollView {
                         Layout.fillWidth: true
                         color: theme.text
                         selectByMouse: true
-                        background: SettingFieldBg
+                        background: SettingFieldBg {}
                         onTextEdited: providersPage.view.scheduleCommit()
                     }
                 }

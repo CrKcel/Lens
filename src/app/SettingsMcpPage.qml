@@ -102,7 +102,7 @@ RowLayout {
                 Layout.fillWidth: true
                 color: theme.text
                 selectByMouse: true
-                background: SettingFieldBg
+                background: SettingFieldBg {}
                 onTextEdited: mcpPage.view.scheduleCommit()
             }
         }
@@ -115,7 +115,7 @@ RowLayout {
                 Layout.fillWidth: true
                 color: theme.text
                 selectByMouse: true
-                background: SettingFieldBg
+                background: SettingFieldBg {}
                 onTextEdited: mcpPage.view.scheduleCommit()
             }
         }
@@ -131,7 +131,7 @@ RowLayout {
                 font.family: "monospace"
                 font.pixelSize: Math.round(11 * settings.fontScale)
                 color: theme.text
-                background: SettingFieldBg
+                background: SettingFieldBg {}
                 onTextEdited: mcpPage.view.scheduleCommit()
             }
         }

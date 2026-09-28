@@ -65,7 +65,7 @@ ScrollView {
                     placeholderText: qsTr("搜索端点")
                     color: theme.text
                     selectByMouse: true
-                    background: SettingFieldBg
+                    background: SettingFieldBg {}
                     onTextEdited: generalPage.view.scheduleCommit()
                 }
             }
@@ -79,7 +79,7 @@ ScrollView {
                     echoMode: TextInput.Password
                     color: theme.text
                     selectByMouse: true
-                    background: SettingFieldBg
+                    background: SettingFieldBg {}
                     onTextEdited: generalPage.view.scheduleCommit()
                 }
             }
@@ -164,7 +164,7 @@ ScrollView {
                 Layout.preferredHeight: Math.round(160 * settings.fontScale)
                 wrapMode: TextArea.Wrap
                 color: theme.text
-                background: SettingFieldBg
+                background: SettingFieldBg {}
                 onTextEdited: generalPage.view.scheduleCommit()
             }
         }
