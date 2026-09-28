@@ -24,7 +24,6 @@ add_library(lens_core STATIC
     include/lens/core/tools/builtins/EditTool.hpp
     include/lens/core/tools/builtins/ReadTool.hpp
     include/lens/core/tools/builtins/WriteTool.hpp
-    include/lens/core/tools/builtins/WebSearchTool.hpp
     src/AgentSession.cpp
     src/BashTool.cpp
     src/QNetworkTransport.cpp
@@ -34,7 +33,6 @@ add_library(lens_core STATIC
     src/ResponsesClient.cpp
     src/ModelListClient.cpp
     src/McpClient.cpp
-    src/WebSearchTool.cpp
     src/SessionStore.cpp
 )
 add_library(Lens::Core ALIAS lens_core)

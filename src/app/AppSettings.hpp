@@ -64,8 +64,6 @@ class AppSettings : public QObject
     Q_PROPERTY(QVariantList providers READ providers NOTIFY settingsChanged)
     Q_PROPERTY(int activeProvider READ activeProvider WRITE setActiveProvider NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList mcpServers READ mcpServers NOTIFY settingsChanged)
-    Q_PROPERTY(QString webSearchEndpoint READ webSearchEndpoint WRITE setWebSearchEndpoint NOTIFY settingsChanged)
-    Q_PROPERTY(QString webSearchApiKey READ webSearchApiKey WRITE setWebSearchApiKey NOTIFY settingsChanged)
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY settingsChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY settingsChanged)
     Q_PROPERTY(QVariantMap colorOverrides READ colorOverrides NOTIFY settingsChanged)
@@ -109,11 +107,6 @@ public:
     QVariantList mcpServers() const;
     Q_INVOKABLE void setMcpServers(const QVariantList &servers);
 
-    QString webSearchEndpoint() const { return m_webSearchEndpoint; }
-    QString webSearchApiKey() const { return m_webSearchApiKey; }
-    void setWebSearchEndpoint(const QString &value) { m_webSearchEndpoint = value; emit settingsChanged(); }
-    void setWebSearchApiKey(const QString &value) { m_webSearchApiKey = value; emit settingsChanged(); }
-
     QString language() const { return m_language; }
     void setLanguage(const QString &value);
     QString theme() const { return m_theme; }
@@ -131,7 +124,7 @@ public:
     QString sendShortcut() const { return m_sendShortcut; }
     void setSendShortcut(const QString &value);
 
-    // 内置工具预设：chat（仅 web_search）/ read_only（read + web_search）/
+    // 内置工具预设：chat（不启用内置工具）/ read_only（仅 read）/
     // full（全部，默认）/ custom（customTools 清单里列出的工具）
     QString toolPreset() const { return m_toolPreset; }
     void setToolPreset(const QString &value);
@@ -155,8 +148,6 @@ private:
     QString m_systemPrompt;
     bool m_environmentPrompt = true;
     QList<McpServerConfig> m_mcpServers;
-    QString m_webSearchEndpoint;
-    QString m_webSearchApiKey;
     QString m_language = QStringLiteral("system");   // system | zh | en
     QString m_theme = QStringLiteral("system");      // system | dark | light
     QVariantMap m_colorOverrides; // Theme.qml 调色板覆盖，按深/浅主题分组

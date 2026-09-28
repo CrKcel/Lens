@@ -69,7 +69,6 @@ struct RequestFeatures {
     // 服务端联网搜索：模型侧直接联网检索，不经过本地工具往返。
     // 映射：chat completions → web_search_options；anthropic →
     // web_search_20250305 服务端工具；responses → {"type":"web_search"} 内建工具。
-    // 开启时调用方不应再下发本地 web_search 工具（见 AgentSession 的过滤）。
     bool serverSideSearch = false;
     // 思考模式强度，映射见 ThinkingLevel 注释；Disabled 时请求体不携带思考参数
     ThinkingLevel thinking = ThinkingLevel::Disabled;

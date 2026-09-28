@@ -23,7 +23,6 @@
 #include <lens/core/tools/builtins/BashTool.hpp>
 #include <lens/core/tools/builtins/EditTool.hpp>
 #include <lens/core/tools/builtins/ReadTool.hpp>
-#include <lens/core/tools/builtins/WebSearchTool.hpp>
 #include <lens/core/tools/builtins/WriteTool.hpp>
 
 namespace lens {
@@ -73,26 +72,17 @@ void ChatController::registerBuiltinTools()
     registerBuiltin(std::make_shared<WriteTool>());
     registerBuiltin(std::make_shared<EditTool>());
     registerBuiltin(std::make_shared<BashTool>());
-    const auto search = std::make_shared<WebSearchTool>();
-    search->setConfig(m_settings->webSearchEndpoint(), m_settings->webSearchApiKey());
-    m_webSearchTool = search;
-    registerBuiltin(search);
 }
 
-// 预设语义：full 全部启用；chat 仅 web_search；read_only 仅 read + web_search；
-// custom 取 customTools 清单。MCP 工具不受预设影响，始终启用
+// 预设语义：full 全部启用；chat 不启用任何内置工具（纯对话）；
+// read_only 仅 read；custom 取 customTools 清单。MCP 工具不受预设影响，
+// 始终启用。联网搜索是供应商能力（服务端搜索），不在此列
 void ChatController::applyToolSettings()
 {
-    // 搜索端点/密钥属工具配置，保存后立即生效（注册时只初始化一次）
-    m_webSearchTool->setConfig(m_settings->webSearchEndpoint(),
-                               m_settings->webSearchApiKey());
     const QString preset = m_settings->toolPreset();
     QSet<QString> enabled;
-    if (preset == QLatin1String("chat")) {
-        enabled.insert(QStringLiteral("web_search"));
-    } else if (preset == QLatin1String("read_only")) {
+    if (preset == QLatin1String("read_only")) {
         enabled.insert(QStringLiteral("read"));
-        enabled.insert(QStringLiteral("web_search"));
     } else if (preset == QLatin1String("custom")) {
         const QVariantList customTools = m_settings->customTools();
         for (const QVariant &entry : customTools)

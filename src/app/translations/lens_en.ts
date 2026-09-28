@@ -890,109 +890,116 @@ The first message creates a conversation automatically.</translation>
 <context>
     <name>SettingsGeneralPage</name>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="35"/>
+        <location filename="../SettingsGeneralPage.qml" line="33"/>
         <source>语言</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="39"/>
+        <location filename="../SettingsGeneralPage.qml" line="37"/>
         <source>界面语言</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="47"/>
+        <location filename="../SettingsGeneralPage.qml" line="45"/>
         <source>跟随系统</source>
         <translation>Follow system</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="48"/>
+        <location filename="../SettingsGeneralPage.qml" line="46"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="49"/>
+        <location filename="../SettingsGeneralPage.qml" line="47"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="57"/>
         <source>联网搜索</source>
-        <translation>Web Search</translation>
+        <translation type="vanished">Web Search</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="58"/>
         <source>web_search 搜索接口（Tavily 兼容，留空则不启用）</source>
-        <translation>web_search endpoint (Tavily-compatible, leave empty to disable)</translation>
+        <translation type="vanished">web_search endpoint (Tavily-compatible, leave empty to disable)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="62"/>
-        <location filename="../SettingsGeneralPage.qml" line="66"/>
         <source>搜索端点</source>
-        <translation>Search endpoint</translation>
+        <translation type="vanished">Search endpoint</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="75"/>
-        <location filename="../SettingsGeneralPage.qml" line="79"/>
         <source>密钥</source>
-        <translation>API key</translation>
+        <translation type="vanished">API key</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="91"/>
+        <location filename="../SettingsGeneralPage.qml" line="55"/>
         <source>内置工具</source>
         <translation>Built-in tools</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="95"/>
+        <location filename="../SettingsGeneralPage.qml" line="56"/>
+        <source>联网搜索由供应商的服务端搜索能力提供，在模型提供商页按供应商开启</source>
+        <translation>Web search is provided by the provider&apos;s server-side search capability; enable it per provider on the Model Providers page</translation>
+    </message>
+    <message>
+        <location filename="../SettingsGeneralPage.qml" line="60"/>
         <source>预设</source>
         <translation>Preset</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="102"/>
+        <location filename="../SettingsGeneralPage.qml" line="67"/>
         <source>完整（全部工具）</source>
         <translation>Full (all tools)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="103"/>
         <source>对话（仅搜索）</source>
-        <translation>Chat (search only)</translation>
+        <translation type="vanished">Chat (search only)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="104"/>
         <source>只读（read + 搜索）</source>
-        <translation>Read-only (read + search)</translation>
+        <translation type="vanished">Read-only (read + search)</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="105"/>
+        <location filename="../SettingsGeneralPage.qml" line="68"/>
+        <source>对话（无内置工具）</source>
+        <translation>Chat (no built-in tools)</translation>
+    </message>
+    <message>
+        <location filename="../SettingsGeneralPage.qml" line="69"/>
+        <source>只读（仅 read）</source>
+        <translation>Read-only (read only)</translation>
+    </message>
+    <message>
+        <location filename="../SettingsGeneralPage.qml" line="70"/>
         <source>自定义</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="119"/>
+        <location filename="../SettingsGeneralPage.qml" line="84"/>
         <source>禁用后的工具不进入上下文，模型无法调用</source>
         <translation>Disabled tools are kept out of the context and cannot be called by the model</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="159"/>
+        <location filename="../SettingsGeneralPage.qml" line="124"/>
         <source>环境信息</source>
         <translation>Environment</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="160"/>
+        <location filename="../SettingsGeneralPage.qml" line="125"/>
         <source>向模型注入运行环境（操作系统、日期、工作文件夹、Git 状态）</source>
         <translation>Inject the running environment (OS, date, working folder, Git status) into the model</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="164"/>
+        <location filename="../SettingsGeneralPage.qml" line="129"/>
         <source>注入环境提示词</source>
         <translation>Inject environment prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="175"/>
+        <location filename="../SettingsGeneralPage.qml" line="140"/>
         <source>系统提示词</source>
         <translation>System Prompt</translation>
     </message>
     <message>
-        <location filename="../SettingsGeneralPage.qml" line="176"/>
+        <location filename="../SettingsGeneralPage.qml" line="141"/>
         <source>留空则不注入任何系统提示词</source>
         <translation>Leave empty to inject no system prompt at all</translation>
     </message>
@@ -1342,12 +1349,12 @@ The first message creates a conversation automatically.</translation>
 <context>
     <name>SettingsView</name>
     <message>
-        <location filename="../SettingsView.qml" line="211"/>
+        <location filename="../SettingsView.qml" line="209"/>
         <source>新服务器</source>
         <translation>New server</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="415"/>
+        <location filename="../SettingsView.qml" line="411"/>
         <source>表单已改动，结果未应用</source>
         <translation>Form changed; result not applied</translation>
     </message>
@@ -1356,61 +1363,65 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Fetched %1 models</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="438"/>
+        <location filename="../SettingsView.qml" line="434"/>
         <source>获取失败：%1</source>
         <translation>Fetch failed: %1</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="453"/>
+        <location filename="../SettingsView.qml" line="449"/>
         <source>模型提供商</source>
         <translation>Model Providers</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="454"/>
+        <location filename="../SettingsView.qml" line="450"/>
         <source>MCP</source>
         <translation>MCP</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="455"/>
+        <location filename="../SettingsView.qml" line="451"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="456"/>
+        <location filename="../SettingsView.qml" line="452"/>
         <source>快捷键</source>
         <translation>Shortcuts</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="458"/>
+        <location filename="../SettingsView.qml" line="454"/>
         <source>常规</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="459"/>
+        <location filename="../SettingsView.qml" line="455"/>
         <source>管理模型供应商与接入参数</source>
         <translation>Manage model providers and connection settings</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="460"/>
+        <location filename="../SettingsView.qml" line="456"/>
         <source>经 stdio 连接 Model Context Protocol 服务器</source>
         <translation>Connect Model Context Protocol servers over stdio</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="462"/>
+        <location filename="../SettingsView.qml" line="458"/>
         <source>配置消息的发送方式</source>
         <translation>Configure how messages are sent</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="464"/>
+        <location filename="../SettingsView.qml" line="460"/>
+        <source>语言、内置工具、环境信息与系统提示词</source>
+        <translation>Language, built-in tools, environment info and system prompt</translation>
+    </message>
+    <message>
         <source>语言、联网搜索、环境信息与系统提示词</source>
-        <translation>Language, web search, environment and system prompt</translation>
+        <translation type="vanished">Language, web search, environment and system prompt</translation>
     </message>
     <message>
         <source>语言、主题与阅读体验</source>
         <translation type="vanished">Language, theme and reading experience</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="457"/>
+        <location filename="../SettingsView.qml" line="453"/>
         <source>外观</source>
         <translation>Appearance</translation>
     </message>
@@ -1591,7 +1602,7 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">Divider</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="463"/>
+        <location filename="../SettingsView.qml" line="459"/>
         <source>主题、配色与阅读体验</source>
         <translation>Theme, accent color and reading experience</translation>
     </message>
@@ -1896,12 +1907,12 @@ The first message creates a conversation automatically.</translation>
         <translation type="vanished">&#x3000;[%1]</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="461"/>
+        <location filename="../SettingsView.qml" line="457"/>
         <source>技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取</source>
         <translation>Skills come from SKILL.md files and are discovered automatically; agents read the content on demand</translation>
     </message>
     <message>
-        <location filename="../SettingsView.qml" line="432"/>
+        <location filename="../SettingsView.qml" line="428"/>
         <source>已获取 %1 个模型（新增 %2 个）</source>
         <translation>Fetched %1 models (%2 new)</translation>
     </message>

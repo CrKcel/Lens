@@ -5,8 +5,6 @@
 #include <QTimer>
 #include <QUrl>
 
-#include <algorithm>
-
 namespace lens {
 
 AgentSession::AgentSession(std::unique_ptr<ITransport> transport, ToolRegistry *registry,
@@ -80,15 +78,6 @@ void AgentSession::startTurn()
     features.maxOutputTokens = m_maxOutputTokens;
     features.images = m_imagesEnabled;
     std::vector<ToolSpec> specs = m_registry->specs();
-    if (m_serverSideSearch) {
-        // 服务端已提供搜索：不下发本地 web_search 工具（冗余，且与 anthropic
-        // 的同名服务端工具冲突）；其余工具不受影响
-        specs.erase(std::remove_if(specs.begin(), specs.end(),
-                                   [](const ToolSpec &spec) {
-                                       return spec.name == QLatin1String("web_search");
-                                   }),
-                    specs.end());
-    }
     request.body = QByteArray::fromStdString(
         m_adapter->buildRequestBody(m_history, m_model, m_systemPrompt, true, specs, features)
             .dump());

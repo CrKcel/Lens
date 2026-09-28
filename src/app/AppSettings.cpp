@@ -119,8 +119,6 @@ void AppSettings::reset()
     m_systemPrompt = QString();
     m_environmentPrompt = true;
     m_mcpServers.clear();
-    m_webSearchEndpoint = QString();
-    m_webSearchApiKey = QString();
     m_toolPreset = QStringLiteral("full");
     m_customTools.clear();
     m_fontScale = 1.0;
@@ -231,8 +229,6 @@ void AppSettings::load()
         }
     }
 
-    m_webSearchEndpoint = readQStr(json, "webSearchEndpoint");
-    m_webSearchApiKey = readQStr(json, "webSearchApiKey");
     m_language = normalizeChoice(readQStr(json, "language"), {"zh", "en"});
     m_theme = normalizeChoice(readQStr(json, "theme"), {"dark", "light"});
     if (json.contains("colorOverrides") && json.at("colorOverrides").is_object()) {
@@ -284,8 +280,6 @@ void AppSettings::save()
         {"activeProvider", m_activeProvider},
         {"systemPrompt", readStd(m_systemPrompt)},
         {"environmentPrompt", m_environmentPrompt},
-        {"webSearchEndpoint", readStd(m_webSearchEndpoint)},
-        {"webSearchApiKey", readStd(m_webSearchApiKey)},
         {"language", readStd(m_language)},
         {"theme", readStd(m_theme)},
         {"fontScale", m_fontScale},

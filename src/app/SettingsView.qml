@@ -110,8 +110,6 @@ ColumnLayout {
         }
         settings.systemPrompt = generalPage.systemPromptField.text
         settings.environmentPrompt = generalPage.environmentPromptCheck.checked
-        settings.webSearchEndpoint = generalPage.webSearchEndpointField.text
-        settings.webSearchApiKey = generalPage.webSearchApiKeyField.text
         settings.language = language
         settings.theme = theme
         settings.fontScale = fontScale
@@ -364,8 +362,6 @@ ColumnLayout {
         settingsRoot.loadModelFields()
         settingsRoot.modelsFetchStatus = ""
         settingsRoot.modelsFetchSnapshot = null
-        generalPage.webSearchEndpointField.text = settings.webSearchEndpoint
-        generalPage.webSearchApiKeyField.text = settings.webSearchApiKey
         settingsRoot.mcpServersWorking = settings.mcpServers
         settingsRoot.mcpSelected = 0
         settingsRoot.loadMcpFields()
@@ -461,10 +457,10 @@ ColumnLayout {
             : settingsRoot.settingsCategory === "skills" ? qsTr("技能来自 SKILL.md，清单自动发现，正文由 Agent 按需读取")
             : settingsRoot.settingsCategory === "shortcuts" ? qsTr("配置消息的发送方式")
             : settingsRoot.settingsCategory === "appearance" ? qsTr("主题、配色与阅读体验")
-            : qsTr("语言、联网搜索、环境信息与系统提示词")
+            : qsTr("语言、内置工具、环境信息与系统提示词")
     }
 
-    // ── 常规：语言 / 联网搜索 / 内置工具 / 系统提示词 ─────────
+    // ── 常规：语言 / 内置工具 / 系统提示词 ───────────────────
     SettingsGeneralPage {
         id: generalPage
         view: settingsRoot

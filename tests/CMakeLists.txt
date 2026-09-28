@@ -54,10 +54,6 @@ target_include_directories(test_mcp_manager PRIVATE ../src/app)
 target_link_libraries(test_mcp_manager PRIVATE Lens::Core Qt6::Gui Qt6::Test)
 add_test(NAME mcp_manager COMMAND test_mcp_manager)
 
-add_executable(test_web_search test_web_search.cpp)
-target_link_libraries(test_web_search PRIVATE Lens::Core Qt6::Test)
-add_test(NAME web_search COMMAND test_web_search)
-
 add_executable(test_model_list test_model_list.cpp)
 target_link_libraries(test_model_list PRIVATE Lens::Core Qt6::Test)
 add_test(NAME model_list COMMAND test_model_list)

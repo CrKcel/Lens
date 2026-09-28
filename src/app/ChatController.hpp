@@ -19,7 +19,6 @@ namespace lens {
 
 class AppSettings;
 class SessionStore;
-class WebSearchTool;
 
 // 上下文检查器的一个分节：提示词从哪来、内容是什么
 struct ContextSectionInfo {
@@ -119,7 +118,6 @@ private:
     QString m_dataDir;
     ToolRegistry m_registry;
     QStringList m_builtinToolNames; // 注册时的内置工具名（bash 工具名随 shell 变化）
-    std::shared_ptr<WebSearchTool> m_webSearchTool; // 保留指针：设置变更后重设端点/密钥
     std::unique_ptr<McpManager> m_mcp;
     std::unique_ptr<UsageTracker> m_usage;
     MessageListModel *m_messageModel;

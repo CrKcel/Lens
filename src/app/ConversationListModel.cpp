@@ -75,8 +75,8 @@ void ConversationListModel::reload()
     QList<Conversation> items = m_filter.trimmed().isEmpty()
                                     ? m_store->conversations()
                                     : m_store->searchConversations(m_filter);
-    // 分组展示须按 workdir 排序（store 按 updated_at 返回）；
-    // 稳定排序保持 store 返回的组内 updated_at 倒序
+    // 分组展示须按 workdir 排序（store 按 updated_at 倒序返回，同一时刻
+    // 打平按 id 倒序）；稳定排序保持 store 返回的组内次序
     std::stable_sort(items.begin(), items.end(),
                      [](const Conversation &a, const Conversation &b) {
                          return a.workdir.compare(b.workdir, Qt::CaseInsensitive) < 0;

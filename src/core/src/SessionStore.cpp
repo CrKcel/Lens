@@ -307,7 +307,7 @@ QList<Conversation> SessionStore::conversations() const
     QSqlQuery query(m_db);
     query.exec(QStringLiteral(
         "SELECT id, title, workdir, created_at, updated_at "
-        "FROM conversations ORDER BY updated_at DESC"));
+        "FROM conversations ORDER BY updated_at DESC, id DESC"));
     while (query.next()) {
         Conversation conversation;
         conversation.id = query.value(0).toLongLong();
@@ -342,7 +342,7 @@ QList<Conversation> SessionStore::searchConversations(const QString &query) cons
         "WHERE c.title LIKE ? ESCAPE '\\' "
         "   OR EXISTS (SELECT 1 FROM messages m "
         "              WHERE m.conversation_id = c.id AND m.content LIKE ? ESCAPE '\\') "
-        "ORDER BY c.updated_at DESC"));
+        "ORDER BY c.updated_at DESC, c.id DESC"));
     stmt.addBindValue(pattern);
     stmt.addBindValue(pattern);
     if (!stmt.exec())

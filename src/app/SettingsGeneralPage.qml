@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// 常规页：语言 / 联网搜索 / 内置工具 / 系统提示词。
+// 常规页：语言 / 内置工具 / 环境信息 / 系统提示词。
 // view 回引 SettingsView（提交链路与工作副本所在），字段经 alias 暴露给提交链路。
 ScrollView {
     id: generalPage
@@ -10,8 +10,6 @@ ScrollView {
     required property var view
 
     property alias languageCombo: languageCombo
-    property alias webSearchEndpointField: webSearchEndpointField
-    property alias webSearchApiKeyField: webSearchApiKeyField
     property alias toolPresetCombo: toolPresetCombo
     property alias systemPromptField: systemPromptField
     property alias environmentPromptCheck: environmentPromptCheck
@@ -54,41 +52,8 @@ ScrollView {
 
         SettingsSection {
             Layout.fillWidth: true
-            title: qsTr("联网搜索")
-            hint: qsTr("web_search 搜索接口（Tavily 兼容，留空则不启用）")
-
-            SettingsField {
-                Layout.fillWidth: true
-                label: qsTr("搜索端点")
-                TextField {
-                    id: webSearchEndpointField
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("搜索端点")
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg {}
-                    onTextEdited: generalPage.view.scheduleCommit()
-                }
-            }
-            SettingsField {
-                Layout.fillWidth: true
-                label: qsTr("密钥")
-                TextField {
-                    id: webSearchApiKeyField
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("密钥")
-                    echoMode: TextInput.Password
-                    color: theme.text
-                    selectByMouse: true
-                    background: SettingFieldBg {}
-                    onTextEdited: generalPage.view.scheduleCommit()
-                }
-            }
-        }
-
-        SettingsSection {
-            Layout.fillWidth: true
             title: qsTr("内置工具")
+            hint: qsTr("联网搜索由供应商的服务端搜索能力提供，在模型提供商页按供应商开启")
 
             SettingsRow {
                 Layout.fillWidth: true
@@ -100,8 +65,8 @@ ScrollView {
                     valueRole: "value"
                     model: [
                         { text: qsTr("完整（全部工具）"), value: "full" },
-                        { text: qsTr("对话（仅搜索）"), value: "chat" },
-                        { text: qsTr("只读（read + 搜索）"), value: "read_only" },
+                        { text: qsTr("对话（无内置工具）"), value: "chat" },
+                        { text: qsTr("只读（仅 read）"), value: "read_only" },
                         { text: qsTr("自定义"), value: "custom" }
                     ]
                     onActivated: {
