@@ -335,6 +335,13 @@ ProviderConfig AppSettings::activeProviderConfig() const
                                                             m_providers.size() - 1));
 }
 
+ProviderConfig AppSettings::providerConfigAt(int index) const
+{
+    if (index < 0 || index >= m_providers.size())
+        return {};
+    return m_providers.at(index);
+}
+
 QString AppSettings::endpoint() const { return activeProviderConfig().endpoint; }
 QString AppSettings::apiKey() const { return activeProviderConfig().apiKey; }
 QString AppSettings::model() const { return activeProviderConfig().model; }

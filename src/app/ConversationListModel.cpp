@@ -29,6 +29,8 @@ QVariant ConversationListModel::data(const QModelIndex &index, int role) const
     case WorkdirRole: return entry.conversation.workdir;
     case IsHeaderRole: return entry.isHeader;
     case GroupCountRole: return entry.isHeader ? entry.groupCount : 0;
+    case StreamingRole:
+        return !entry.isHeader && m_streaming.contains(entry.conversation.id);
     }
     return {};
 }
@@ -39,7 +41,8 @@ QHash<int, QByteArray> ConversationListModel::roleNames() const
             {TitleRole, "title"},
             {WorkdirRole, "workdir"},
             {IsHeaderRole, "isHeader"},
-            {GroupCountRole, "groupCount"}};
+            {GroupCountRole, "groupCount"},
+            {StreamingRole, "streaming"}};
 }
 
 void ConversationListModel::setFilter(const QString &filter)
@@ -66,6 +69,23 @@ bool ConversationListModel::isGroupCollapsed(const QString &workdir) const
 void ConversationListModel::expandGroup(const QString &workdir)
 {
     m_collapsed.remove(workdir);
+}
+
+void ConversationListModel::setStreaming(qint64 conversationId, bool streaming)
+{
+    if (streaming ? m_streaming.contains(conversationId)
+                  : !m_streaming.contains(conversationId))
+        return; // 状态未变
+    if (streaming)
+        m_streaming.insert(conversationId);
+    else
+        m_streaming.remove(conversationId);
+    // 只刷新命中的会话行（组头行不显示角标）
+    for (int row = 0; row < m_entries.size(); ++row) {
+        const Entry &entry = m_entries.at(row);
+        if (!entry.isHeader && entry.conversation.id == conversationId)
+            emit dataChanged(index(row), index(row), {StreamingRole});
+    }
 }
 
 void ConversationListModel::reload()

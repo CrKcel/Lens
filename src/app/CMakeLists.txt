@@ -8,6 +8,10 @@ qt_add_executable(lens
     AppSettings.cpp
     ChatController.hpp
     ChatController.cpp
+    ChatEngine.hpp
+    ChatEngine.cpp
+    ChatSession.hpp
+    ChatSession.cpp
     E2eDriver.hpp
     E2eDriver.cpp
     ConversationListModel.hpp

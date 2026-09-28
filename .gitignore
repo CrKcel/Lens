@@ -19,3 +19,4 @@ compile_commands.json
 .DS_Store
 AGENTS.md
 CLAUDE.md
+doc/TODO.md

@@ -94,6 +94,8 @@ public:
     void setEnvironmentPrompt(bool value) { m_environmentPrompt = value; emit settingsChanged(); }
 
     ProviderConfig activeProviderConfig() const;
+    // 按索引取供应商配置；越界返回空配置（调用方自行处理）
+    ProviderConfig providerConfigAt(int index) const;
     QVariantList providers() const;
     int activeProvider() const { return m_activeProvider; }
     void setActiveProvider(int index);

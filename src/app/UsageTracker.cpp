@@ -17,16 +17,38 @@ UsageTracker::UsageTracker(AppSettings *settings, QObject *parent)
     });
 }
 
+void UsageTracker::setProviderOverride(int providerIndex, const QString &modelId)
+{
+    if (m_overrideIndex == providerIndex && m_overrideModel == modelId)
+        return;
+    m_overrideIndex = providerIndex;
+    m_overrideModel = modelId;
+    if (providerInputsChanged()) {
+        refreshProviderInputs();
+        emit changed();
+    }
+}
+
+ProviderConfig UsageTracker::effectiveProvider() const
+{
+    if (m_overrideIndex < 0)
+        return m_settings->activeProviderConfig();
+    ProviderConfig provider = m_settings->providerConfigAt(m_overrideIndex);
+    if (!m_overrideModel.isEmpty())
+        provider.model = m_overrideModel;
+    return provider;
+}
+
 bool UsageTracker::providerInputsChanged() const
 {
-    const ProviderConfig provider = m_settings->activeProviderConfig();
+    const ProviderConfig provider = effectiveProvider();
     return provider.inputPrice != m_inputPrice || provider.outputPrice != m_outputPrice
         || provider.cachedPrice != m_cachedPrice || provider.model != m_model;
 }
 
 void UsageTracker::refreshProviderInputs()
 {
-    const ProviderConfig provider = m_settings->activeProviderConfig();
+    const ProviderConfig provider = effectiveProvider();
     m_inputPrice = provider.inputPrice;
     m_outputPrice = provider.outputPrice;
     m_cachedPrice = provider.cachedPrice;
@@ -78,7 +100,7 @@ QVariantMap UsageTracker::summary() const
 {
     // 费用（每百万 token）：非缓存输入×输入单价 + 输出×输出单价 + 缓存命中×缓存单价，
     // 缓存单价未配置（0）时缓存部分按输入单价计。缓存命中是输入的子集，需先扣除
-    const ProviderConfig provider = m_settings->activeProviderConfig();
+    const ProviderConfig provider = effectiveProvider();
     const bool hasCost =
         provider.inputPrice > 0.0 || provider.outputPrice > 0.0 || provider.cachedPrice > 0.0;
     const double cachedPrice =

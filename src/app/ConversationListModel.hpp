@@ -25,6 +25,7 @@ public:
         WorkdirRole,
         IsHeaderRole,
         GroupCountRole, // 仅组头行：组内会话数
+        StreamingRole,  // 仅会话行：该会话是否正在后台/前台生成
     };
 
     explicit ConversationListModel(SessionStore *store, QObject *parent = nullptr);
@@ -46,6 +47,9 @@ public:
     // 展开分组（无副作用可重复调用）：新建会话落入折叠组时保持可见
     void expandGroup(const QString &workdir);
 
+    // 生成中角标：ChatEngine 的流式广播逐会话更新（窗口切走/关闭不中断）
+    void setStreaming(qint64 conversationId, bool streaming);
+
 signals:
     void filterChanged();
 
@@ -60,6 +64,7 @@ private:
     SessionStore *m_store;
     QString m_filter;
     QSet<QString> m_collapsed;
+    QSet<qint64> m_streaming;
     QList<Entry> m_entries;
 };
 

@@ -132,6 +132,32 @@ Rectangle {
             onClicked: chat.newConversation(sidebarRoot.workdirText)
         }
 
+        // 新建窗口：多窗口并行——每个窗口独立绑定会话，生成互不阻塞
+        Button {
+            id: newWindowButton
+            visible: !sidebarRoot.collapsed && !sidebarRoot.settingsMode
+            Layout.fillWidth: true
+            implicitHeight: 32
+            font.pixelSize: Math.round(12 * settings.fontScale)
+            text: qsTr("❐ 新窗口（Ctrl+Shift+N）")
+            background: Rectangle {
+                radius: theme.radiusS
+                color: newWindowButton.down ? theme.accentSoft
+                     : newWindowButton.hovered ? theme.highlight
+                     : "transparent"
+                border.color: theme.fieldBorder
+            }
+            contentItem: Label {
+                text: newWindowButton.text
+                font: newWindowButton.font
+                color: theme.textSoft
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+            onClicked: chat.newWindow()
+        }
+
         // 会话搜索：按标题或消息内容过滤会话列表（即时生效）
         TextField {
             id: searchField
@@ -240,6 +266,7 @@ Rectangle {
                 required property int groupCount
                 required property string title
                 required property int conversationId
+                required property bool streaming
 
                 ItemDelegate {
                     id: groupHeader
@@ -286,6 +313,7 @@ Rectangle {
                     visible: !delegateRoot.isHeader
                     x: conversationList.groupIndent
                     width: parent.width - conversationList.groupIndent
+                    hoverEnabled: true
                     highlighted: chat.currentConversationId === delegateRoot.conversationId
                     onClicked: chat.openConversation(delegateRoot.conversationId)
 
@@ -298,12 +326,35 @@ Rectangle {
 
                     contentItem: RowLayout {
                         spacing: 4
+                        // 后台生成中角标：该会话正在生成（哪怕窗口不在前台看它）
+                        Rectangle {
+                            visible: delegateRoot.streaming
+                            Layout.preferredWidth: 8
+                            Layout.preferredHeight: 8
+                            radius: 4
+                            color: theme.accent
+                            SequentialAnimation on opacity {
+                                running: delegateRoot.streaming
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.3; duration: 700; easing.type: Easing.InOutQuad }
+                                NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
+                            }
+                        }
                         Label {
                             Layout.fillWidth: true
                             text: delegateRoot.title
                             color: conversationRow.highlighted ? theme.accent : theme.text
                             elide: Text.ElideRight
                             font.pixelSize: Math.round(13 * settings.fontScale)
+                        }
+                        ToolButton {
+                            text: qsTr("❐")
+                            visible: conversationRow.hovered
+                            flat: true
+                            display: AbstractButton.TextOnly
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("在新窗口打开")
+                            onClicked: chat.openConversationInNewWindow(delegateRoot.conversationId)
                         }
                         ToolButton {
                             text: qsTr("×")

@@ -20,6 +20,10 @@ public:
 
     // 会话切换 / 清空 / 删除时归零
     void reset();
+    // 会话级模型覆盖（与 ChatSession::setModelOverride 同步）：计价与上下文
+    // 窗口展示按覆盖的供应商/模型算，-1 清除回退全局激活供应商
+    void setProviderOverride(int providerIndex, const QString &modelId);
+    void clearProviderOverride() { setProviderOverride(-1, {}); }
     // 会话载入：清空后累加整段历史，结束统一发一次 changed——即使没有任何有效
     // 用量也要通知，否则界面会留着上一会话的残留显示
     void loadFrom(const QList<Message> &history);
@@ -33,12 +37,16 @@ signals:
 
 private:
     void accumulate(const TokenUsage &usage);
-    // 费用/上下文窗口展示依赖的激活供应商数据（单价 + 当前模型）是否变化；
+    // 计价基准：会话覆盖优先，否则全局激活供应商
+    ProviderConfig effectiveProvider() const;
+    // 费用/上下文窗口展示依赖的供应商数据（单价 + 当前模型）是否变化；
     // settingsChanged 是全域广播（改主题、语言也会发），此处过滤掉无关改动
     bool providerInputsChanged() const;
     void refreshProviderInputs();
 
     AppSettings *m_settings;
+    int m_overrideIndex = -1;
+    QString m_overrideModel;
     double m_inputPrice = 0.0;
     double m_outputPrice = 0.0;
     double m_cachedPrice = 0.0;

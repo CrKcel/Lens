@@ -124,6 +124,9 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         const QString workdir = qEnvironmentVariable("LENS_E2E_WORKDIR");
         if (!workdir.isEmpty())
             chat->newConversation(workdir);
+        // LENS_E2E_NEWWINDOW：走真实 UI 路径开一个新窗口（多窗口冒烟）
+        if (!qEnvironmentVariableIsEmpty("LENS_E2E_NEWWINDOW"))
+            chat->newWindow();
         QObject *input = root->findChild<QObject *>(QStringLiteral("chatInput"));
         if (input) {
             input->setProperty("text", message);
@@ -139,7 +142,9 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
         });
     });
 
-    // streaming true→false 即回合结束，导出报告
+    // streaming true→false 即回合结束，导出报告。多会话下窗口重绑会话也会
+    // 发 streamingChanged（值 false、无对应回合）：只有先见过 true 才算回合开始。
+    // 连接存的是 lambda 拷贝（runE2e 返回后仍执行），状态必须按值捕获
     auto dumpOnce = [chat, &engine]() {
         if (chat->streaming())
             return;
@@ -148,7 +153,15 @@ void runE2e(QQmlApplicationEngine &engine, ChatController *chat, AppSettings *se
             QCoreApplication::exit(0);
         });
     };
-    QObject::connect(chat, &ChatController::streamingChanged, dumpOnce);
+    QObject::connect(chat, &ChatController::streamingChanged, chat,
+                     [chat, &engine, dumpOnce, sawStreaming = false]() mutable {
+                         if (chat->streaming()) {
+                             sawStreaming = true;
+                             return;
+                         }
+                         if (sawStreaming)
+                             dumpOnce();
+                     });
 
     // 整体超时保护：同样导出完整状态，用于区分“没发出去”与“发出后挂住”
     QTimer::singleShot(240000, chat, [chat, &engine] {

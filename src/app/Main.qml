@@ -53,10 +53,18 @@ ApplicationWindow {
     }
 
     Shortcut {
-        // StandardKey.New 在部分平台映射多个键序，sequence 只绑第一个会告警
+        // StandardKey.New 在部分平台映射多个键序，sequence 只绑第一个会告警。
+        // context 用 WindowShortcut：多窗口下只有活动窗口响应
+        // （ApplicationShortcut 会让各窗口的同键序实例竞争，行为不可预期）
         sequences: [StandardKey.New]
-        context: Qt.ApplicationShortcut
+        context: Qt.WindowShortcut
         onActivated: chat.newConversation(sidebar.workdirText)
+    }
+    Shortcut {
+        // 新窗口：每窗口 facade 的 newWindow → ChatEngine.createWindow
+        sequences: ["Ctrl+Shift+N"]
+        context: Qt.WindowShortcut
+        onActivated: chat.newWindow()
     }
 
     property bool settingsMode: false

@@ -562,7 +562,7 @@ ColumnLayout {
         }
         // 合并按钮：模型 + 思考强度。文字指示当前模型与思考档位，点击弹出自绘
         // 弹层：上半是按供应商分组的模型清单，下半是思考强度滑块。
-        // 选中模型经 chat.selectModel 切换并持久化；下一次发送生效
+        // 选中模型写本窗口会话的模型覆盖（不落盘），下一次发送生效
         AbstractButton {
             id: modelButton
             anchors.right: sendButton.left
@@ -572,9 +572,10 @@ ColumnLayout {
             implicitHeight: 36
             // 文本宽度用 TextMetrics 度量：elide 的 Label 的 implicitWidth 依赖
             // 自身 width，直接引用会成绑定环
-            // 模型文字用显示名（设置里可配）：解析逻辑在 ChatController.modelDisplayName
+            // 模型文字用显示名（设置里可配）：生效模型是本窗口会话的覆盖，
+            // 未覆盖跟随全局激活供应商——解析逻辑在 ChatController.modelDisplayName
             readonly property string modelDisplayName:
-                chat.modelDisplayName(settings.activeProvider, settings.model)
+                chat.modelDisplayName(chat.currentProviderIndex, chat.currentModelId)
             readonly property string label: modelDisplayName
                 + (chatRoot.thinkingLevel !== "disabled"
                    ? " · " + chatRoot.thinkingLevelLabel(chatRoot.thinkingLevel) : "")
@@ -651,6 +652,41 @@ ColumnLayout {
                         width: modelsScroll.availableWidth
                         spacing: 0
 
+                        // 会话覆盖生效时提供回退：清除覆盖，恢复跟随全局激活供应商
+                        AbstractButton {
+                            id: followGlobalItem
+                            visible: chat.modelOverridden
+                            Layout.fillWidth: true
+                            implicitHeight: 30
+                            leftPadding: 10
+                            rightPadding: 10
+
+                            background: Rectangle {
+                                radius: theme.radiusS
+                                color: followGlobalItem.pressed ? theme.accentSoft
+                                     : followGlobalItem.hovered ? theme.accentSoft
+                                     : "transparent"
+                            }
+                            contentItem: RowLayout {
+                                spacing: 6
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: qsTr("跟随全局设置")
+                                    color: theme.textDim
+                                    font.pixelSize: Math.round(12 * settings.fontScale)
+                                }
+                                Label {
+                                    text: "✓"
+                                    color: theme.accent
+                                    font.pixelSize: Math.round(12 * settings.fontScale)
+                                }
+                            }
+                            onClicked: {
+                                modelMenu.close()
+                                Qt.callLater(chat.clearModelOverride)
+                            }
+                        }
+
                         Repeater {
                             model: settings.providers
                             delegate: ColumnLayout {
@@ -684,8 +720,8 @@ ColumnLayout {
                                             chat.modelDisplayName(providerSection.providerIndex,
                                                                   modelItem.modelId)
                                         readonly property bool current:
-                                            settings.activeProvider === providerSection.providerIndex
-                                                ? settings.model === modelItem.modelId
+                                            chat.currentProviderIndex === providerSection.providerIndex
+                                                ? chat.currentModelId === modelItem.modelId
                                                 : providerSection.providerData.model === modelItem.modelId
                                         Layout.fillWidth: true
                                         implicitHeight: 30

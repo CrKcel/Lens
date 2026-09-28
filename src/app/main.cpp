@@ -13,6 +13,7 @@
 #include "AppSettings.hpp"
 #include "AppStyle.hpp"
 #include "ChatController.hpp"
+#include "ChatEngine.hpp"
 #include "E2eDriver.hpp"
 #include "TitleBarLayout.hpp"
 #include <lens/core/storage/SessionStore.hpp>
@@ -64,7 +65,10 @@ int main(int argc, char *argv[])
         qWarning() << "Session store unavailable:" << store.lastError();
 
     lens::AppSettings settings(dataDir + QStringLiteral("/settings.json"));
-    lens::ChatController chat(&store, &settings, dataDir);
+    lens::ChatEngine chatEngine(&store, &settings, dataDir);
+    // 首窗口 facade：root context 的 `chat` 指向它；后续窗口由 ChatEngine
+    // createWindow 经子 context 的同名属性创建（多窗口共享一个引擎与会话层）
+    lens::ChatController chat(&chatEngine, &chatEngine);
     lens::appstyle::applyPalette(settings.dark(), settings.colorOverrides());
     lens::appstyle::applyAppFont(settings.fontScale());
 
@@ -73,6 +77,7 @@ int main(int argc, char *argv[])
     QString installedLanguage = settings.language();
 
     QQmlApplicationEngine engine;
+    chatEngine.setQmlEngine(&engine);
     engine.rootContext()->setContextProperty(QStringLiteral("appVersion"),
                                              QGuiApplication::applicationVersion());
     engine.rootContext()->setContextProperty(QStringLiteral("chat"), &chat);

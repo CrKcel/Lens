@@ -19,6 +19,17 @@ add_executable(test_agent_session_events test_agent_session_events.cpp)
 target_link_libraries(test_agent_session_events PRIVATE Lens::Core Qt6::Test)
 add_test(NAME agent_session_events COMMAND test_agent_session_events)
 
+# 多会话并行生成（ChatEngine/ChatSession，假传输）：注册表、并行流式、
+# 后台生成、删除收尾、模型覆盖、流式广播
+add_executable(test_chat_engine test_chat_engine.cpp
+    ../src/app/ChatEngine.cpp ../src/app/ChatSession.cpp ../src/app/ChatController.cpp
+    ../src/app/McpManager.cpp ../src/app/MessageListModel.cpp
+    ../src/app/ConversationListModel.cpp ../src/app/UsageTracker.cpp
+    ../src/app/AppSettings.cpp ../src/app/AppStyle.cpp)
+target_include_directories(test_chat_engine PRIVATE ../src/app)
+target_link_libraries(test_chat_engine PRIVATE Lens::Core Qt6::Qml Qt6::Gui Qt6::Test)
+add_test(NAME chat_engine COMMAND test_chat_engine)
+
 add_executable(test_real_server test_real_server.cpp)
 target_link_libraries(test_real_server PRIVATE Lens::Core Qt6::Test)
 add_test(NAME real_server COMMAND test_real_server)
